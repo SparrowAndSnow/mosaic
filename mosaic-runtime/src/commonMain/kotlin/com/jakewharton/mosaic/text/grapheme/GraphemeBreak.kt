@@ -83,3 +83,13 @@ internal fun inCbClassOf(codepoint: Int): Int {
 	}
 	return INC_OTHER
 }
+
+/** Returns the code point at [index], decoding a high/low surrogate pair when present. */
+internal fun CharSequence.codepointAt(index: Int): Int {
+	val high = this[index]
+	if (high.isHighSurrogate() && index + 1 < length && this[index + 1].isLowSurrogate()) {
+		val low = this[index + 1]
+		return 0x10000 + ((high.code - 0xD800) shl 10) + (low.code - 0xDC00)
+	}
+	return high.code
+}

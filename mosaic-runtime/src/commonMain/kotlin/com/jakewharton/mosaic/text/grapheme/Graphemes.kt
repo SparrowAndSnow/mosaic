@@ -12,7 +12,21 @@ package com.jakewharton.mosaic.text.grapheme
  * never split or partially overwritten.
  */
 public fun CharSequence.graphemeClusters(): Sequence<String> = sequence {
-	if (isEmpty()) return@sequence
+	forEachGraphemeClusterRange { start, end ->
+		yield(substring(start, end))
+	}
+}
+
+/**
+ * Invokes [block] with the `[start, end)` index ranges of every extended grapheme cluster in
+ * this text, in order.
+ *
+ * This is the allocation-free core shared by [graphemeClusters] (which materializes [String]
+ * slices) and cluster-aware measurement such as `graphemeWidth`. Being `inline`, the loop is a
+ * single pass with no per-cluster closure or [String] allocation.
+ */
+internal inline fun CharSequence.forEachGraphemeClusterRange(block: (start: Int, end: Int) -> Unit) {
+	if (isEmpty()) return
 
 	var clusterStart = 0
 	var index = 0
@@ -41,7 +55,7 @@ public fun CharSequence.graphemeClusters(): Sequence<String> = sequence {
 		)
 
 		if (breakBefore) {
-			yield(substring(clusterStart, index))
+			block(clusterStart, index)
 			clusterStart = index
 			extendedPictographicRun = currentIsExtPict
 			runEndsWithZwj = false
@@ -78,7 +92,7 @@ public fun CharSequence.graphemeClusters(): Sequence<String> = sequence {
 		index += charCount
 		first = false
 	}
-	yield(substring(clusterStart, length))
+	block(clusterStart, length)
 }
 
 // Projection states for the GB9c pattern, tracked separately from each code point's own
@@ -141,13 +155,4 @@ private fun shouldBreak(
 	}
 	// GB999: Any ÷ Any
 	return true
-}
-
-private fun CharSequence.codepointAt(index: Int): Int {
-	val high = this[index]
-	if (high.isHighSurrogate() && index + 1 < length && this[index + 1].isLowSurrogate()) {
-		val low = this[index + 1]
-		return 0x10000 + ((high.code - 0xD800) shl 10) + (low.code - 0xDC00)
-	}
-	return high.code
 }

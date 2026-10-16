@@ -1,6 +1,6 @@
 package com.jakewharton.mosaic.text
 
-import com.jakewharton.mosaic.text.unicodewidth.unicodeWidth
+import com.jakewharton.mosaic.text.grapheme.graphemeWidth
 
 internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 
@@ -56,7 +56,7 @@ internal class StringTextLayout : TextLayout<String>(initialValue = "") {
 		return this.split("\n")
 	}
 
-	override fun String.textWidth(): Int = unicodeWidth()
+	override fun String.textWidth(): Int = graphemeWidth()
 }
 
 internal class AnnotatedStringTextLayout :
@@ -68,5 +68,5 @@ internal class AnnotatedStringTextLayout :
 		return this.split("\n")
 	}
 
-	override fun AnnotatedString.textWidth(): Int = text.unicodeWidth()
+	override fun AnnotatedString.textWidth(): Int = text.graphemeWidth()
 }

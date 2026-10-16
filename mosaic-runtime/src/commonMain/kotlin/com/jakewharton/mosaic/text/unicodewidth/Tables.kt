@@ -466,15 +466,20 @@ internal fun widthInStr(c: Int, nextInfoIn: WidthInfo): Pair<Int, WidthInfo> {
     }
 }
 
-internal fun strWidth(s: String): Int {
+/**
+ * Returns the width of `s[from, to)` in columns, running the UAX #11 state machine over that
+ * slice. Operating on a [CharSequence] range lets callers measure each grapheme cluster in place
+ * without allocating a substring per cluster.
+ */
+internal fun strWidth(s: CharSequence, from: Int, to: Int): Int {
     var sum = 0
     var nextInfo = WidthInfo.DEFAULT
-    var i = s.length
-    while (i > 0) {
+    var i = to
+    while (i > from) {
         i--
         val low = s[i]
         val cp: Int =
-            if (low.isLowSurrogate() && i > 0 && s[i - 1].isHighSurrogate()) {
+            if (low.isLowSurrogate() && i > from && s[i - 1].isHighSurrogate()) {
                 i--
                 ((s[i].code - 0xD800) shl 10) + (low.code - 0xDC00) + 0x10000
             } else {
@@ -486,6 +491,8 @@ internal fun strWidth(s: String): Int {
     }
     return sum
 }
+
+internal fun strWidth(s: String): Int = strWidth(s, 0, s.length)
 
 /**
  * Returns the [UAX #11](https://www.unicode.org/reports/tr11/) based width of `c` by
