@@ -18,7 +18,7 @@ internal fun CharSequence.graphemeWidth(): Int {
 	if (isPrintableAscii()) return length
 	var total = 0
 	forEachGraphemeClusterRange { start, end ->
-		total += this.clusterWidth(start, end)
+		total += graphemeClusterWidth(start, end)
 	}
 	return total
 }
@@ -32,8 +32,13 @@ private fun CharSequence.isPrintableAscii(): Boolean {
 	return true
 }
 
-/** Returns the width in columns of the cluster spanning `[from, to)` of this text. */
-private fun CharSequence.clusterWidth(from: Int, to: Int): Int {
+/**
+ * Returns the width in columns of the cluster spanning `[from, to)` of this text.
+ *
+ * This is the single rule both measurement and drawing use, so a synthesized cluster (a ZWJ
+ * emoji family, keycap, flag, or Hangul jamo run) is always measured and drawn the same way.
+ */
+internal fun CharSequence.graphemeClusterWidth(from: Int, to: Int): Int {
 	val width = strWidth(this, from, to)
 	if (width == 1 && charWidth(codepointAt(from)) == 2) return 2
 	return width

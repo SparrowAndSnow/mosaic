@@ -24,8 +24,9 @@ import com.jakewharton.mosaic.UnspecifiedCodePoint
 import com.jakewharton.mosaic.isUnspecifiedCodePoint
 import com.jakewharton.mosaic.text.AnnotatedString
 import com.jakewharton.mosaic.text.SpanStyle
-import com.jakewharton.mosaic.text.charWidth
 import com.jakewharton.mosaic.text.getLocalRawSpanStyles
+import com.jakewharton.mosaic.text.grapheme.forEachGraphemeClusterRange
+import com.jakewharton.mosaic.text.grapheme.graphemeClusterWidth
 import com.jakewharton.mosaic.ui.Color
 import com.jakewharton.mosaic.ui.TextStyle
 import com.jakewharton.mosaic.ui.UnderlineStyle
@@ -37,7 +38,6 @@ import com.jakewharton.mosaic.ui.isUnspecifiedTextStyle
 import com.jakewharton.mosaic.ui.unit.IntOffset
 import com.jakewharton.mosaic.ui.unit.IntSize
 import de.cketti.codepoints.appendCodePoint
-import de.cketti.codepoints.codePointAt
 import kotlin.math.max
 
 public interface DrawScope {
@@ -272,27 +272,22 @@ internal open class TextCanvasDrawScope(
 		underlineColor: Color,
 		spanStylesProvider: ((start: Int, end: Int) -> List<SpanStyle>)?,
 	) {
-		var pixelIndex = 0
 		var characterColumn = column
-		while (pixelIndex < text.length) {
-			val cp = text.codePointAt(pixelIndex)
-			val w = charWidth(cp)
+		text.forEachGraphemeClusterRange { clusterStart, clusterEnd ->
+			// Measure and draw at extended-grapheme-cluster granularity so a synthesized cluster
+			// (ZWJ emoji family, keycap, flag, Hangul jamo run) is written as one unit into its
+			// head cell, with only its continuation cells reserved. This mirrors measurement, so
+			// layout and drawing can never disagree about where a cluster starts or how wide it is.
+			val w = text.graphemeClusterWidth(clusterStart, clusterEnd)
+			val cluster = text.substring(clusterStart, clusterEnd)
 
 			val character = canvas[row, characterColumn]
-
-			val pixelEnd = if (text[pixelIndex].isHighSurrogate()) {
-				pixelIndex + 2
-			} else {
-				pixelIndex + 1
-			}
-
-			val cluster = text.substring(pixelIndex, pixelEnd)
 			character.updateTextPixel(cluster, w, foreground, background, textStyle, underlineStyle, underlineColor)
-			spanStylesProvider?.invoke(pixelIndex, pixelEnd)?.forEach {
+			spanStylesProvider?.invoke(clusterStart, clusterEnd)?.forEach {
 				character.updateTextPixel(character.text, character.width, it.color, it.background, it.textStyle, it.underlineStyle, it.underlineColor)
 			}
 
-			// Mark continuation cells for wide characters (e.g. CJK, fullwidth)
+			// Mark continuation cells for wide clusters (e.g. CJK, fullwidth emoji)
 			if (w > 1) {
 				for (offset in 1 until w) {
 					val continuationCol = characterColumn + offset
@@ -303,7 +298,6 @@ internal open class TextCanvasDrawScope(
 			}
 
 			characterColumn += w
-			pixelIndex = pixelEnd
 		}
 	}
 
