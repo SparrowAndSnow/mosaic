@@ -40,3 +40,5 @@ apache-compress = "org.apache.commons:commons-compress:1.28.0"
 
 junit4 = "junit:junit:4.13.2"
 assertk = "com.willowtreeapps.assertk:assertk:0.28.1"
+
+unicode-width-kotlin = "io.github.kotlinmania:unicode-width-kotlin:0.1.1"

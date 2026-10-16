@@ -1,6 +1,6 @@
 package com.jakewharton.mosaic.text
 
-import de.cketti.codepoints.codePointAt
+import io.github.kotlinmania.unicodewidth.unicodeWidth
 
 internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 
@@ -39,20 +39,13 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 		if (!dirty) return
 
 		val lines = value.splitByLines()
-		width = lines.maxOf { line ->
-			var w = 0
-			var i = 0
-			while (i < line.length) {
-				val cp = line.codePointAt(i)
-				w += charWidth(cp)
-				i += if (line[i].isHighSurrogate()) 2 else 1
-			}
-			w
-		}
+		width = lines.maxOf { it.textWidth() }
 		height = lines.size
 		this.lines = lines
 		dirty = false
 	}
+
+	protected abstract fun T.textWidth(): Int
 
 	protected abstract fun T.splitByLines(): List<T>
 }
@@ -62,6 +55,8 @@ internal class StringTextLayout : TextLayout<String>(initialValue = "") {
 	override fun String.splitByLines(): List<String> {
 		return this.split("\n")
 	}
+
+	override fun String.textWidth(): Int = unicodeWidth()
 }
 
 internal class AnnotatedStringTextLayout :
@@ -72,4 +67,6 @@ internal class AnnotatedStringTextLayout :
 	override fun AnnotatedString.splitByLines(): List<AnnotatedString> {
 		return this.split("\n")
 	}
+
+	override fun AnnotatedString.textWidth(): Int = text.unicodeWidth()
 }

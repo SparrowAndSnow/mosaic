@@ -26,6 +26,7 @@ kotlin {
 				implementation projects.mosaicTtyTerminal
 				implementation libs.androidx.collection
 				implementation libs.codepoints
+				implementation libs.unicode.width.kotlin
 			}
 		}
 		commonTest {
