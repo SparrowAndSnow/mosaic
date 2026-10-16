@@ -21,7 +21,6 @@ package com.jakewharton.mosaic.layout
 import com.jakewharton.mosaic.TextPixel
 import com.jakewharton.mosaic.TextSurface
 import com.jakewharton.mosaic.UnspecifiedCodePoint
-import com.jakewharton.mosaic.isSpecifiedCodePoint
 import com.jakewharton.mosaic.isUnspecifiedCodePoint
 import com.jakewharton.mosaic.text.AnnotatedString
 import com.jakewharton.mosaic.text.SpanStyle
@@ -37,6 +36,7 @@ import com.jakewharton.mosaic.ui.isUnspecifiedColor
 import com.jakewharton.mosaic.ui.isUnspecifiedTextStyle
 import com.jakewharton.mosaic.ui.unit.IntOffset
 import com.jakewharton.mosaic.ui.unit.IntSize
+import de.cketti.codepoints.appendCodePoint
 import de.cketti.codepoints.codePointAt
 import kotlin.math.max
 
@@ -162,20 +162,21 @@ internal open class TextCanvasDrawScope(
 			return
 		}
 
+		val text = if (codePoint.isUnspecifiedCodePoint) " " else codePoint.toCodePointText()
 		when (drawStyle) {
-			DrawStyle.Fill -> drawSolidRect(codePoint, foreground, background, textStyle, topLeft, size)
+			DrawStyle.Fill -> drawSolidRect(text, foreground, background, textStyle, topLeft, size)
 
 			is DrawStyle.Stroke -> {
 				val strokeWidth = max(1, drawStyle.width)
 				if (strokeWidth * 2 >= size.width || strokeWidth * 2 >= size.height) {
 					// fast path: stroke width is large, it turns out a full fill
-					drawSolidRect(codePoint, foreground, background, textStyle, topLeft, size)
+					drawSolidRect(text, foreground, background, textStyle, topLeft, size)
 					return
 				}
 
 				// left line
 				drawSolidRect(
-					codePoint,
+					text,
 					foreground,
 					background,
 					textStyle,
@@ -184,7 +185,7 @@ internal open class TextCanvasDrawScope(
 				)
 				// top line
 				drawSolidRect(
-					codePoint,
+					text,
 					foreground,
 					background,
 					textStyle,
@@ -193,7 +194,7 @@ internal open class TextCanvasDrawScope(
 				)
 				// right line
 				drawSolidRect(
-					codePoint,
+					text,
 					foreground,
 					background,
 					textStyle,
@@ -202,7 +203,7 @@ internal open class TextCanvasDrawScope(
 				)
 				// bottom line
 				drawSolidRect(
-					codePoint,
+					text,
 					foreground,
 					background,
 					textStyle,
@@ -214,7 +215,7 @@ internal open class TextCanvasDrawScope(
 	}
 
 	private inline fun drawSolidRect(
-		codePoint: Int,
+		text: String,
 		foreground: Color,
 		background: Color,
 		textStyle: TextStyle,
@@ -227,7 +228,7 @@ internal open class TextCanvasDrawScope(
 		val yEnd = (topLeft.y + size.height).coerceAtMost(height)
 		for (y in yStart until yEnd) {
 			for (x in xStart until xEnd) {
-				drawTextPixel(x, y, codePoint, foreground, background, textStyle)
+				drawTextPixel(x, y, text, foreground, background, textStyle)
 			}
 		}
 	}
@@ -285,9 +286,10 @@ internal open class TextCanvasDrawScope(
 				pixelIndex + 1
 			}
 
-			character.updateTextPixel(cp, foreground, background, textStyle, underlineStyle, underlineColor)
+			val cluster = text.substring(pixelIndex, pixelEnd)
+			character.updateTextPixel(cluster, w, foreground, background, textStyle, underlineStyle, underlineColor)
 			spanStylesProvider?.invoke(pixelIndex, pixelEnd)?.forEach {
-				character.updateTextPixel(UnspecifiedCodePoint, it.color, it.background, it.textStyle, it.underlineStyle, it.underlineColor)
+				character.updateTextPixel(character.text, character.width, it.color, it.background, it.textStyle, it.underlineStyle, it.underlineColor)
 			}
 
 			// Mark continuation cells for wide characters (e.g. CJK, fullwidth)
@@ -295,7 +297,7 @@ internal open class TextCanvasDrawScope(
 				for (offset in 1 until w) {
 					val continuationCol = characterColumn + offset
 					if (continuationCol < width) {
-						canvas[row, continuationCol].isWideContinuation = true
+						canvas[row, continuationCol].markAsContinuation()
 					}
 				}
 			}
@@ -308,28 +310,28 @@ internal open class TextCanvasDrawScope(
 	private inline fun drawTextPixel(
 		x: Int,
 		y: Int,
-		codePoint: Int = UnspecifiedCodePoint,
+		text: String,
 		foreground: Color = Color.Unspecified,
 		background: Color = Color.Unspecified,
 		textStyle: TextStyle = TextStyle.Unspecified,
 		underlineStyle: UnderlineStyle = UnderlineStyle.Unspecified,
 		underlineColor: Color = Color.Unspecified,
 	) {
-		canvas[y, x].updateTextPixel(codePoint, foreground, background, textStyle, underlineStyle, underlineColor)
+		canvas[y, x].updateTextPixel(text, 1, foreground, background, textStyle, underlineStyle, underlineColor)
 	}
 
 	private inline fun TextPixel.updateTextPixel(
-		codePoint: Int,
+		text: String,
+		width: Int,
 		foreground: Color,
 		background: Color,
 		textStyle: TextStyle,
 		underlineStyle: UnderlineStyle,
 		underlineColor: Color,
 	) {
-		if (codePoint.isSpecifiedCodePoint) {
-			this.codePoint = codePoint
-			isWideContinuation = false
-		}
+		this.text = text
+		this.width = width
+		isPlaceholder = false
 		if (foreground.isSpecifiedColor) {
 			this.foreground = foreground
 		}
@@ -345,5 +347,8 @@ internal open class TextCanvasDrawScope(
 		if (underlineColor.isSpecifiedColor) {
 			this.underlineColor = underlineColor
 		}
+	}
+	private fun Int.toCodePointText(): String = buildString {
+		appendCodePoint(this@toCodePointText)
 	}
 }

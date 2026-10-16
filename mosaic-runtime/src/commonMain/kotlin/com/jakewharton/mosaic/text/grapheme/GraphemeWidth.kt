@@ -24,7 +24,7 @@ internal fun CharSequence.graphemeWidth(): Int {
 }
 
 /** Returns whether every code unit is printable ASCII, which is always one column per unit. */
-private inline fun CharSequence.isPrintableAscii(): Boolean {
+private fun CharSequence.isPrintableAscii(): Boolean {
 	for (i in indices) {
 		val code = this[i].code
 		if (code !in 0x20..0x7E && code != 0x09) return false
@@ -33,7 +33,7 @@ private inline fun CharSequence.isPrintableAscii(): Boolean {
 }
 
 /** Returns the width in columns of the cluster spanning `[from, to)` of this text. */
-private inline fun CharSequence.clusterWidth(from: Int, to: Int): Int {
+private fun CharSequence.clusterWidth(from: Int, to: Int): Int {
 	val width = strWidth(this, from, to)
 	if (width == 1 && charWidth(codepointAt(from)) == 2) return 2
 	return width

@@ -15,9 +15,8 @@ import com.jakewharton.mosaic.ui.isSpecifiedColor
 import com.jakewharton.mosaic.ui.isSpecifiedUnderlineStyle
 import com.jakewharton.mosaic.ui.isUnspecifiedColor
 import com.jakewharton.mosaic.ui.isUnspecifiedUnderlineStyle
-import de.cketti.codepoints.appendCodePoint
 
-private val blankPixel = TextPixel(SpaceCharCodePoint)
+private val blankPixel = TextPixel()
 
 public interface TextCanvas {
 	public val height: Int
@@ -35,7 +34,7 @@ internal class TextSurface(
 	var translationX = 0
 	var translationY = 0
 
-	private val cells = Array(width * height) { TextPixel(SpaceCharCodePoint) }
+	private val cells = Array(width * height) { TextPixel() }
 
 	operator fun get(row: Int, column: Int): TextPixel {
 		val x = translationX + column
@@ -67,7 +66,7 @@ internal class TextSurface(
 		while (columnIndex < rowStop) {
 			val pixel = cells[columnIndex]
 
-			if (pixel.isWideContinuation) {
+			if (pixel.isPlaceholder) {
 				columnIndex++
 				continue
 			}
@@ -140,7 +139,7 @@ internal class TextSurface(
 				}
 			}
 
-			appendable.appendCodePoint(pixel.codePoint)
+			appendable.append(pixel.text)
 			lastPixel = pixel
 			columnIndex++
 		}
@@ -211,16 +210,41 @@ internal class TextSurface(
 	}
 }
 
-internal class TextPixel(var codePoint: Int) {
+internal class TextPixel(
+	initialText: String = " ",
+) {
+	/**
+	 * The extended grapheme cluster occupying this cell's column: everything rendered at this
+	 * cell's horizontal position (a base character with its combining marks, a ZWJ emoji family,
+	 * a flag, a keycap, ...). A single cell therefore holds an entire cluster rather than one
+	 * code point. Empty/duplicate clusters use the lone space so renderers emit something.
+	 */
+	var text: String = initialText
+
+	/**
+	 * The number of terminal columns this cluster occupies: `1` for ordinary cells, `2` or more
+	 * for wide clusters, and `0` for zero-width clusters such as isolated combining marks.
+	 */
+	var width: Int = 1
+
+	/** Whether this cell is covered by the continuation of a wider cluster to its immediate left. */
+	var isPlaceholder: Boolean = false
+
 	var background: Color = Color.Unspecified
 	var foreground: Color = Color.Unspecified
 	var textStyle: TextStyle = TextStyle.Empty
 	var underlineStyle: UnderlineStyle = UnderlineStyle.Unspecified
 	var underlineColor: Color = Color.Unspecified
-	var isWideContinuation: Boolean = false
+
+	/** Marks this cell as covered by the continuation of a wider cluster drawn to its left. */
+	fun markAsContinuation() {
+		text = ""
+		width = 0
+		isPlaceholder = true
+	}
 
 	fun isEmpty(): Boolean {
-		return codePoint == SpaceCharCodePoint &&
+		return (text.isEmpty() || text == " ") &&
 			background.isUnspecifiedColor &&
 			foreground.isUnspecifiedColor &&
 			textStyle.isEmptyTextStyle &&
@@ -230,8 +254,13 @@ internal class TextPixel(var codePoint: Int) {
 
 	override fun toString() = buildString {
 		append("TextPixel(\"")
-		appendCodePoint(codePoint)
+		append(text)
 		append("\"")
+		if (isPlaceholder) {
+			append(" placeholder")
+		} else if (width != 1) {
+			append(" w=$width")
+		}
 		if (background.isSpecifiedColor) {
 			append(" bg=")
 			append(background)
