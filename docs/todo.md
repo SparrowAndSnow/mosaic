@@ -20,7 +20,7 @@
 | 缓冲 | `TextPixel` = 簇字符串 + 显式列宽（L2.1 已落地） | 无部分覆盖清理 / 右缘裁剪 | Ratatui `Cell` / uv `Cell` | **P1**（余项） |
 | 宽字符 | 簇级列宽唯一口径（L1.2），测/绘统一（L3.1） | DEC 2027 未探测；右缘裁剪 | uv `WidthMethod` 可插拔 | **P1** |
 | 布局 | Row/Column weight + Box + Modifier 链 | 无 percentage/fill/ratio；无缓存 | Ratatui Constraint+LRU | P2 |
-| 文本 | AnnotatedString + TextLayout | 无 wrap/ellipsis/scroll/alignment | Ratatui Paragraph | P2 |
+| 文本 | AnnotatedString + TextLayout | 无 ellipsis/scroll/alignment（wrap 簇级安全换行已落地 L4.1） | Ratatui Paragraph | P2 |
 | 颜色 | 16/256/24bit 输出 + env 探测 | 探测可提升（profile/OSC4） | colorprofile | P3 |
 | 输入 | kitty 键盘协议全解析 | 鼠标/粘贴仅解析未消费；无 clipboard | BubbleTea View 声明式 | **P1/P2** |
 | 能力探测 | DA1 + 批量 DECRPM/DCS/OSC + 1s 兜底 | 缺 DEC 2027（UnicodeCore） | BubbleTea DECRQM 2027 | **P1** |
@@ -81,7 +81,7 @@
 - [ ] **P2 ISO 控制字符处理**：`drawText` 对 `\t`/`\r`/`\b` 的控制语义（`charWidth` 兜底 1）——是否需要处理制表符展开/退格（Ratatui `set_stringn` 是过滤控制符）。
 
 ## 5. 布局（`layout/` + `ui/`）
-- [ ] **P1 Text 内建排版**：`Text` 目前无 wrap / ellipsis / alignment / scroll；多行仅靠 `\n`。以 Ratatui `Paragraph.wrap(trim)/alignment/scroll` 为参照做簇级安全换行。
+- [x] **P1 Text 内建排版（簇级安全换行）** ✅（L4.1，`9c622d53`）：`Text` 参数化 `softWrap`（默认 false 不回归），开启时按入向 `maxWidth` 约束在**字素簇边界**软换行；ZWJ 家庭/组合字符/变体/旗帜永不拆开，超宽簇独占行，空段落保留；约束变化即时重排。测试：`TextLayoutWrapTest` + `TextWrapRenderingTest`。待办：`maxLines`/`overflow=Ellipsis/Clip`/`alignment/scroll`。
 - [ ] **P2 约束扩展**：Row/Column 只有 `weight`；补 `percentage`/`fill`/`ratio` 式弹性（Ratatui Constraint 优先级 Min>Max>Length>Percentage>Ratio>Fill），并考虑对 gap/overlap（Ratatui `Spacing`）支持。
 - [ ] **P2 布局缓存**：`needLayout` 时全树重跑 `measureAndPlace`；对相同 constraints+size 结果做 LRU（Ratatui `layout-cache` feature），缓解高频 resize 与同构重排。
 - [ ] **P2 Modifier 缺口**：现有 `padding/offset/aspectRatio/size/weight/drawBehind/onKeyEvent`；评估 `margin`、`fillMaxSize/widthIn…` 类便捷约束、`onGloballyPositioned` 类回调。
