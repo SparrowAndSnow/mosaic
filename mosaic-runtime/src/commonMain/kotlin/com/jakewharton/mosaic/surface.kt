@@ -55,7 +55,7 @@ internal class TextSurface(
 				break
 			}
 		}
-		appendRowRange(appendable, rowStart, to, ansiLevel, supportsKittyUnderlines)
+		appendRowRange(appendable, rowStart, to, rowStart + width, ansiLevel, supportsKittyUnderlines)
 	}
 
 	/**
@@ -64,7 +64,14 @@ internal class TextSurface(
 	 * previously-drawn content at those columns is overwritten, and styles are emitted relative to
 	 * the default state so a slice can be patched onto a row independently of the surrounding cells.
 	 */
-	internal fun appendRowRange(appendable: Appendable, from: Int, to: Int, ansiLevel: AnsiLevel, supportsKittyUnderlines: Boolean) {
+	internal fun appendRowRange(
+		appendable: Appendable,
+		from: Int,
+		to: Int,
+		rowEnd: Int,
+		ansiLevel: AnsiLevel,
+		supportsKittyUnderlines: Boolean,
+	) {
 		// Reused heap allocation for building ANSI attributes inside the loop.
 		val attributes = mutableListOf<String>()
 
@@ -144,6 +151,16 @@ internal class TextSurface(
 					appendable.append(ansiClosingCharacter)
 					attributes.clear() // This list is reused!
 				}
+			}
+
+			// A wide cluster must never run past its row's right edge: the extra columns would make
+			// the terminal wrap. Write styled blanks for the columns that fit instead, so the row
+			// can never scroll and any reserved cells are cleared.
+			if (pixel.width > 1 && columnIndex + pixel.width > rowEnd) {
+				repeat(rowEnd - columnIndex) { appendable.append(' ') }
+				columnIndex = rowEnd
+				lastPixel = pixel
+				continue
 			}
 
 			appendable.append(pixel.text)

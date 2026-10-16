@@ -297,7 +297,14 @@ internal class AnsiIncrementalRendering(
 			appendable.append(';')
 			appendable.append(start + 1)
 			appendable.append('H')
-			surface.appendRowRange(appendable, base + start, base + end, capabilities.ansiLevel, capabilities.kittyUnderline)
+			surface.appendRowRange(
+				appendable,
+				base + start,
+				base + end,
+				base + width,
+				capabilities.ansiLevel,
+				capabilities.kittyUnderline,
+			)
 			i++
 		}
 		return true
