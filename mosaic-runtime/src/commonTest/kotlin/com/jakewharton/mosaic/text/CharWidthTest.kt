@@ -1,5 +1,6 @@
 package com.jakewharton.mosaic.text
 
+import com.jakewharton.mosaic.text.unicodewidth.singleCharWidthCjk
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -68,9 +69,24 @@ class CharWidthTest {
 
 	@Test fun variationSelectorsAreZeroWidth() {
 		assertEquals(0, charWidth(0xFE00))
+		assertEquals(0, charWidth(0xFE01))
+		assertEquals(0, charWidth(0xFE02))
 		assertEquals(0, charWidth(0xFE0F))
 		assertEquals(0, charWidth(0xE0100))
 		assertEquals(0, charWidth(0xE01EF))
+	}
+
+	@Test fun variationSelectorsAreZeroWidthCjk() {
+		// FE00-FE02 are all Variation Selector 1/2/3 in CJK mode (width 0).
+		assertEquals(0, singleCharWidthCjk(0xFE00))
+		assertEquals(0, singleCharWidthCjk(0xFE01))
+		assertEquals(0, singleCharWidthCjk(0xFE02))
+	}
+
+	@Test fun halfwidthKatakanaVoicingMarksAreSingleWidth() {
+		// Halfwidth katakana voiced/semi-voiced marks U+FF9E/U+FF9F occupy their own cell.
+		assertEquals(1, charWidth(0xFF9E))
+		assertEquals(1, charWidth(0xFF9F))
 	}
 
 	@Test fun zeroWidthSpace() {

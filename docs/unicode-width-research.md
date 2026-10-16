@@ -141,3 +141,23 @@
 - 已更新 `CharWidthTest`（reserved/Ambiguous 边界按库修正，单 RI=1），新增 `TextLayoutWidthTest` 锁定字符串级行为。全仓 `jvmTest` 通过。
 - **已知缺口（0.1.1 未实现的字符串规则）**：keycap 序列 `#`+U+20E3 返回 1（应为 2）；control/tab 宽度按 1（unicode-width 对 control 的宽度为 0/1 语义；Mosaic 按字符渲染 tab，另行处理）。若需要可在此层补 keycap override，或等上游完善。
 - 尚未做：输入侧（`mosaic-tty-terminal`）簇组装（M4）、非 JVM 平台适配验证、渲染层宽字符第二列占位的行为测试（占位逻辑已存在于 `DrawScope.kt`/`surface.kt`）。
+
+## 8. 表格再生成（scripts/unicode.py）
+
+路线 A 落地后，Unicode 宽度表由 `mosaic-runtime/src/commonMain/kotlin/com/jakewharton/mosaic/text/unicodewidth/Tables.kt` 内的自动生成区提供，该区由仓库里的 `scripts/unicode.py` 生成：
+
+- 脚本 fork 自上游 `unicode-rs/unicode-width` 的 `scripts/unicode.py`：数据引擎（UCD/emoji 数据下载、`make_tables` 压缩、特殊区间计算）保持原样，仅把 Rust 发射器替换为 Kotlin 发射器，并固定 `UNICODE_VERSION = "16.0.0"` 以匹配当前入库的表。
+- 自动生成区以 `// ---- Auto-generated lookup data ----` 为界。`WidthInfo` 类、`lookupWidth`/`lookupWidthCjk` 的 `when` 分支以及各属性查询函数都是手写部分（与上游一致：这些函数是写死的，只有数据区会再生成）；若改动 `make_tables` 的表结构，必须同步这些手写函数。
+- 再生成（需联网下载 UCD/emoji 数据；下载产物按文件名缓存到当前工作目录，建议在临时目录运行，避免污染仓库）：
+
+  ```bash
+  mkdir -p build/unicode-gen && cd build/unicode-gen
+  python3 ../../scripts/unicode.py --check   # 校验已提交数据区与生成一致（不一致退出码 1）
+  python3 ../../scripts/unicode.py --write   # 将生成的数据区回写进 Tables.kt
+  ```
+
+- 与最初 vendored 的 KotlinMania 表相比，采用上游 16.0 数据后有三处实质差异（均为上游真实修正）：
+  - `U+FF9E`/`U+FF9F`（半角片假名浊音/半浊音符号）宽度 0→1：上游认为二者"各自占一格"。
+  - 相应从 `NON_TRANSPARENT_ZERO_WIDTHS` 移除这两点（范围由 `0xFF9E..0xFFA0` 收窄为 `0xFFA0..0xFFA0`）。
+  - CJK 模式下 `FE01`/`FE02` 应按 VS1/2 处理（宽度 0），手写区 `lookupWidthCjk` 的分支已从 `0xFE00` 扩为 `in 0xFE00..0xFE02`。
+- 已新增回归测试锁定上述行为：`CharWidthTest` 断言 `FF9E`/`FF9F`=1、非 CJK `FE01`/`FE02`=0、CJK `FE00`..`FE02`=0。

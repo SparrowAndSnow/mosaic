@@ -526,7 +526,7 @@ internal fun lookupWidthCjk(c: Int): Pair<Int, WidthInfo> {
             0x1A10 -> Pair(1, WidthInfo.BUGINESE_LETTER_YA)
             in 0x2D31..0x2D6F -> Pair(1, WidthInfo.TIFINAGH_CONSONANT)
             in 0xA4FC..0xA4FD -> Pair(1, WidthInfo.LISU_TONE_LETTER_MYA_NA_JEU)
-            0xFE00 -> Pair(0, WidthInfo.VARIATION_SELECTOR_1_OR_2)
+            in 0xFE00..0xFE02 -> Pair(0, WidthInfo.VARIATION_SELECTOR_1_OR_2)
             0xFE0F -> Pair(0, WidthInfo.VARIATION_SELECTOR_16)
             0x10C03 -> Pair(1, WidthInfo.OLD_TURKIC_LETTER_ORKHON_I)
             0x16D67 -> Pair(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_E)
@@ -5561,7 +5561,7 @@ internal val WIDTH_LEAVES: Array<IntArray> by lazy {
             0x55,
             0x55,
             0x55,
-            0x05,
+            0x55,
             0x54,
             0x55,
             0x55,
@@ -8988,7 +8988,7 @@ internal val WIDTH_LEAVES: Array<IntArray> by lazy {
             0xAA,
         ),
         intArrayOf(
-            0x03,
+            0x33,
             0x00,
             0x00,
             0xC0,
@@ -9029,7 +9029,7 @@ internal val WIDTH_LEAVES: Array<IntArray> by lazy {
             0x55,
             0x55,
             0x55,
-            0x05,
+            0x55,
             0x54,
             0x55,
             0x55,
@@ -9169,7 +9169,7 @@ internal val NON_TRANSPARENT_ZERO_WIDTHS: Array<Pair<IntArray, IntArray>> by laz
         Pair(intArrayOf(0xC0, 0xA9, 0x00), intArrayOf(0xC0, 0xA9, 0x00)),
         Pair(intArrayOf(0xB0, 0xD7, 0x00), intArrayOf(0xC6, 0xD7, 0x00)),
         Pair(intArrayOf(0xCB, 0xD7, 0x00), intArrayOf(0xFB, 0xD7, 0x00)),
-        Pair(intArrayOf(0x9E, 0xFF, 0x00), intArrayOf(0xA0, 0xFF, 0x00)),
+        Pair(intArrayOf(0xA0, 0xFF, 0x00), intArrayOf(0xA0, 0xFF, 0x00)),
         Pair(intArrayOf(0xF0, 0xFF, 0x00), intArrayOf(0xF8, 0xFF, 0x00)),
         Pair(intArrayOf(0xC0, 0x11, 0x01), intArrayOf(0xC0, 0x11, 0x01)),
         Pair(intArrayOf(0xC2, 0x11, 0x01), intArrayOf(0xC3, 0x11, 0x01)),
