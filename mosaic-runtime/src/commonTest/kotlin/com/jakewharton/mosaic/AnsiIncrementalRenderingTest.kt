@@ -323,7 +323,9 @@ class AnsiIncrementalRenderingTest {
 				"""
 				|${cursorUp(4)}${clearLine}Hello
 				|${clearLine}World!
-				|$clearDisplay
+				|${clearLine}
+				|${clearLine}
+				|
 				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
@@ -353,7 +355,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|${cursorUp(1)}${clearDisplay}Three
+				|${cursorUp(1)}${clearLine}Three
 				|Four
 				|
 				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
@@ -389,8 +391,84 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|${cursorUp(2)}${clearDisplay}S
+				|${cursorUp(2)}${clearLine}S
+				|${clearLine}A
+				|
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+		}
+	}
+
+	@Test fun multiLineStaticClearsItsLinesIndividually() = runTest {
+		runMosaicTest(RenderingSnapshots(rendering)) {
+			setContent {
+				Column {
+					Text("A")
+					Text("B")
+					Text("C")
+				}
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
 				|A
+				|B
+				|C
+				|
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+
+			setContent {
+				StaticEffect {
+					Column {
+						Text("One")
+						Text("Two")
+					}
+				}
+				Text("X")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|${cursorUp(3)}${clearLine}One
+				|${clearLine}Two
+				|${clearLine}X
+				|
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+		}
+	}
+
+	@Test fun staticAndShorterDynamicClearLeftoverRowsPerLine() = runTest {
+		runMosaicTest(RenderingSnapshots(rendering)) {
+			setContent {
+				Column {
+					Text("A")
+					Text("B")
+					Text("C")
+					Text("D")
+				}
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|A
+				|B
+				|C
+				|D
+				|
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+
+			setContent {
+				StaticEffect {
+					Text("One")
+				}
+				Text("X")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|${cursorUp(4)}${clearLine}One
+				|${clearLine}X
+				|${clearLine}
+				|${clearLine}
 				|
 				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)

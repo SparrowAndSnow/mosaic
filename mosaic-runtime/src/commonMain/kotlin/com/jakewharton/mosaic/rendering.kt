@@ -123,30 +123,40 @@ internal class AnsiIncrementalRendering(
 			} else if (sizeChanged || staticChanged || static != null) {
 				// A layout or static change (or any static text at all, since mixing static and
 				// dynamic rows makes absolute cursor positioning unreliable): rewrite the whole
-				// previous area from its top.
-				var staleLines = prevHeight
-				if (staleLines > 0) {
+				// previous dynamic area from its top, moving relative to the current cursor
+				// because printed static output may have scrolled the screen between frames.
+				var rowsReplaced = 0
+				if (prevHeight > 0) {
 					append(CSI)
-					append(staleLines)
+					append(prevHeight)
 					append('F')
 				}
-				if (static != null) {
-					if (staleLines > 0) {
-						append(clearDisplay)
-						staleLines = 0
+				static?.let { staticText ->
+					// Clear each line the static text occupies before rewriting it, charging it
+					// against the old rows being replaced so shorter content never leaves residue.
+					staticText.lineSequence().forEach { staticLine ->
+						if (rowsReplaced < prevHeight) {
+							append(clearLine)
+							rowsReplaced++
+						}
+						append(staticLine.trimEnd('\r'))
+						append("\r\n")
 					}
-					append(static)
-					append("\r\n")
 				}
 				for (row in 0 until height) {
-					if (staleLines-- > 0) {
+					if (rowsReplaced < prevHeight) {
 						append(clearLine)
+						rowsReplaced++
 					}
 					surface.appendRowTo(this, row, capabilities.ansiLevel, capabilities.kittyUnderline)
 					append("\r\n")
 				}
-				if (staleLines > 0) {
-					append(clearDisplay)
+				// Clear any leftover old rows below the redrawn block line by line instead of
+				// erasing the whole display, so unrelated content off-screen stays intact.
+				while (rowsReplaced < prevHeight) {
+					append(clearLine)
+					append("\r\n")
+					rowsReplaced++
 				}
 			} else {
 				// Same size, no static text: rewrite only the cells that changed, leaving the
