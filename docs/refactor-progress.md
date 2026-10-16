@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：`9c622d53` · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：`de3c9a1a` · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -47,6 +47,7 @@
 | L3 | L3.3 | 行内段差分（cell 级 diff + 簇边界切分） | `dc031ff3` | `AnsiIncrementalRenderingTest`（13 条） | ✅ 已归档 |
 | L3 | L3.8 | 删除旧全量渲染器 `AnsiRendering`（去重） | `72e359af` | 无新增；删除 `AnsiRenderingTest`（410 行），覆盖已由 `AnsiIncrementalRenderingTest` 承接 | ✅ 已归档 |
 | L4 | L4.1 | Text 簇级安全软换行 + 布局约束透传 | `9c622d53` | `TextLayoutWrapTest`（12 条）+ `TextWrapRenderingTest`（2 条） | ✅ 已归档 |
+| L4 | L4.2 | Text `maxLines` / `overflow` 簇安全截断 | `de3c9a1a` | `TextLayoutWrapTest` 增 5 条 + `TextWrapRenderingTest` 增 2 条 | ✅ 已归档 |
 | L3 | L3.4 | 全屏双缓冲 diff | — | — | ⬜ 未开始 |
 | L3 | L3.5 | static 输出行级清理（替代一键 `clearDisplay`） | — | — | ⬜ 未开始 |
 | L3 | L3.6 | 无同步渲染时的闪烁防护（光标包裹） | — | — | ⬜ 未开始 |
@@ -66,6 +67,13 @@
 - `ui/Layout.kt`：内部无内容 `Layout` 的 `NoContentMeasurePolicy` 增加 `constraints` 参数并透传，`Text` 借此读到父级 `maxWidth`。
 - `ui/Text.kt`：两个 `Text` 重载增加 `softWrap: Boolean = false`（默认保持原行为不强启换行），开启时按 `constraints.maxWidth` 软换行；`Constraints.Infinity` 视为无约束。
 - 测试：`TextLayoutWrapTest`（ASCII/CJK/空段落/ZWJ 家庭/组合字符/旗帜/超宽簇/AnnotatedString 样式保留）+ `TextWrapRenderingTest`（`Modifier.width()+softWrap` 的端到端快照，含默认不换行回归断言）。
+
+### L4.2 Text `maxLines` / `overflow`（`de3c9a1a`）
+- `ui/TextOverflow.kt`：新增 `TextOverflow.Clip` / `TextOverflow.Ellipsis` 公开枚举。
+- `TextLayout.measure(maxWidth, maxLines, overflow)`：换行后若行数超过 `maxLines`，`Clip` 取前 N 行整行；`Ellipsis` 用 `clipTo(maxWidth-1)+"…"` 截断可见末行——`clipTo` 逐簇累计（整簇保留或整簇丢弃，绝不半簇）；无宽度预算（`Int.MAX_VALUE`）时退化为 Clip。
+- `lastMaxLines` / `lastOverflow` 纳入重排判定：任一变即重排。
+- `ui/Text.kt`：两个重载增加 `maxLines: Int = Int.MAX_VALUE`、`overflow: TextOverflow = TextOverflow.Clip`（Compose 同默认，默认不改变既有输出）。
+- 测试：`ellipsisKeepsOverflowingClusterWhole`（ZWJ 家庭整簇保留 + 省略号）、`ellipsisDropsWholeClusterWhenItCannotFit`（超宽整簇丢弃）、Clip/无宽度回落/ASCII-CJK 截断；渲染端 `maxLinesClipsRemainingLines`、`maxLinesWithEllipsisTruncatesLastLine` 快照。
 
 ### L1.1 字素簇分割（`7f295e23`）
 - `text/grapheme/GraphemeBreak.kt`：UAX #29 边界判定；`GraphemeBreakTables.kt`：生成用区间表。
@@ -100,10 +108,10 @@
 
 ## 6. 当前状态 / 下一步候选
 
-- 现状：`refactor` 分支，HEAD `9c622d53`，JVM + Native 全绿。上面功能步骤已归档。
+- 现状：`refactor` 分支，HEAD `de3c9a1a`，JVM + Native 全绿。上面功能步骤已归档。
 - 下一步候选（需用户确认后实施，建议一次一项）：
   1. L3.4 双缓冲 diff。
-  2. L4 续项（Text `maxLines` / `overflow=Ellipsis|Clip` / 对齐）或进入 L5 输入。
+  2. L4 续项（Text `alignment`/`scroll`）或进入 L5 输入。
   3. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
 
 ## 7. 验证命令
