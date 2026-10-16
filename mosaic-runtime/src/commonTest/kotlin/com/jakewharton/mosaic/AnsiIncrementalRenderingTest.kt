@@ -235,6 +235,28 @@ class AnsiIncrementalRenderingTest {
 		}
 	}
 
+
+	@Test fun changeAfterUnchangedWideClusterStaysAfterIt() = runTest {
+		runMosaicTest(RenderingSnapshots(rendering)) {
+			setContent {
+				Text("中B")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|中B
+				|
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+
+			setContent {
+				Text("中C")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"${goto(1, 3)}C${goto(2, 1)}".wrapWithAnsiSynchronizedUpdate(),
+			)
+		}
+	}
+
 	@Test fun tallerFrameRedrawsWholeArea() = runTest {
 		runMosaicTest(RenderingSnapshots(rendering)) {
 			setContent {

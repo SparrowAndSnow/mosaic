@@ -211,7 +211,10 @@ internal class AnsiIncrementalRendering(
 		while (i < runs.size) {
 			var start = runs[i]
 			var end = runs[i + 1]
-			while (start > 0 && surface.cells[base + start - 1].isPlaceholder) {
+			// Only back up to a cluster head when the run begins inside the placeholder region of a
+			// changed cluster. A run that follows an unchanged wide cluster must not reach into it,
+			// otherwise the rewrite would land in the middle of that cluster's placeholder columns.
+			while (start > 0 && surface.cells[base + start].isPlaceholder) {
 				start--
 			}
 			var c = start
