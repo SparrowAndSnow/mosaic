@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：`dc031ff3` · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：`72e359af` · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -27,7 +27,7 @@
 | --- | --- | --- | --- |
 | L1 文本度量 | 字素簇分割 + 簇级列宽（唯一口径） | §3 核心 | 完成 |
 | L2 缓冲/cell 模型 | `TextPixel` 升级为「簇字符串 + 显式列宽」 | §4 | 完成 |
-| L3 渲染管线 | 按簇绘制 → 增量输出 → 差分/缓冲/静态/闪烁 | §2 | 进行中（L3.3 完成） |
+| L3 渲染管线 | 按簇绘制 → 增量输出 → 差分/缓冲/静态/闪烁 | §2 | 进行中（L3.3、L3.8 完成） |
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 未开始 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压 | §8 | 未开始 |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 未开始（大头） |
@@ -45,13 +45,17 @@
 | L3 | L3.1 | 文本按字素簇粒度绘制 | `354883b2` | `DrawTextClusterTest` | ✅ 已归档 |
 | L3 | L3.2 | 行级增量 ANSI 渲染（默认渲染器） | `08e92477` | `AnsiIncrementalRenderingTest`（10 条） | ✅ 已归档 |
 | L3 | L3.3 | 行内段差分（cell 级 diff + 簇边界切分） | `dc031ff3` | `AnsiIncrementalRenderingTest`（13 条） | ✅ 已归档 |
+| L3 | L3.8 | 删除旧全量渲染器 `AnsiRendering`（去重） | `72e359af` | 无新增；删除 `AnsiRenderingTest`（410 行），覆盖已由 `AnsiIncrementalRenderingTest` 承接 | ✅ 已归档 |
 | L3 | L3.4 | 全屏双缓冲 diff | — | — | ⬜ 未开始 |
 | L3 | L3.5 | static 输出行级清理（替代一键 `clearDisplay`） | — | — | ⬜ 未开始 |
 | L3 | L3.6 | 无同步渲染时的闪烁防护（光标包裹） | — | — | ⬜ 未开始 |
 | L3 | L3.7 | 输出批量/分片写，避免大字符串抖动 | — | — | ⬜ 未开始 |
-| L3 | L3.8 | 删除旧全量渲染器 `AnsiRendering`（L3.2 稳定后去重） | — | — | ⬜ 可选 |
-
 ## 5. 已完成步骤的实现要点（供恢复上下文）
+
+### L3.8 删除旧全量渲染器（`72e359af`）
+- `rendering.kt` 删除 `AnsiRendering` 类（全量 `cursorUp` + 逐行重写协议），`AnsiIncrementalRendering` 为唯一增量渲染器。
+- 删除 `AnsiRenderingTest.kt`（14 条：首帧/清尾行/static 排序/无尾随空格/宽文本等）。其中关键行为（首帧、清旧行、宽簇正确渲染）已由 `AnsiIncrementalRenderingTest`（14 条）覆盖，无覆盖缺口。
+- `MosaicTest.frameTimeChanges` 改用 `AnsiIncrementalRendering`（渲染器对该测试无行为影响）。
 
 ### L1.1 字素簇分割（`7f295e23`）
 - `text/grapheme/GraphemeBreak.kt`：UAX #29 边界判定；`GraphemeBreakTables.kt`：生成用区间表。
@@ -86,12 +90,11 @@
 
 ## 6. 当前状态 / 下一步候选
 
-- 现状：`refactor` 分支，HEAD `dc031ff3`，JVM + Native 全绿。上面 6 个功能步骤已归档。
+- 现状：`refactor` 分支，HEAD `72e359af`，JVM + Native 全绿。上面功能步骤已归档。
 - 下一步候选（需用户确认后实施，建议一次一项）：
   1. L3.4 双缓冲 diff。
-  2. L3.8 删除旧全量 `AnsiRendering` 去重。
-  3. 进入 L4 布局首项（Text 内建排版 / 簇级安全换行）。
-  4. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
+  2. 进入 L4 布局首项（Text 内建排版 / 簇级安全换行）。
+  3. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
 
 ## 7. 验证命令
 

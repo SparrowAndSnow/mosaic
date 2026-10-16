@@ -41,8 +41,9 @@
 
 ## 2. 渲染管线（`rendering.kt` / `surface.kt`）
 
-- [x] **P1 行级增量输出** ✅（L3.2，`08e92477`）：`AnsiIncrementalRendering` 为默认渲染器，按行对比跳过未变行、绝对定位 + `clearLine` 重写变化行；高度变化 / static 存在退化为全量重画。旧 `AnsiRendering` 保留仅供其测试（L3.8 再去重）。
+- [x] **P1 行级增量输出** ✅（L3.2，`08e92477`）：`AnsiIncrementalRendering` 为默认渲染器，按行对比跳过未变行、绝对定位 + `clearLine` 重写变化行；高度变化 / static 存在退化为全量重画。
 - [x] **P1 行内段差分** ✅（L3.3，`dc031ff3`）：cell 级 diff，变化区间按字素簇边界切分后 `goto` + 片段重写；稀疏段就地 patch、稠密/删尾整行 `goto;clearLine` 回退。
+- [x] **P1 旧渲染器去重** ✅（L3.8，`72e359af`）：删除全量 `AnsiRendering` 与其专属测试（410 行），`AnsiIncrementalRendering` 为唯一增量渲染器；关键行为覆盖已由 `AnsiIncrementalRenderingTest` 承接。
 - [ ] **P2 全屏双缓冲 diff**（L3.4）：在行级增量之上做 `Buffer` 双缓冲（Ratatui `buffers: [Buffer;2]` + `BufferDiff`），吸收其 `skip`/`ForcedWidth`/不确定宽三件套语义（等 §3 右缘裁剪等边界项落定后实施）。
 - [ ] **P2 静态输出优化**：`static()` 分支目前用 `clearDisplay` 兜底整屏（`rendering.kt`）；可解析 `static` 行数 / 逐行 `EL` 最小化清理（注释里已说明是"为省事"）。
 - [ ] **P2 闪烁防护**：synchronized output（DEC 2026）已按能力包裹整帧；无该能力时可选加「光标 hide/show 包裹」（BubbleTea 的处理），当前只在启动时 `cursorDisable` 一次。
