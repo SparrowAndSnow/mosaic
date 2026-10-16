@@ -35,6 +35,13 @@
 - [ ] `isWideContinuation` 生命周期：仅"同格被写指定码点"时复位（`DrawScope.kt:331`）；`drawRect` 用 `UnspecifiedCodePoint` 填充背景不复位。当前被 `render` skip + `AnsiRendering` 每行 `clearLine`（`rendering.kt`）掩盖，属隐藏耦合。
 - [ ] `drawSolidRect` clamp 是 node-local（clamp 到 `width`/`height`），叠加 `translationX/Y` 后右缘越界仍会抛 `check`；越界从"必崩"变为"多数静默裁剪、右缘仍崩"。
 
+## 能力探测缺口（Deep-Dive 新增）
+
+- [ ] **DEC 2027（UnicodeCore）未探测**：`TtyTerminal` 目前探测 synchronized/DEC 2026 等，未查询 `CSI ?2027$p`。
+  无 2027 的终端上 ZWJ 族 emoji 会逐码点进格，而 Mosaic 无条件按簇折叠（A 修复后尤其明显）。
+  参照 BubbleTea v2（`tea.go` startup + `ModeReportMsg`→`setWidthMethod`）：探测 2027 并暴露宽度口径
+  （簇折叠 `GraphemeWidth` / 逐 rune `WcWidth` 后备），必要时做光标漂移补偿。详见 `docs/tui-arch-deep-comparison.md` §8/§12/§13。
+
 ## 性能
 
 - [ ] `AnsiRendering` 每帧全量重建画布；`drawText` 逐码点 `charWidth` = 三层表查找 + `emojiOverrideRanges` 二分（ASCII 也跑）。可加 `codepoint >= 0x1F000` 短路或按码点缓存。属可优化项，非瓶颈。
@@ -47,7 +54,7 @@
 ## 修复方向
 
 > 方案 A 的实现模型已对照主流 cell-grid TUI 实证（**Ratatui**、**BubbleTea v2/ultraviolet**，
-> 两者均"整字素簇落一格 + 续格预留"），详见 `docs/tui-arch-comparison.md`。实施时吸收参考实现的设计要点：
+> 两者均"整字素簇落一格 + 续格预留"），详见 `docs/tui-arch-comparison.md` 与功能级深挖 `docs/tui-arch-deep-comparison.md`。实施时吸收参考实现的设计要点：
 
 - **A（推荐，治本）**：`drawText` 按扩展字素簇迭代，用簇子串 `unicodeWidth()` 定占格；把簇完整码点（含 ZWJ/VS16）写进簇首格，其后 w-1 格仅预留续列。需把 `TextPixel` 从单 `Int` 码点升级为"簇字符串 + 显式 Width"（`surface` 只发首格、跳续列）。可同时修 Bug 1/2，并使绘制与布局测宽严格一致。
   - 占位格语义用"宽度 0"而非独立布尔标志（参考 `ultraviolet` 的 `Width==0` placeholder），并做"部分覆盖时清理/修复整段宽格"的生命周期管理；注意防"多种检测口径不一致"（参考其 `widecell_placeholder_test`）。

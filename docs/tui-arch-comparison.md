@@ -1,5 +1,8 @@
 # 主流 TUI 的 Unicode/宽字符架构调研 — 与 Mosaic 对比
 
+> 注：这是第一轮宽字符视角的对比纪要；逐功能（架构/渲染/布局/样式/输入/能力探测/测试/性能）的深度审计见
+> `docs/tui-arch-deep-comparison.md`。
+>
 > 目的：`DrawScope`/`TextPixel`/`TextSurface` 的宽字符处理存在问题（见 `docs/todo.md`），
 > 调研同类 cell-grid 型 TUI 的实现方式，为 Mosaic 的修复（todo 方案 A）定标。
 > 对比对象拉到本地（`/tmp/ratatui-clone`、`/tmp/bubbletea-clone`、`/tmp/uv`、`/tmp/ansi-x`）：
