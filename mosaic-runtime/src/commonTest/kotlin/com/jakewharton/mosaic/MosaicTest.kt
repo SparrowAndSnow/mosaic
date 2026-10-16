@@ -107,7 +107,7 @@ class MosaicTest {
 
 		val terminal = TestTerminal()
 		runMosaicComposition(
-			rendering = AnsiRendering(terminal.capabilities),
+			rendering = AnsiIncrementalRendering(terminal.capabilities),
 			terminal = terminal,
 		) {
 			LaunchedEffect(Unit) {
