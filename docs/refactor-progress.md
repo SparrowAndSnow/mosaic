@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：`de3c9a1a` · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：`76b8d301` · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -48,7 +48,7 @@
 | L3 | L3.8 | 删除旧全量渲染器 `AnsiRendering`（去重） | `72e359af` | 无新增；删除 `AnsiRenderingTest`（410 行），覆盖已由 `AnsiIncrementalRenderingTest` 承接 | ✅ 已归档 |
 | L4 | L4.1 | Text 簇级安全软换行 + 布局约束透传 | `9c622d53` | `TextLayoutWrapTest`（12 条）+ `TextWrapRenderingTest`（2 条） | ✅ 已归档 |
 | L4 | L4.2 | Text `maxLines` / `overflow` 簇安全截断 | `de3c9a1a` | `TextLayoutWrapTest` 增 5 条 + `TextWrapRenderingTest` 增 2 条 | ✅ 已归档 |
-| L3 | L3.4 | 全屏双缓冲 diff | — | — | ⬜ 未开始 |
+| L3 | L3.4 | cell 差分右缘防护 + 宽格 diff 回归（虚拟终端） | `76b8d301` | `CellDiffRenderingTest`（15 条）+ `VirtualTerminal`（解析 ANSI→屏幕网格） | ✅ 已归档 |
 | L3 | L3.5 | static 输出行级清理（替代一键 `clearDisplay`） | — | — | ⬜ 未开始 |
 | L3 | L3.6 | 无同步渲染时的闪烁防护（光标包裹） | — | — | ⬜ 未开始 |
 | L3 | L3.7 | 输出批量/分片写，避免大字符串抖动 | — | — | ⬜ 未开始 |
@@ -106,13 +106,22 @@
 - 稀疏/稠密二择：变化格数*2 ≥ 行内容范围 → 整行 `goto;clearLine` 回退（避免删尾输出一长串空格）；否则就地分段时间片重画。
 - 首帧/尺寸变化/static 存在或变化 → 仍走全量重画，协议不变；增量帧末尾同样把光标 park 到输出下方一行。
 
+### L3.4 宽格 diff 右缘防护 + 覆盖回归（`76b8d301`）
+- 结论先行：L3.3 的「cell 网格比对 + 占位列身份区分 + 变化区间簇边界扩展 + 区间合并」结构上已保证**真实布局下的覆盖清理**——宽簇头被窄内容覆盖时，其续列（占位态）必然随 diff 进入变更区间，且窄→宽/宽→窄/相邻宽簇/整体换文本均无半格残留。调研中担忧的「覆盖残留」未能在真实 cell 转换中复现，故本步重点是**右缘防护**与**把保证固化为回归**。
+- **右缘防护（唯一代码改动）**：`appendRowRange` 增加 `rowEnd`（行绝对右边界）参数，写入宽簇前判定 `columnIndex + width > rowEnd`，是则用**同风格空格**占满剩余列（不写簇文本），杜绝宽簇在末列导致终端换行/滚动。稠密整行（`appendRowTo`）与稀疏片段（`renderRowDiff`）两条路径统一走该写器，均传 `rowEnd`。
+  - 既有 `wideClusterAtRowEndTrimsPlaceholder` / `ansiRenderingWrapsClusterOnce` 语义不变：宽簇**整簇放得下**时不触发防护、照常渲染。
+- **虚拟终端 `VirtualTerminal`（commonTest 辅助）**：解析渲染器输出的 ANSI（`goto`/`clearLine`/`clearDisplay`/SGR 简化为是否非默认/按簇宽写文本），维护屏幕网格；宽簇同实例共享首列与续列，头列被覆盖而未清理续列时 `displayRow` 以 `◌` 暴露（`hasResidue()` 判半格残留）。
+- **回归 `CellDiffRenderingTest`（15 条，绕过布局直接用 crafted surface + 假 Mosaic 驱动渲染器）**：宽→窄覆盖清续列、窄→宽（强制宽）整簇重写、宽行变窄行清除痕迹、相邻宽簇边界变化、宽簇右移一列、ZWJ 家庭整体替换、keycap 整体替换、宽簇纯样式变更、恰好贴右缘的宽簇保留、非首行右缘拦截、第二行宽簇变更、内容尾部删除、整行收缩清尾、真实 resize（宽度变窄）清旧列。
+- 提交：`76b8d301`；JVM + Native（linuxX64）全绿。
+
 ## 6. 当前状态 / 下一步候选
 
-- 现状：`refactor` 分支，HEAD `de3c9a1a`，JVM + Native 全绿。上面功能步骤已归档。
+- 现状：`refactor` 分支，HEAD `76b8d301`，JVM + Native 全绿。上面功能步骤已归档。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. L3.4 双缓冲 diff。
-  2. L4 续项（Text `alignment`/`scroll`）或进入 L5 输入。
-  3. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
+  1. L3.5 static 输出行级清理（替代一键 `clearDisplay`）。
+  2. L3.6 无同步渲染时的闪烁防护 / L3.7 输出批量分片。
+  3. L4 续项（Text `alignment`/`scroll`）或进入 L5 输入。
+  4. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
 
 ## 7. 验证命令
 
