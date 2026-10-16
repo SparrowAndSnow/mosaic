@@ -6,10 +6,11 @@ import com.jakewharton.mosaic.testing.TestTerminal
 import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.ui.Column
 import com.jakewharton.mosaic.ui.Text
+import com.jakewharton.mosaic.ui.TextStyle
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 
-private fun gotoRow(line: Int): String = "${CSI}${line};1H"
+private fun goto(line: Int, column: Int): String = "${CSI}$line;${column}H"
 
 class AnsiIncrementalRenderingTest {
 	private val rendering = AnsiIncrementalRendering(TestTerminal.Capabilities())
@@ -61,36 +62,79 @@ class AnsiIncrementalRenderingTest {
 		}
 	}
 
-	@Test fun changedLineRewritesOnlyThatRow() = runTest {
+	@Test fun middleChangeRewritesOnlyChangedSegment() = runTest {
 		runMosaicTest(RenderingSnapshots(rendering)) {
 			setContent {
 				Column {
-					Text("Hello")
-					Text("World!")
+					Text("ABCDEFGHIJ")
+					Text("KLMNOPQRST")
 				}
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|Hello
-				|World!
+				|ABCDEFGHIJ
+				|KLMNOPQRST
 				|
 				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
 				Column {
-					Text("Hello")
-					Text("Wide")
+					Text("ABCDEFXHIJ")
+					Text("KLMNOPQRST")
 				}
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
-				"${gotoRow(2)}${clearLine}Wide${gotoRow(3)}"
+				"${goto(1, 7)}X${goto(3, 1)}".wrapWithAnsiSynchronizedUpdate(),
+			)
+		}
+	}
+
+	@Test fun multipleSparseSegmentsRewrittenSeparately() = runTest {
+		runMosaicTest(RenderingSnapshots(rendering)) {
+			setContent {
+				Text("abcdefghij")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|abcdefghij
+				|
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+
+			setContent {
+				Text("abXdefXhij")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"${goto(1, 3)}X${goto(1, 7)}X${goto(2, 1)}".wrapWithAnsiSynchronizedUpdate(),
+			)
+		}
+	}
+
+
+	@Test fun styleChangeDetectedAndRewritesStyledRow() = runTest {
+		runMosaicTest(RenderingSnapshots(rendering)) {
+			setContent {
+				Text("AAAAA")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|AAAAA
+				|
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+
+			setContent {
+				Text("AAAAA", textStyle = TextStyle.Bold)
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"${goto(1, 1)}${clearLine}${CSI}1mAAAAA${ansiReset}${ansiClosingCharacter}${goto(2, 1)}"
 					.wrapWithAnsiSynchronizedUpdate(),
 			)
 		}
 	}
 
-	@Test fun mixedChangedLinesMoveAbsoluteAndParkBelow() = runTest {
+	@Test fun denseChangeRewritesWholeRow() = runTest {
 		runMosaicTest(RenderingSnapshots(rendering)) {
 			setContent {
 				Column {
@@ -116,30 +160,77 @@ class AnsiIncrementalRenderingTest {
 				}
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
-				"${gotoRow(2)}${clearLine}TWO!!${gotoRow(4)}"
-					.wrapWithAnsiSynchronizedUpdate(),
+				"${goto(2, 1)}${clearLine}TWO!!${goto(4, 1)}".wrapWithAnsiSynchronizedUpdate(),
 			)
 		}
 	}
 
-	@Test fun shorterChangedLineClearsTrailingCells() = runTest {
+	@Test fun truncationRewritesRowFromClear() = runTest {
 		runMosaicTest(RenderingSnapshots(rendering)) {
 			setContent {
-				Text("OneTwoThree")
+				Column {
+					Text("OneTwoThree")
+					Text("AAAAAAAAAAA")
+				}
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
 				|OneTwoThree
+				|AAAAAAAAAAA
 				|
 				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
-				Text("On")
+				Column {
+					Text("On")
+					Text("AAAAAAAAAAA")
+				}
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
-				"${gotoRow(1)}${clearLine}On${gotoRow(2)}"
-					.wrapWithAnsiSynchronizedUpdate(),
+				"${goto(1, 1)}${clearLine}On${goto(3, 1)}".wrapWithAnsiSynchronizedUpdate(),
+			)
+		}
+	}
+
+	@Test fun wideClusterHeadChangePatchesSegment() = runTest {
+		runMosaicTest(RenderingSnapshots(rendering)) {
+			setContent {
+				Text("AAAAA中BBBB")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|AAAAA中BBBB
+				|
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+
+			setContent {
+				Text("AAAAA文BBBB")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"${goto(1, 6)}文${goto(2, 1)}".wrapWithAnsiSynchronizedUpdate(),
+			)
+		}
+	}
+
+	@Test fun wideClusterStructureChangeRewritesCluster() = runTest {
+		runMosaicTest(RenderingSnapshots(rendering)) {
+			setContent {
+				Text("AAAAA中BBBB")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|AAAAA中BBBB
+				|
+				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+			)
+
+			setContent {
+				Text("AAAA中ABBBB")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"${goto(1, 5)}中A${goto(2, 1)}".wrapWithAnsiSynchronizedUpdate(),
 			)
 		}
 	}
@@ -280,35 +371,6 @@ class AnsiIncrementalRenderingTest {
 				|A
 				|
 				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
-			)
-		}
-	}
-
-	@Test fun changedWideCharacterRowRewritesOnlyThatRow() = runTest {
-		runMosaicTest(RenderingSnapshots(rendering)) {
-			setContent {
-				Column {
-					Text("ABC")
-					Text("A中B")
-				}
-			}
-			assertThat(awaitSnapshot()).isEqualTo(
-				"""
-				|ABC
-				|A中B
-				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
-			)
-
-			setContent {
-				Column {
-					Text("ABC")
-					Text("中中中")
-				}
-			}
-			assertThat(awaitSnapshot()).isEqualTo(
-				"${gotoRow(2)}${clearLine}中中中${gotoRow(3)}"
-					.wrapWithAnsiSynchronizedUpdate(),
 			)
 		}
 	}

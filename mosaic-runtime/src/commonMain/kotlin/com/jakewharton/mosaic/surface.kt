@@ -34,7 +34,7 @@ internal class TextSurface(
 	var translationX = 0
 	var translationY = 0
 
-	private val cells = Array(width * height) { TextPixel() }
+	internal val cells = Array(width * height) { TextPixel() }
 
 	operator fun get(row: Int, column: Int): TextPixel {
 		val x = translationX + column
@@ -45,25 +45,32 @@ internal class TextSurface(
 	}
 
 	override fun appendRowTo(appendable: Appendable, row: Int, ansiLevel: AnsiLevel, supportsKittyUnderlines: Boolean) {
-		// Reused heap allocation for building ANSI attributes inside the loop.
-		val attributes = mutableListOf<String>()
-
 		val rowStart = row * width
-		var rowStop = rowStart + width
-
-		while (rowStop > rowStart) {
-			val lastIndex = rowStop - 1
-			val pixel = cells[lastIndex]
-			if (pixel.isEmpty()) {
-				rowStop = lastIndex
+		var to = rowStart + width
+		while (to > rowStart) {
+			val lastIndex = to - 1
+			if (cells[lastIndex].isEmpty()) {
+				to = lastIndex
 			} else {
 				break
 			}
 		}
+		appendRowRange(appendable, rowStart, to, ansiLevel, supportsKittyUnderlines)
+	}
+
+	/**
+	 * Appends the cells at absolute indices [from, to) to [appendable]. Unlike [appendRowTo], the
+	 * range is rendered verbatim: empty cells in the middle of the range are emitted as spaces so
+	 * previously-drawn content at those columns is overwritten, and styles are emitted relative to
+	 * the default state so a slice can be patched onto a row independently of the surrounding cells.
+	 */
+	internal fun appendRowRange(appendable: Appendable, from: Int, to: Int, ansiLevel: AnsiLevel, supportsKittyUnderlines: Boolean) {
+		// Reused heap allocation for building ANSI attributes inside the loop.
+		val attributes = mutableListOf<String>()
 
 		var lastPixel = blankPixel
-		var columnIndex = rowStart
-		while (columnIndex < rowStop) {
+		var columnIndex = from
+		while (columnIndex < to) {
 			val pixel = cells[columnIndex]
 
 			if (pixel.isPlaceholder) {
@@ -159,6 +166,17 @@ internal class TextSurface(
 		}
 	}
 
+	/**
+	 * Copies every cell's field values into [dest] in place. [dest] must be pre-sized to this
+	 * surface's cell count, and its elements must already exist so no allocation is required.
+	 */
+	internal fun copyCellsTo(dest: Array<TextPixel>) {
+		require(dest.size == cells.size)
+		for (i in cells.indices) {
+			dest[i].copyFrom(cells[i])
+		}
+	}
+
 	private fun MutableList<String>.addColor(
 		color: Color,
 		ansiLevel: AnsiLevel,
@@ -241,6 +259,21 @@ internal class TextPixel(
 		text = ""
 		width = 0
 		isPlaceholder = true
+	}
+
+	/**
+	 * Copies every field of [other] (text, width, placeholder state, and the style fields) into this
+	 * cell in place so retained buffers can be updated without allocating new objects.
+	 */
+	internal fun copyFrom(other: TextPixel) {
+		text = other.text
+		width = other.width
+		isPlaceholder = other.isPlaceholder
+		background = other.background
+		foreground = other.foreground
+		textStyle = other.textStyle
+		underlineStyle = other.underlineStyle
+		underlineColor = other.underlineColor
 	}
 
 	fun isEmpty(): Boolean {

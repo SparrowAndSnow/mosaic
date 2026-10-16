@@ -70,30 +70,36 @@ internal class DebugRendering(
 }
 
 /**
- * Row-level incremental renderer.
+ * Cell-diff incremental renderer.
  *
- * The rendered row strings from the previous frame are retained so that rows whose content is
- * unchanged can be skipped. Changed rows are reached with an absolute cursor move, cleared with
- * `EL` (`CSI K`) so no stale trailing cells survive, and rewritten in place. Frames whose height
- * differs, or whose static text changed, fall back to redrawing the whole previous area from its
- * top so the screen can never retain stale cells across a layout change.
+ * The previous frame's cell grid is retained so the current frame can be diffed cell by cell.
+ * Rows whose content is unchanged are skipped entirely. For changed rows, changed columns are
+ * grouped into runs that are expanded to whole grapheme clusters and patched in place with an
+ * absolute cursor move, so an unchanged prefix and suffix are never re-emitted. When a change
+ * spans most of a row (notably a truncation that would otherwise emit a long run of spaces), the
+ * row is instead rewritten whole from the clear. Frames whose size differs, or whose static text
+ * appears or changes, fall back to redrawing the whole previous area from its top so the screen
+ * can never retain stale cells across a layout change.
  */
 internal class AnsiIncrementalRendering(
 	private val capabilities: Terminal.Capabilities,
 ) : Rendering {
 	private val stringBuilder = StringBuilder(100)
-	private val rowBuilder = StringBuilder(200)
+	private val runs = ArrayList<Int>(16)
 
-	private var lastHeight = 0
+	private var prevWidth = 0
+	private var prevHeight = 0
+	private var prevCells = emptyArray<TextPixel>()
 	private var lastStatic: String? = null
-	private var lastRows: List<String> = emptyList()
 
 	override fun render(mosaic: Mosaic): CharSequence {
-		val canvas = mosaic.draw()
+		val surface = mosaic.draw() as TextSurface
 		val static = mosaic.static()
-		val rows = List(canvas.height) { row -> renderRow(canvas, row) }
+		val width = surface.width
+		val height = surface.height
 
-		val heightChanged = canvas.height != lastHeight
+		val firstFrame = prevHeight == 0
+		val sizeChanged = prevWidth != width || prevHeight != height
 		val staticChanged = static != lastStatic
 
 		return stringBuilder.apply {
@@ -103,19 +109,22 @@ internal class AnsiIncrementalRendering(
 				append(synchronizedOutputEnable)
 			}
 
-			if (lastHeight == 0) {
+			if (firstFrame) {
 				// First frame: draw everything from the top of the screen, mirroring the full
 				// redraw protocol so the initial paint is identical to the previous renderer.
 				if (static != null) {
 					append(static)
 					append("\r\n")
 				}
-				rows.forEach { append(it).append("\r\n") }
-			} else if (heightChanged || staticChanged || static != null) {
+				for (row in 0 until height) {
+					surface.appendRowTo(this, row, capabilities.ansiLevel, capabilities.kittyUnderline)
+					append("\r\n")
+				}
+			} else if (sizeChanged || staticChanged || static != null) {
 				// A layout or static change (or any static text at all, since mixing static and
 				// dynamic rows makes absolute cursor positioning unreliable): rewrite the whole
 				// previous area from its top.
-				var staleLines = lastHeight
+				var staleLines = prevHeight
 				if (staleLines > 0) {
 					append(CSI)
 					append(staleLines)
@@ -129,38 +138,29 @@ internal class AnsiIncrementalRendering(
 					append(static)
 					append("\r\n")
 				}
-				for (row in 0 until canvas.height) {
+				for (row in 0 until height) {
 					if (staleLines-- > 0) {
 						append(clearLine)
 					}
-					append(rows[row])
+					surface.appendRowTo(this, row, capabilities.ansiLevel, capabilities.kittyUnderline)
 					append("\r\n")
 				}
 				if (staleLines > 0) {
 					append(clearDisplay)
 				}
 			} else {
-				// Same size, same static text: rewrite only the rows that changed. Absolute cursor
-				// positioning means changed rows can be patched in place regardless of the cursor's
-				// current location. After writing, the cursor is parked one line below the output
-				// (mirroring the trailing carriage returns of a full redraw) so that a later full
-				// redraw's relative cursor-up still starts from the same place.
+				// Same size, no static text: rewrite only the cells that changed, leaving the
+				// cursor parked one line below the output so a later full redraw's relative
+				// cursor-up still starts from the same place.
 				var changed = false
-				for (row in 0 until canvas.height) {
-					if (rows[row] != lastRows[row]) {
+				for (row in 0 until height) {
+					if (renderRowDiff(this, surface, row, width)) {
 						changed = true
-						append(CSI)
-						append(row + 1)
-						append(';')
-						append(1)
-						append('H')
-						append(clearLine)
-						append(rows[row])
 					}
 				}
 				if (changed) {
 					append(CSI)
-					append(canvas.height + 1)
+					append(height + 1)
 					append(';')
 					append(1)
 					append('H')
@@ -171,16 +171,152 @@ internal class AnsiIncrementalRendering(
 				append(synchronizedOutputDisable)
 			}
 
-			lastHeight = canvas.height
+			ensurePrevBuffer(width, height)
+			surface.copyCellsTo(prevCells)
+			prevWidth = width
+			prevHeight = height
 			lastStatic = static
-			lastRows = rows
 		}
 	}
 
-	private fun renderRow(canvas: TextCanvas, row: Int): String = rowBuilder.apply {
-		setLength(0)
-		canvas.appendRowTo(this, row, capabilities.ansiLevel, capabilities.kittyUnderline)
-	}.toString()
+	/**
+	 * Emits the incremental update for one row into [appendable] and returns whether anything
+	 * changed. [base] is the row's first cell index in the current and previous grids.
+	 */
+	private fun renderRowDiff(appendable: StringBuilder, surface: TextSurface, row: Int, width: Int): Boolean {
+		val base = row * width
+
+		// Collect maximal runs of columns whose cell differs from the previous frame.
+		runs.clear()
+		var column = 0
+		while (column < width) {
+			while (column < width && cellsEqual(surface.cells[base + column], prevCells[base + column])) {
+				column++
+			}
+			if (column == width) break
+			val start = column
+			do {
+				column++
+			} while (column < width && !cellsEqual(surface.cells[base + column], prevCells[base + column]))
+			runs.add(start)
+			runs.add(column)
+		}
+		if (runs.isEmpty()) {
+			return false
+		}
+
+		// Grow each run to whole grapheme clusters: a rewrite must never begin or end mid-cluster,
+		// otherwise the placeholder columns of a wide cluster would be left half-overwritten.
+		var i = 0
+		while (i < runs.size) {
+			var start = runs[i]
+			var end = runs[i + 1]
+			while (start > 0 && surface.cells[base + start - 1].isPlaceholder) {
+				start--
+			}
+			var c = start
+			while (c < end) {
+				val cell = surface.cells[base + c]
+				if (!cell.isPlaceholder && cell.width > 1) {
+					val clusterEnd = c + cell.width
+					if (clusterEnd > end) {
+						end = clusterEnd.coerceAtMost(width)
+					}
+				}
+				c++
+			}
+			runs[i] = start
+			runs[i + 1] = end
+			i += 2
+		}
+
+		// Merge overlapping runs so each changed region is rewritten only once.
+		var out = 0
+		i = 0
+		while (i < runs.size) {
+			var start = runs[i]
+			var end = runs[i + 1]
+			var next = i + 2
+			while (next < runs.size && runs[next] <= end) {
+				if (runs[next + 1] > end) {
+					end = runs[next + 1]
+				}
+				next += 2
+			}
+			runs[out++] = start
+			runs[out++] = end
+			i = next
+		}
+		val runCount = out / 2
+
+		// When the changed region dominates the row, rewriting it whole after a clear is cheaper
+		// than patching sparse segments (a truncation would otherwise emit a long run of spaces).
+		var changedCells = 0
+		i = 0
+		while (i < runCount) {
+			changedCells += runs[i * 2 + 1] - runs[i * 2]
+			i++
+		}
+		var newStop = 0
+		var prevStop = 0
+		var c = width - 1
+		while (c >= 0) {
+			if (newStop == 0 && !surface.cells[base + c].isEmpty()) {
+				newStop = c + 1
+			}
+			if (prevStop == 0 && !prevCells[base + c].isEmpty()) {
+				prevStop = c + 1
+			}
+			if (newStop != 0 && prevStop != 0) {
+				break
+			}
+			c--
+		}
+		val contentStop = maxOf(newStop, prevStop)
+		if (changedCells * 2 >= contentStop) {
+			appendable.append(CSI)
+			appendable.append(row + 1)
+			appendable.append(';')
+			appendable.append(1)
+			appendable.append('H')
+			appendable.append(clearLine)
+			surface.appendRowTo(appendable, row, capabilities.ansiLevel, capabilities.kittyUnderline)
+			return true
+		}
+
+		// Patch sparse segments in place, left to right.
+		i = 0
+		while (i < runCount) {
+			val start = runs[i * 2]
+			val end = runs[i * 2 + 1]
+			appendable.append(CSI)
+			appendable.append(row + 1)
+			appendable.append(';')
+			appendable.append(start + 1)
+			appendable.append('H')
+			surface.appendRowRange(appendable, base + start, base + end, capabilities.ansiLevel, capabilities.kittyUnderline)
+			i++
+		}
+		return true
+	}
+
+	private fun cellsEqual(a: TextPixel, b: TextPixel): Boolean {
+		return a.text == b.text &&
+			a.width == b.width &&
+			a.isPlaceholder == b.isPlaceholder &&
+			a.foreground == b.foreground &&
+			a.background == b.background &&
+			a.textStyle == b.textStyle &&
+			a.underlineStyle == b.underlineStyle &&
+			a.underlineColor == b.underlineColor
+	}
+
+	private fun ensurePrevBuffer(width: Int, height: Int) {
+		val size = width * height
+		if (prevCells.size != size) {
+			prevCells = Array(size) { TextPixel() }
+		}
+	}
 }
 
 internal class AnsiRendering(
