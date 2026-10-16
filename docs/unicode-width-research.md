@@ -161,3 +161,5 @@
   - 相应从 `NON_TRANSPARENT_ZERO_WIDTHS` 移除这两点（范围由 `0xFF9E..0xFFA0` 收窄为 `0xFFA0..0xFFA0`）。
   - CJK 模式下 `FE01`/`FE02` 应按 VS1/2 处理（宽度 0），手写区 `lookupWidthCjk` 的分支已从 `0xFE00` 扩为 `in 0xFE00..0xFE02`。
 - 已新增回归测试锁定上述行为：`CharWidthTest` 断言 `FF9E`/`FF9F`=1、非 CJK `FE01`/`FE02`=0、CJK `FE00`..`FE02`=0。
+
+> 「DrawScope」改装的渲染问题与待办归档见 [`docs/todo.md`](todo.md)。
