@@ -9,6 +9,7 @@ import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.text.AnnotatedString
 import com.jakewharton.mosaic.text.AnnotatedStringTextLayout
 import com.jakewharton.mosaic.text.StringTextLayout
+import com.jakewharton.mosaic.ui.unit.Constraints
 import kotlin.jvm.JvmName
 
 @Composable
@@ -16,6 +17,7 @@ import kotlin.jvm.JvmName
 public fun Text(
 	value: String,
 	modifier: Modifier = Modifier,
+	softWrap: Boolean = false,
 	color: Color = Color.Unspecified,
 	background: Color = Color.Unspecified,
 	textStyle: TextStyle = TextStyle.Unspecified,
@@ -30,7 +32,7 @@ public fun Text(
 			"""Text("$value")"""
 		},
 		measurePolicy = {
-			layout.measure()
+			layout.measure(if (softWrap) it.maxWidth else Constraints.Infinity)
 			layout(layout.width, layout.height)
 		},
 		modifier = modifier.drawBehind {
@@ -46,6 +48,7 @@ public fun Text(
 public fun Text(
 	value: AnnotatedString,
 	modifier: Modifier = Modifier,
+	softWrap: Boolean = false,
 	color: Color = Color.Unspecified,
 	background: Color = Color.Unspecified,
 	textStyle: TextStyle = TextStyle.Unspecified,
@@ -60,7 +63,7 @@ public fun Text(
 			"""Text("$value")"""
 		},
 		measurePolicy = {
-			layout.measure()
+			layout.measure(if (softWrap) it.maxWidth else Constraints.Infinity)
 			layout(layout.width, layout.height)
 		},
 		modifier = modifier.drawBehind {

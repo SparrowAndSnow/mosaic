@@ -14,7 +14,7 @@ import com.jakewharton.mosaic.ui.unit.Constraints
 import kotlin.jvm.JvmName
 
 internal fun interface NoContentMeasurePolicy {
-	fun NoContentMeasureScope.measure(): MeasureResult
+	fun NoContentMeasureScope.measure(constraints: Constraints): MeasureResult
 }
 
 internal sealed class NoContentMeasureScope {
@@ -57,7 +57,7 @@ private class NoContentMeasurePolicyMeasurePolicy(
 		constraints: Constraints,
 	): MeasureResult {
 		check(measurables.isEmpty())
-		return noContentMeasurePolicy.run { NoContentMeasureScope.measure() }
+		return noContentMeasurePolicy.run { NoContentMeasureScope.measure(constraints) }
 	}
 }
 
