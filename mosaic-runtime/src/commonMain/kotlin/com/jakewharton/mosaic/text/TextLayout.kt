@@ -3,6 +3,7 @@ package com.jakewharton.mosaic.text
 import com.jakewharton.mosaic.text.grapheme.graphemeWidth
 import com.jakewharton.mosaic.text.grapheme.forEachGraphemeClusterRange
 import com.jakewharton.mosaic.text.grapheme.graphemeClusterWidth
+import com.jakewharton.mosaic.ui.TextOverflow
 import com.jakewharton.mosaic.ui.unit.Constraints
 
 internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
@@ -39,6 +40,8 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 	private var dirty = true
 
 	private var lastMaxWidth = Int.MAX_VALUE
+	private var lastMaxLines = Int.MAX_VALUE
+	private var lastOverflow = TextOverflow.Clip
 
 	/**
 	 * Recomputes the laid-out [lines] using at most [maxWidth] display columns per line. Clusters
@@ -47,10 +50,21 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 	 * occupies a line of its own. A paragraph that fits on one line is emitted as-is, preserving
 	 * empty paragraphs (consecutive/leading/trailing newlines). [Constraints.Infinity] means no
 	 * constraint, in which case the previous behavior (one line per paragraph) is kept.
+	 *
+	 * When the wrapped lines exceed [maxLines], [overflow] decides how the surplus is handled:
+	 * [TextOverflow.Clip] keeps the first [maxLines] lines whole, while [TextOverflow.Ellipsis]
+	 * truncates the last visible line in clusters and appends an ellipsis. Truncation never splits
+	 * a cluster. With an unbounded [maxWidth] there is no column budget to ellipsize into, so the
+	 * behavior degrades to clipping.
 	 */
-	fun measure(maxWidth: Int = Constraints.Infinity) {
+	fun measure(
+		maxWidth: Int = Constraints.Infinity,
+		maxLines: Int = Int.MAX_VALUE,
+		overflow: TextOverflow = TextOverflow.Clip,
+	) {
 		val effectiveMaxWidth = if (maxWidth == Constraints.Infinity) Int.MAX_VALUE else maxWidth
-		if (!dirty && effectiveMaxWidth == lastMaxWidth) {
+		val effectiveMaxLines = maxLines.coerceAtLeast(1)
+		if (!dirty && effectiveMaxWidth == lastMaxWidth && effectiveMaxLines == lastMaxLines && overflow == lastOverflow) {
 			return
 		}
 
@@ -59,10 +73,34 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 				addAll(paragraph.wrapToWidth(effectiveMaxWidth))
 			}
 		}
-		width = wrappedLines.maxOf { it.textWidth() }
-		height = wrappedLines.size
-		lines = wrappedLines
+
+		val result = if (wrappedLines.size <= effectiveMaxLines) {
+			wrappedLines
+		} else {
+			when (overflow) {
+				TextOverflow.Clip -> wrappedLines.take(effectiveMaxLines)
+				TextOverflow.Ellipsis -> {
+					val kept = ArrayList<T>(effectiveMaxLines)
+					kept.addAll(wrappedLines.subList(0, effectiveMaxLines - 1))
+					val last = wrappedLines[effectiveMaxLines - 1]
+					kept.add(
+						if (effectiveMaxWidth == Int.MAX_VALUE) {
+							last
+						} else {
+							last.truncateForEllipsis(effectiveMaxWidth)
+						},
+					)
+					kept
+				}
+			}
+		}
+
+		width = result.maxOf { it.textWidth() }
+		height = result.size
+		lines = result
 		lastMaxWidth = effectiveMaxWidth
+		lastMaxLines = effectiveMaxLines
+		lastOverflow = overflow
 		dirty = false
 	}
 
@@ -71,6 +109,32 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 	protected abstract fun T.splitByLines(): List<T>
 
 	protected abstract fun T.subSlice(from: Int, to: Int): T
+
+	/**
+	 * Clips this text to the longest prefix (in whole grapheme clusters) whose width is at most
+	 * [maxWidth], never splitting a cluster. The text is returned unchanged when it already fits.
+	 */
+	protected fun T.clipTo(maxWidth: Int): T {
+		if (isEmpty() || textWidth() <= maxWidth) return this
+		var clipEnd = 0
+		var width = 0
+		var done = false
+		forEachGraphemeClusterRange { start, end ->
+			if (!done) {
+				val clusterWidth = graphemeClusterWidth(start, end)
+				if (width + clusterWidth > maxWidth) {
+					done = true
+				} else {
+					clipEnd = end
+					width += clusterWidth
+				}
+			}
+		}
+		return subSlice(0, clipEnd)
+	}
+
+	/** Returns this text truncated to fit [maxWidth] columns, with an ellipsis appended. */
+	protected abstract fun T.truncateForEllipsis(maxWidth: Int): T
 
 	private fun T.wrapToWidth(maxWidth: Int): List<T> {
 		if (isEmpty() || textWidth() <= maxWidth) return listOf(this)
@@ -103,6 +167,8 @@ internal class StringTextLayout : TextLayout<String>(initialValue = "") {
 	override fun String.textWidth(): Int = graphemeWidth()
 
 	override fun String.subSlice(from: Int, to: Int): String = substring(from, to)
+
+	override fun String.truncateForEllipsis(maxWidth: Int): String = clipTo(maxWidth - 1) + "\u2026"
 }
 
 internal class AnnotatedStringTextLayout :
@@ -117,4 +183,7 @@ internal class AnnotatedStringTextLayout :
 	override fun AnnotatedString.textWidth(): Int = text.graphemeWidth()
 
 	override fun AnnotatedString.subSlice(from: Int, to: Int): AnnotatedString = subSequence(from, to)
+
+	override fun AnnotatedString.truncateForEllipsis(maxWidth: Int): AnnotatedString =
+		clipTo(maxWidth - 1) + AnnotatedString("\u2026")
 }

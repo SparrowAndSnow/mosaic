@@ -18,6 +18,8 @@ public fun Text(
 	value: String,
 	modifier: Modifier = Modifier,
 	softWrap: Boolean = false,
+	maxLines: Int = Int.MAX_VALUE,
+	overflow: TextOverflow = TextOverflow.Clip,
 	color: Color = Color.Unspecified,
 	background: Color = Color.Unspecified,
 	textStyle: TextStyle = TextStyle.Unspecified,
@@ -32,7 +34,11 @@ public fun Text(
 			"""Text("$value")"""
 		},
 		measurePolicy = {
-			layout.measure(if (softWrap) it.maxWidth else Constraints.Infinity)
+			layout.measure(
+				maxWidth = if (softWrap) it.maxWidth else Constraints.Infinity,
+				maxLines = maxLines,
+				overflow = overflow,
+			)
 			layout(layout.width, layout.height)
 		},
 		modifier = modifier.drawBehind {
@@ -49,6 +55,8 @@ public fun Text(
 	value: AnnotatedString,
 	modifier: Modifier = Modifier,
 	softWrap: Boolean = false,
+	maxLines: Int = Int.MAX_VALUE,
+	overflow: TextOverflow = TextOverflow.Clip,
 	color: Color = Color.Unspecified,
 	background: Color = Color.Unspecified,
 	textStyle: TextStyle = TextStyle.Unspecified,
@@ -63,7 +71,11 @@ public fun Text(
 			"""Text("$value")"""
 		},
 		measurePolicy = {
-			layout.measure(if (softWrap) it.maxWidth else Constraints.Infinity)
+			layout.measure(
+				maxWidth = if (softWrap) it.maxWidth else Constraints.Infinity,
+				maxLines = maxLines,
+				overflow = overflow,
+			)
 			layout(layout.width, layout.height)
 		},
 		modifier = modifier.drawBehind {
