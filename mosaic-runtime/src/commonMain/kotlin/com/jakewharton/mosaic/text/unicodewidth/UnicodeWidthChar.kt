@@ -1,13 +1,5 @@
-// Vendored from unicode-width-kotlin (KotlinMania). port-lint: source lib.rs
-// Copyright 2012-2025 The Rust Project Developers. See the COPYRIGHT
-// file at the top-level directory of this distribution and at
-// http://rust-lang.org/COPYRIGHT.
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
+// Unicode character width computation (UAX #11).
+// Width data is generated from the Unicode Character Database; see scripts/unicode.py.
 package com.jakewharton.mosaic.text.unicodewidth
 
 internal interface Sealed

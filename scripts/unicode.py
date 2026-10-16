@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
 #
-# Copyright 2011-2025 The Rust Project Developers. See the COPYRIGHT
-# file at the top-level directory of this distribution and at
-# http://rust-lang.org/COPYRIGHT.
-#
-# Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-# http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-# <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-# option. This file may not be copied, modified, or distributed
-# except according to those terms.
+# Regenerates the Unicode character width tables used by mosaic-runtime.
+# Width data is generated from the Unicode Character Database (see UNICODE_VERSION below).
 
 # This script uses the following Unicode tables:
 #
@@ -116,9 +109,8 @@ def fetch_open(filename: str, local_prefix: str = "", emoji: bool = False):
 def load_unicode_version() -> tuple[int, int, int]:
     """Returns the Unicode version this script generates data for.
 
-    The Unicode 16.0 `ReadMe.txt` does not use the format that the upstream
-    `unicode-rs` script parses, so instead of scraping it we simply return the
-    pinned `UNICODE_VERSION` constant.
+    The Unicode 16.0 `ReadMe.txt` does not use a version format we parse,
+    so instead of scraping it we simply return the pinned `UNICODE_VERSION` constant.
     """
     return tuple(map(int, UNICODE_VERSION.split(".")))
 
@@ -1227,8 +1219,8 @@ def emit_kotlin_data_section(
 
     Everything above `GENERATED_MARKER` in `Tables.kt` (the `WidthInfo` class, the
     `lookupWidth`/`lookupWidthCjk` functions, and the property lookups) is hand-written and
-    intentionally left alone here. As with the upstream `unicode-rs` script, those functions
-    are hardcoded and only this data section is regenerated.
+    intentionally left alone here. Those functions are hardcoded and only this data
+    section is regenerated.
     """
     module.write(f"{GENERATED_MARKER}\n\n")
 

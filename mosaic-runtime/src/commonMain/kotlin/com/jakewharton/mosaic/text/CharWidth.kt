@@ -4,7 +4,7 @@ import com.jakewharton.mosaic.text.unicodewidth.unicodeWidth
 
 /**
  * Emoji blocks that the Unicode East Asian Width data lists as `N`/`A` (width 1) but that virtually
- * all modern terminals render as 2-cell emoji. Mirrors the override list used by `mordant`.
+ * all modern terminals render as 2-cell emoji.
  */
 private val emojiOverrideRanges = listOf(
 	0x1F000..0x1F02F, // Mahjong Tiles
@@ -37,9 +37,9 @@ private operator fun List<IntRange>.contains(codepoint: Int): Boolean {
 /**
  * Returns the number of terminal columns a Unicode code point occupies.
  *
- * Delegates to `unicode-width-kotlin` (a Kotlin port of `unicode-rs/unicode-width`, itself a strict
- * UAX#11 implementation) so width data always tracks the Unicode standard. Control characters, for
- * which the backing implementation reports no width, are treated as 1 column.
+ * Delegates to the bundled UAX #11 width tables (see `text/unicodewidth/`) so width data always
+ * tracks the Unicode standard. Control characters, for which the backing implementation reports
+ * no width, are treated as 1 column.
  */
 internal fun charWidth(codepoint: Int): Int {
 	val width = codepoint.unicodeWidth() ?: 1
