@@ -16,7 +16,7 @@
 | 功能域 | 现状 | 最短板 | 借鉴对象 | 优先级 |
 | --- | --- | --- | --- | --- |
 | 运行模型 | Compose 声明式 + Snapshot 脏标记 | 帧循环 `delay(1)` 空转，无 FPS 上限 | BubbleTea 60fps ticker | P2 |
-| 渲染 | 行级增量已落地（L3.2，跳过未变行） | 行内段差分 / 双缓冲未做 | uv `transformLine` / Ratatui `BufferDiff` | **P1**（L3.3/L3.4 续） |
+| 渲染 | cell 级差分增量（L3.3，稀疏段就地重写） | 双缓冲 diff / 静态清理未做 | uv `transformLine` / Ratatui `BufferDiff` | **P1**（L3.4 续） |
 | 缓冲 | `TextPixel` = 簇字符串 + 显式列宽（L2.1 已落地） | 无部分覆盖清理 / 右缘裁剪 | Ratatui `Cell` / uv `Cell` | **P1**（余项） |
 | 宽字符 | 簇级列宽唯一口径（L1.2），测/绘统一（L3.1） | DEC 2027 未探测；右缘裁剪 | uv `WidthMethod` 可插拔 | **P1** |
 | 布局 | Row/Column weight + Box + Modifier 链 | 无 percentage/fill/ratio；无缓存 | Ratatui Constraint+LRU | P2 |
@@ -42,7 +42,7 @@
 ## 2. 渲染管线（`rendering.kt` / `surface.kt`）
 
 - [x] **P1 行级增量输出** ✅（L3.2，`08e92477`）：`AnsiIncrementalRendering` 为默认渲染器，按行对比跳过未变行、绝对定位 + `clearLine` 重写变化行；高度变化 / static 存在退化为全量重画。旧 `AnsiRendering` 保留仅供其测试（L3.8 再去重）。
-- [ ] **P1 行内段差分**：对变化行内仅重写变化的「列区间」+ 定位清尾，进一步降带宽（原 P1 的未完成部分）。
+- [x] **P1 行内段差分** ✅（L3.3，`dc031ff3`）：cell 级 diff，变化区间按字素簇边界切分后 `goto` + 片段重写；稀疏段就地 patch、稠密/删尾整行 `goto;clearLine` 回退。
 - [ ] **P2 全屏双缓冲 diff**（L3.4）：在行级增量之上做 `Buffer` 双缓冲（Ratatui `buffers: [Buffer;2]` + `BufferDiff`），吸收其 `skip`/`ForcedWidth`/不确定宽三件套语义（等 §3 右缘裁剪等边界项落定后实施）。
 - [ ] **P2 静态输出优化**：`static()` 分支目前用 `clearDisplay` 兜底整屏（`rendering.kt`）；可解析 `static` 行数 / 逐行 `EL` 最小化清理（注释里已说明是"为省事"）。
 - [ ] **P2 闪烁防护**：synchronized output（DEC 2026）已按能力包裹整帧；无该能力时可选加「光标 hide/show 包裹」（BubbleTea 的处理），当前只在启动时 `cursorDisable` 一次。
