@@ -59,7 +59,7 @@ public suspend fun runMosaic(
 	val rendering = if (env("MOSAIC_DEBUG_RENDERING") == "true") {
 		DebugRendering(terminal.capabilities)
 	} else {
-		AnsiRendering(terminal.capabilities)
+		AnsiIncrementalRendering(terminal.capabilities)
 	}
 
 	runMosaicComposition(terminal, rendering, content)
