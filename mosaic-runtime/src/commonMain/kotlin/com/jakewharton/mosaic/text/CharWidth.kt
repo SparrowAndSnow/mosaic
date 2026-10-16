@@ -1,6 +1,6 @@
 package com.jakewharton.mosaic.text
 
-import io.github.kotlinmania.unicodewidth.unicodeWidth
+import com.jakewharton.mosaic.text.unicodewidth.unicodeWidth
 
 /**
  * Emoji blocks that the Unicode East Asian Width data lists as `N`/`A` (width 1) but that virtually

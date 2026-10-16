@@ -33,6 +33,12 @@ class TextLayoutWidthTest {
 		assertEquals(1, measuredWidth("\uD83C\uDDE8")) // single RI
 	}
 
+	@Test fun keycapSequenceIsTwoColumns() {
+		// Fully-qualified keycap (with VS16) is 2 columns; the bare U+20E3 form is 1 in UAX #11.
+		assertEquals(2, measuredWidth("#\uFE0F\u20E3"))
+		assertEquals(1, measuredWidth("#\u20E3"))
+	}
+
 	@Test fun vs16MakesEmojiTwoColumnsVs15KeepsOne() {
 		assertEquals(1, measuredWidth("©"))
 		assertEquals(2, measuredWidth("©\uFE0F")) // VS16

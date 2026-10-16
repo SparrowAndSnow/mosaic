@@ -1,6 +1,6 @@
 package com.jakewharton.mosaic.text
 
-import io.github.kotlinmania.unicodewidth.unicodeWidth
+import com.jakewharton.mosaic.text.unicodewidth.unicodeWidth
 
 internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 
