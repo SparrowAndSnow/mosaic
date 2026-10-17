@@ -79,6 +79,10 @@ public suspend fun Tty.asTerminalIn(
 	scope: CoroutineScope,
 	/** When true, each terminal event will be immediately followed by a matching [DebugEvent]. */
 	emitDebugEvents: Boolean = false,
+	/** When true, mouse button/press events are reported and dispatched to layouts. */
+	mouse: Boolean = false,
+	/** When true, bracketed paste mode is enabled and paste content is reported as events. */
+	paste: Boolean = false,
 ): Terminal {
 	// Entering raw mode can fail, so perform it before any additional control sequences which change
 	// settings. We also need to be in character mode to query capabilities with control sequences.
@@ -98,6 +102,9 @@ public suspend fun Tty.asTerminalIn(
 	var toggleFocus = false
 	var toggleInBandResize = false
 	var toggleSystemTheme = false
+	var toggleMouse = mouse
+	var togglePaste = paste
+	var toggleKittyKeyboard = false
 
 	// TODO The design of finalization hook fights us here. We don't need suspension.
 	val interruptJob = scope.launch(Unconfined, start = UNDISPATCHED) {
@@ -108,6 +115,9 @@ public suspend fun Tty.asTerminalIn(
 				if (toggleInBandResize) write(inBandResizeDisable)
 				if (toggleFocus) write(focusDisable)
 				if (toggleCursor) write(cursorEnable)
+				if (toggleMouse) write(mouseDisable)
+				if (togglePaste) write(pasteDisable)
+				if (toggleKittyKeyboard) write(kittyKeyboardPop)
 				reset()
 			},
 			block = {
@@ -122,6 +132,15 @@ public suspend fun Tty.asTerminalIn(
 	}
 
 	write("${CSI}0c")
+	if (mouse) {
+		// Setting DEC modes does not produce a reply, so this is safe to do synchronously here
+		// before the capability queries begin.
+		write(mouseEnable)
+	}
+	if (paste) {
+		// Bracketed paste is also a plain DEC mode without a reply.
+		write(pasteEnable)
+	}
 	val debugBootstrap = env("MOSAIC_TTY_TERMINAL_DEBUG") == "true"
 	var stage = StageDeviceAttributes
 
@@ -243,6 +262,12 @@ public suspend fun Tty.asTerminalIn(
 				is KittyKeyboardQueryEvent -> {
 					if (stage == StageCapabilityQueries) {
 						kittyKeyboard = true
+						// Activate the push-based keyboard protocol so keys are reported
+						// unambiguously. The push does not produce a reply, so it is safe to send
+						// synchronously here. On exit we always pop to restore the terminal's
+						// prior configuration.
+						toggleKittyKeyboard = true
+						write(kittyKeyboardPush)
 					}
 				}
 

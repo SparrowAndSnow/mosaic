@@ -14,6 +14,8 @@ public abstract interface class com/jakewharton/mosaic/testing/TestMosaic : com/
 	public static synthetic fun awaitSnapshot-VtjQ1oo$default (Lcom/jakewharton/mosaic/testing/TestMosaic;JLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public abstract fun getState ()Lcom/jakewharton/mosaic/testing/TestTerminal$State;
 	public abstract fun sendKeyEvent (Lcom/jakewharton/mosaic/terminal/KeyboardEvent;)V
+	public abstract fun sendMouseEvent (Lcom/jakewharton/mosaic/terminal/MouseEvent;)V
+	public abstract fun sendPaste (Ljava/lang/String;)V
 	public abstract fun setContentAndSnapshot (Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
 }
 

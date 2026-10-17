@@ -9,11 +9,12 @@ public abstract interface class com/jakewharton/mosaic/Mosaic {
 
 public final class com/jakewharton/mosaic/MosaicKt {
 	public static final fun Mosaic (Lkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function1;Lcom/jakewharton/mosaic/terminal/Terminal;)Lcom/jakewharton/mosaic/Mosaic;
-	public static final fun runMosaic (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun runMosaic$default (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public static final fun runMosaicBlocking (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lkotlin/jvm/functions/Function2;)Z
-	public static synthetic fun runMosaicBlocking$default (Lcom/jakewharton/mosaic/NonInteractivePolicy;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Z
-	public static final fun runMosaicMain (Lkotlin/jvm/functions/Function2;)V
+	public static final fun runMosaic (Lcom/jakewharton/mosaic/NonInteractivePolicy;ZZLkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun runMosaic$default (Lcom/jakewharton/mosaic/NonInteractivePolicy;ZZLkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun runMosaicBlocking (Lcom/jakewharton/mosaic/NonInteractivePolicy;ZZLkotlin/jvm/functions/Function2;)Z
+	public static synthetic fun runMosaicBlocking$default (Lcom/jakewharton/mosaic/NonInteractivePolicy;ZZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)Z
+	public static final fun runMosaicMain (ZZLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun runMosaicMain$default (ZZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 }
 
 public final class com/jakewharton/mosaic/NonInteractivePolicy : java/lang/Enum {
@@ -204,6 +205,56 @@ public abstract interface class com/jakewharton/mosaic/layout/MeasureScope {
 	public fun layout (IILkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/layout/MeasureResult;
 }
 
+public final class com/jakewharton/mosaic/layout/MouseEvent {
+	public static final field $stable I
+	public fun <init> (IILcom/jakewharton/mosaic/layout/MouseEvent$Type;Lcom/jakewharton/mosaic/layout/MouseEvent$Button;ZZZ)V
+	public synthetic fun <init> (IILcom/jakewharton/mosaic/layout/MouseEvent$Type;Lcom/jakewharton/mosaic/layout/MouseEvent$Button;ZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAlt ()Z
+	public final fun getButton ()Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public final fun getCtrl ()Z
+	public final fun getShift ()Z
+	public final fun getType ()Lcom/jakewharton/mosaic/layout/MouseEvent$Type;
+	public final fun getX ()I
+	public final fun getY ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/jakewharton/mosaic/layout/MouseEvent$Button : java/lang/Enum {
+	public static final field Button10 Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public static final field Button11 Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public static final field Button8 Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public static final field Button9 Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public static final field Left Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public static final field Middle Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public static final field None Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public static final field Right Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public static final field WheelDown Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public static final field WheelUp Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+	public static fun values ()[Lcom/jakewharton/mosaic/layout/MouseEvent$Button;
+}
+
+public final class com/jakewharton/mosaic/layout/MouseEvent$Type : java/lang/Enum {
+	public static final field Drag Lcom/jakewharton/mosaic/layout/MouseEvent$Type;
+	public static final field Motion Lcom/jakewharton/mosaic/layout/MouseEvent$Type;
+	public static final field Press Lcom/jakewharton/mosaic/layout/MouseEvent$Type;
+	public static final field Release Lcom/jakewharton/mosaic/layout/MouseEvent$Type;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/jakewharton/mosaic/layout/MouseEvent$Type;
+	public static fun values ()[Lcom/jakewharton/mosaic/layout/MouseEvent$Type;
+}
+
+public final class com/jakewharton/mosaic/layout/MouseEventKt {
+	public static final fun onMouseEvent (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
+}
+
+public abstract interface class com/jakewharton/mosaic/layout/MouseModifier : com/jakewharton/mosaic/modifier/Modifier$Element {
+	public abstract fun onMouseEvent (Lcom/jakewharton/mosaic/layout/MouseEvent;)Z
+}
+
 public final class com/jakewharton/mosaic/layout/OffsetKt {
 	public static final fun offset (Lcom/jakewharton/mosaic/modifier/Modifier;II)Lcom/jakewharton/mosaic/modifier/Modifier;
 	public static final fun offset (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function0;)Lcom/jakewharton/mosaic/modifier/Modifier;
@@ -220,6 +271,14 @@ public final class com/jakewharton/mosaic/layout/PaddingKt {
 
 public abstract interface class com/jakewharton/mosaic/layout/ParentDataModifier : com/jakewharton/mosaic/modifier/Modifier$Element {
 	public abstract fun modifyParentData (Ljava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class com/jakewharton/mosaic/layout/PasteEventKt {
+	public static final fun onPaste (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
+}
+
+public abstract interface class com/jakewharton/mosaic/layout/PasteModifier : com/jakewharton/mosaic/modifier/Modifier$Element {
+	public abstract fun onPaste (Ljava/lang/String;)Z
 }
 
 public abstract class com/jakewharton/mosaic/layout/Placeable {
@@ -398,6 +457,40 @@ public final class com/jakewharton/mosaic/text/SpanStyle {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class com/jakewharton/mosaic/text/grapheme/GraphemesKt {
+	public static final fun graphemeClusters (Ljava/lang/CharSequence;)Lkotlin/sequences/Sequence;
+}
+
+public final class com/jakewharton/mosaic/text/unicodewidth/TablesKt {
+	public static final fun getUNICODE_VERSION ()Lkotlin/Triple;
+	public static final fun singleCharWidth (I)Ljava/lang/Integer;
+	public static final fun singleCharWidthCjk (I)Ljava/lang/Integer;
+}
+
+public abstract interface class com/jakewharton/mosaic/text/unicodewidth/UnicodeWidthChar {
+	public abstract fun width ()Ljava/lang/Integer;
+	public abstract fun widthCjk ()Ljava/lang/Integer;
+}
+
+public final class com/jakewharton/mosaic/text/unicodewidth/UnicodeWidthCharKt {
+	public static final fun unicodeWidth (I)Ljava/lang/Integer;
+	public static final fun unicodeWidthCjk (I)Ljava/lang/Integer;
+	public static final fun width (I)Ljava/lang/Integer;
+	public static final fun widthCjk (I)Ljava/lang/Integer;
+}
+
+public abstract interface class com/jakewharton/mosaic/text/unicodewidth/UnicodeWidthStr {
+	public abstract fun width ()I
+	public abstract fun widthCjk ()I
+}
+
+public final class com/jakewharton/mosaic/text/unicodewidth/UnicodeWidthStrKt {
+	public static final fun unicodeWidth (Ljava/lang/String;)I
+	public static final fun unicodeWidthCjk (Ljava/lang/String;)I
+	public static final fun width (Ljava/lang/String;)I
+	public static final fun widthCjk (Ljava/lang/String;)I
+}
+
 public abstract interface class com/jakewharton/mosaic/ui/Alignment {
 	public static final field Companion Lcom/jakewharton/mosaic/ui/Alignment$Companion;
 	public abstract fun align-TebIBXo (JJ)J
@@ -517,6 +610,22 @@ public abstract interface class com/jakewharton/mosaic/ui/BoxScope {
 	public abstract fun matchParentSize (Lcom/jakewharton/mosaic/modifier/Modifier;)Lcom/jakewharton/mosaic/modifier/Modifier;
 }
 
+public final class com/jakewharton/mosaic/ui/BoxWithConstraintsKt {
+	public static final fun BoxWithConstraints (Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/ui/Alignment;ZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
+public abstract interface class com/jakewharton/mosaic/ui/BoxWithConstraintsScope : com/jakewharton/mosaic/ui/BoxScope {
+	public abstract fun getConstraints-BXLMmeU ()J
+	public fun getHasBoundedHeight ()Z
+	public fun getHasBoundedWidth ()Z
+	public fun getHasFixedHeight ()Z
+	public fun getHasFixedWidth ()Z
+	public fun getMaxHeight ()I
+	public fun getMaxWidth ()I
+	public fun getMinHeight ()I
+	public fun getMinWidth ()I
+}
+
 public final class com/jakewharton/mosaic/ui/Color {
 	public static final field Companion Lcom/jakewharton/mosaic/ui/Color$Companion;
 	public static final synthetic fun box-impl (I)Lcom/jakewharton/mosaic/ui/Color;
@@ -615,8 +724,16 @@ public final class com/jakewharton/mosaic/ui/SpacerKt {
 }
 
 public final class com/jakewharton/mosaic/ui/Text {
-	public static final fun Text-cbmis8g (Lcom/jakewharton/mosaic/text/AnnotatedString;Lcom/jakewharton/mosaic/modifier/Modifier;IIIIILandroidx/compose/runtime/Composer;II)V
-	public static final fun Text-cbmis8g (Ljava/lang/String;Lcom/jakewharton/mosaic/modifier/Modifier;IIIIILandroidx/compose/runtime/Composer;II)V
+	public static final fun Text-ttxxx2w (Lcom/jakewharton/mosaic/text/AnnotatedString;Lcom/jakewharton/mosaic/modifier/Modifier;ZILcom/jakewharton/mosaic/ui/TextOverflow;Lcom/jakewharton/mosaic/ui/Alignment$Horizontal;IIIIIILandroidx/compose/runtime/Composer;III)V
+	public static final fun Text-ttxxx2w (Ljava/lang/String;Lcom/jakewharton/mosaic/modifier/Modifier;ZILcom/jakewharton/mosaic/ui/TextOverflow;Lcom/jakewharton/mosaic/ui/Alignment$Horizontal;IIIIIILandroidx/compose/runtime/Composer;III)V
+}
+
+public final class com/jakewharton/mosaic/ui/TextOverflow : java/lang/Enum {
+	public static final field Clip Lcom/jakewharton/mosaic/ui/TextOverflow;
+	public static final field Ellipsis Lcom/jakewharton/mosaic/ui/TextOverflow;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/jakewharton/mosaic/ui/TextOverflow;
+	public static fun values ()[Lcom/jakewharton/mosaic/ui/TextOverflow;
 }
 
 public final class com/jakewharton/mosaic/ui/TextStyle {

@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.StateFlow
 
 internal suspend fun withTerminal(
 	onNonInteractive: NonInteractivePolicy,
+	mouse: Boolean,
+	paste: Boolean,
 	block: suspend (Terminal) -> Unit,
 ): Boolean = coroutineScope {
 	val tty = if (onNonInteractive != AssumeAndIgnore) {
@@ -34,7 +36,7 @@ internal suspend fun withTerminal(
 	}
 
 	tty.use {
-		val terminal = tty?.asTerminalIn(this) ?: NonInteractiveTerminal
+		val terminal = tty?.asTerminalIn(this, mouse = mouse, paste = paste) ?: NonInteractiveTerminal
 		terminal.use { block(it) }
 	}
 

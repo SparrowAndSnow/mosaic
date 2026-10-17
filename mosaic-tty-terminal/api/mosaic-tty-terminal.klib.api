@@ -1,5 +1,5 @@
 // Klib ABI Dump
-// Targets: [linuxArm64, linuxX64, macosArm64, mingwX64]
+// Targets: [linuxArm64, linuxX64, mingwX64]
 // Rendering settings:
 // - Signature version: 2
 // - Show manifest properties: true
@@ -25,4 +25,4 @@ final class com.jakewharton.mosaic.tty.terminal/EventParser { // com.jakewharton
     final fun nextDebug(): com.jakewharton.mosaic.terminal/DebugEvent? // com.jakewharton.mosaic.tty.terminal/EventParser.nextDebug|nextDebug(){}[0]
 }
 
-final suspend fun (com.jakewharton.mosaic.tty/Tty).com.jakewharton.mosaic.tty.terminal/asTerminalIn(kotlinx.coroutines/CoroutineScope, kotlin/Boolean = ...): com.jakewharton.mosaic.terminal/Terminal // com.jakewharton.mosaic.tty.terminal/asTerminalIn|asTerminalIn@com.jakewharton.mosaic.tty.Tty(kotlinx.coroutines.CoroutineScope;kotlin.Boolean){}[0]
+final suspend fun (com.jakewharton.mosaic.tty/Tty).com.jakewharton.mosaic.tty.terminal/asTerminalIn(kotlinx.coroutines/CoroutineScope, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...): com.jakewharton.mosaic.terminal/Terminal // com.jakewharton.mosaic.tty.terminal/asTerminalIn|asTerminalIn@com.jakewharton.mosaic.tty.Tty(kotlinx.coroutines.CoroutineScope;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]

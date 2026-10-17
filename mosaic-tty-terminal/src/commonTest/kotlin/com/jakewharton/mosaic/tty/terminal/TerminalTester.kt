@@ -41,7 +41,11 @@ class TerminalTester(
 
 	fun ptyWrite(s: String) = testTerminal.write(s)
 
-	suspend fun withTerminal(block: suspend Terminal.(setup: ByteString) -> Unit): ByteString {
+	suspend fun withTerminal(
+		mouse: Boolean = false,
+		paste: Boolean = false,
+		block: suspend Terminal.(setup: ByteString) -> Unit,
+	): ByteString {
 		expects.close()
 		val expects = ArrayDeque(expects.toList())
 
@@ -76,7 +80,7 @@ class TerminalTester(
 		coroutineScope {
 			var readJob = launch(Dispatchers.IO) { readUntilInterrupted() }
 			try {
-				testTerminal.tty.asTerminalIn(this).use { terminal ->
+				testTerminal.tty.asTerminalIn(this, mouse = mouse, paste = paste).use { terminal ->
 					testTerminal.interruptTtyRead()
 					readJob.cancelAndJoin()
 

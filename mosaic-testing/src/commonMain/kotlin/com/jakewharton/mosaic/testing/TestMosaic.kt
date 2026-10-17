@@ -4,7 +4,9 @@ import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.Composable
 import com.jakewharton.mosaic.Mosaic
 import com.jakewharton.mosaic.terminal.AnsiLevel
+import com.jakewharton.mosaic.terminal.BracketedPasteEvent
 import com.jakewharton.mosaic.terminal.KeyboardEvent
+import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.terminal.Terminal
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
@@ -48,6 +50,9 @@ public interface TestMosaic<T> : Mosaic {
 	public suspend fun awaitSnapshot(duration: Duration = 1.seconds): T
 
 	public fun sendKeyEvent(keyEvent: KeyboardEvent)
+	public fun sendMouseEvent(mouseEvent: MouseEvent)
+	/** Sends a bracketed paste (start marker, then one key event per code point, then end marker). */
+	public fun sendPaste(text: String)
 	public val state: TestTerminal.State
 }
 
@@ -103,6 +108,41 @@ private class RealTestMosaic<T>(
 
 	override fun sendKeyEvent(keyEvent: KeyboardEvent) {
 		testTerminal.events.trySend(keyEvent)
+	}
+
+	override fun sendMouseEvent(mouseEvent: MouseEvent) {
+		testTerminal.events.trySend(mouseEvent)
+	}
+
+	override fun sendPaste(text: String) {
+		testTerminal.events.trySend(BracketedPasteEvent(start = true))
+		for (char in text.splitIntoCodePoints()) {
+			testTerminal.events.trySend(
+				KeyboardEvent(
+					// The concrete value is unused while accumulating paste text; only [text] matters.
+					codepoint = char.first().code,
+					text = char,
+				),
+			)
+		}
+		testTerminal.events.trySend(BracketedPasteEvent(start = false))
+	}
+
+	/** Splits into UTF-16-safe code point strings so surrogate pairs survive as a single unit. */
+	private fun String.splitIntoCodePoints(): List<String> {
+		val result = mutableListOf<String>()
+		var index = 0
+		while (index < length) {
+			val first = this[index]
+			if (first.isHighSurrogate() && index + 1 < length && this[index + 1].isLowSurrogate()) {
+				result += substring(index, index + 2)
+				index += 2
+			} else {
+				result += first.toString()
+				index += 1
+			}
+		}
+		return result
 	}
 
 	override fun draw() = mosaic.draw()

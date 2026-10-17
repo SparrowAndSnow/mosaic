@@ -61,6 +61,14 @@ internal abstract class MosaicNodeLayer :
 		return next?.sendKeyEvent(keyEvent) ?: false
 	}
 
+	open fun sendMouseEvent(event: MouseEvent): Boolean {
+		return next?.sendMouseEvent(event) ?: false
+	}
+
+	open fun sendPasteEvent(text: String): Boolean {
+		return next?.sendPasteEvent(text) ?: false
+	}
+
 	override fun minIntrinsicWidth(height: Int): Int {
 		return next?.minIntrinsicWidth(height) ?: 0
 	}
@@ -157,6 +165,12 @@ internal class MosaicNode(
 			if (element is KeyModifier) {
 				nextLayer = KeyLayer(element, nextLayer)
 			}
+			if (element is MouseModifier) {
+				nextLayer = MouseLayer(element, nextLayer)
+			}
+			if (element is PasteModifier) {
+				nextLayer = PasteLayer(element, nextLayer)
+			}
 			if (element is ParentDataModifier) {
 				parentData = element.modifyParentData(parentData)
 			}
@@ -208,6 +222,34 @@ internal class MosaicNode(
 		return topLayer.sendKeyEvent(keyEvent)
 	}
 
+	/**
+	 * Dispatches a [MouseEvent] to the top-most layout under the pointer and, if it is not
+	 * consumed, bubbles up to its ancestors. Coordinates are absolute canvas (screen cell)
+	 * coordinates, matching a node's [x]/[y] after placement.
+	 */
+	fun sendMouseEvent(event: MouseEvent): Boolean {
+		if (event.x !in x until x + width || event.y !in y until y + height) {
+			return false
+		}
+		// Children draw on top of this node, so give them (in z-order, top-most first) the first
+		// chance to handle the event before this node's own modifiers.
+		for (index in children.indices.reversed()) {
+			if (children[index].sendMouseEvent(event)) {
+				return true
+			}
+		}
+		return topLayer.sendMouseEvent(event)
+	}
+
+	/**
+	 * Dispatches bracketed-paste [text] through this subtree. Paste follows a downward/tree-order
+	 * pass: a node's own paste handlers run before its children, and the first handler returning
+	 * true consumes the paste.
+	 */
+	fun sendPasteEvent(text: String): Boolean {
+		return topLayer.sendPasteEvent(text)
+	}
+
 	override fun minIntrinsicWidth(height: Int): Int {
 		return topLayer.minIntrinsicWidth(height)
 	}
@@ -232,6 +274,28 @@ private class BottomLayer(
 ) : MosaicNodeLayer() {
 	override val next: MosaicNodeLayer? get() = null
 
+	override fun sendKeyEvent(keyEvent: KeyEvent): Boolean {
+		for (child in node.children) {
+			if (child.sendKeyEvent(keyEvent)) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Mouse dispatch is handled by MosaicNode.sendMouseEvent (which walks children with bounds
+	// hit-testing), so the bottom layer simply terminates the modifier chain.
+	override fun sendMouseEvent(event: MouseEvent): Boolean = false
+
+	override fun sendPasteEvent(text: String): Boolean {
+		for (child in node.children) {
+			if (child.sendPasteEvent(text)) {
+				return true
+			}
+		}
+		return false
+	}
+
 	override fun doMeasure(constraints: Constraints): MeasureResult {
 		return node.measurePolicy.run { measure(node.children, constraints) }
 	}
@@ -242,15 +306,6 @@ private class BottomLayer(
 				child.topLayer.drawTo(canvas)
 			}
 		}
-	}
-
-	override fun sendKeyEvent(keyEvent: KeyEvent): Boolean {
-		for (child in node.children) {
-			if (child.sendKeyEvent(keyEvent)) {
-				return true
-			}
-		}
-		return false
 	}
 
 	override fun minIntrinsicWidth(height: Int): Int {
@@ -322,4 +377,20 @@ private class KeyLayer(
 	override fun sendKeyEvent(keyEvent: KeyEvent) = element.onPreKeyEvent(keyEvent) ||
 		next.sendKeyEvent(keyEvent) ||
 		element.onKeyEvent(keyEvent)
+}
+
+private class MouseLayer(
+	private val element: MouseModifier,
+	override val next: MosaicNodeLayer,
+) : MosaicNodeLayer() {
+	override fun sendMouseEvent(event: MouseEvent): Boolean =
+		element.onMouseEvent(event) || next.sendMouseEvent(event)
+}
+
+private class PasteLayer(
+	private val element: PasteModifier,
+	override val next: MosaicNodeLayer,
+) : MosaicNodeLayer() {
+	override fun sendPasteEvent(text: String): Boolean =
+		element.onPaste(text) || next.sendPasteEvent(text)
 }

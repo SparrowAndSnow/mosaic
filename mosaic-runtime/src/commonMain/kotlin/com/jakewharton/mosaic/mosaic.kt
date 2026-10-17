@@ -18,9 +18,12 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.jakewharton.mosaic.NonInteractivePolicy.Exit
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.MosaicNode
+import com.jakewharton.mosaic.layout.toRuntimeMouseEvent
+import com.jakewharton.mosaic.terminal.BracketedPasteEvent
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.ui.BoxMeasurePolicy
+import de.cketti.codepoints.appendCodePoint
 import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -38,24 +41,30 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 public fun runMosaicMain(
+	mouse: Boolean = false,
+	paste: Boolean = false,
 	content: @Composable () -> Unit,
 ) {
-	runMosaicBlocking(content = content)
+	runMosaicBlocking(mouse = mouse, paste = paste, content = content)
 }
 
 public fun runMosaicBlocking(
 	onNonInteractive: NonInteractivePolicy = Exit,
+	mouse: Boolean = false,
+	paste: Boolean = false,
 	content: @Composable () -> Unit,
 ): Boolean {
 	return runBlocking {
-		runMosaic(onNonInteractive, content)
+		runMosaic(onNonInteractive, mouse, paste, content)
 	}
 }
 
 public suspend fun runMosaic(
 	onNonInteractive: NonInteractivePolicy = Exit,
+	mouse: Boolean = false,
+	paste: Boolean = false,
 	content: @Composable () -> Unit,
-): Boolean = withTerminal(onNonInteractive) { terminal ->
+): Boolean = withTerminal(onNonInteractive, mouse, paste) { terminal ->
 	val rendering = if (env("MOSAIC_DEBUG_RENDERING") == "true") {
 		DebugRendering(terminal.capabilities)
 	} else {
@@ -316,18 +325,44 @@ internal class MosaicComposition(
 	private fun startFrameListener() {
 		scope.launch(start = UNDISPATCHED) {
 			val ctrlC = KeyEvent("c", ctrl = true)
+			var pasteText: StringBuilder? = null
 
 			do {
 				externalClock.withFrameNanos { nanos ->
-					// Drain any pending key events before triggering the frame.
+					// Drain any pending events before triggering the frame.
 					while (true) {
 						val event = terminal.events.tryReceive().getOrNull() ?: break
-						if (event !is KeyboardEvent) continue
-						val keyEvent = event.toKeyEventOrNull() ?: continue
-						val keyHandled = rootNode.sendKeyEvent(keyEvent)
-						if (!keyHandled && keyEvent == ctrlC) {
-							job.cancel()
-							return@withFrameNanos
+						when (event) {
+							is KeyboardEvent -> {
+								// While a bracketed paste is active, the terminal reports the pasted
+								// content as individual key events; accumulate them instead of
+								// dispatching them as key events.
+								if (pasteText != null) {
+									pasteText!!.append(event.text ?: run {
+										buildString { appendCodePoint(event.codepoint) }
+									})
+									continue
+								}
+								val keyEvent = event.toKeyEventOrNull() ?: continue
+								val keyHandled = rootNode.sendKeyEvent(keyEvent)
+								if (!keyHandled && keyEvent == ctrlC) {
+									job.cancel()
+									return@withFrameNanos
+								}
+							}
+							is com.jakewharton.mosaic.terminal.MouseEvent -> {
+								rootNode.sendMouseEvent(event.toRuntimeMouseEvent())
+							}
+							is BracketedPasteEvent -> {
+								if (event.start) {
+									pasteText = StringBuilder()
+								} else {
+									val text = pasteText?.toString() ?: ""
+									pasteText = null
+									rootNode.sendPasteEvent(text)
+								}
+							}
+							else -> {}
 						}
 					}
 
