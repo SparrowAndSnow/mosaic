@@ -139,7 +139,7 @@
 - [ ] **P3 测试桩对齐**：`mosaic-test-{posix,windows}.c`（800+ 行）真实度；`TerminalTester` 覆盖能力矩阵（见 §13）。
 
 ## 10. 能力探测（`TtyTerminal.kt`）
-- [ ] **P1 DEC 2027**：补 `CSI ?2027$p` 探测并接到宽度口径（见 §3）。
+- [x] **P1 DEC 2027** ✅（L6.2，`9f88fbc7`）：补 `CSI ?2027$p` 探测 → `Capabilities.graphemeClustering`；支持时自动 `CSI ?2027h` 启用（退出恢复）、set/permanentlySet 不重复；`TtyTerminalDec2027Test`（5 态）+ `EventParser` 2027 例。宽度口径落法见 progress §6 决策：能力暴露 + 终端侧启用，逐 rune 后备未做（理由已记录）。
 - [ ] **P2 探测列表完备性**：现有 DA1 → batch DECRPM（cursor/focus/2026/theme/2048）+ kitty graphics/keyboard/notification/pointer/textSizing/underline + xterm version；评估补 `DECRQM` 全量/逐项（部分终端不响应组合查询）。
 - [ ] **P2 超时兜底**：`withTimeoutOrNull(1s)` 已有；无响应终端降级路径要可观测（debug 输出），避免静默错配。
 - [ ] **P3 env 兜底**：`detectAnsiLevel` 扩展 `TERM_PROGRAM`（iTerm2/WezTerm…）与 kitty/OSC 12 兜底（BubbleTea colorprofile 思路）。

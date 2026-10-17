@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：`cd6ce408` · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：`9f88fbc7` · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -30,7 +30,7 @@
 | L3 渲染管线 | 按簇绘制 → 增量输出 → 差分/缓冲/静态/闪烁 | §2 | 完成（L3.1~L3.8） |
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
-| L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 进行中（L6.1 已归档） |
+| L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 进行中（L6.1~L6.2 已归档） |
 | L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 未开始 |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
@@ -63,6 +63,7 @@
 | L5 | L5.5 | 事件背压（channel `DROP_OLDEST`→`SUSPEND` + `send`）+ Motion/Drag 批内合并只留最新坐标 | `68ee4a1e` | `TtyTerminalBackpressureTest`（1，新文件）+ `MouseEventTest` 增 3 | ✅ 已归档 |
 | L5 | L5.6 | 特殊键/修饰核对：PUA 特殊键映射验证 + repeat 并入 press 投递、release 丢弃 + `text` 关联文本透传验证 | `5f438a79` | `CompatTest`（8 条，新文件） | ✅ 已归档 |
 | L6 | L6.1 | 移除 `Tty.Callback.onKey/onMouse` 死回调（三套绑定同步，事件走共享字节流通道） | `cd6ce408` | `TtyTest` 清理 + 三套绑定编译/测试全绿 | ✅ 已归档 |
+| L6 | L6.2 | DEC 2027 探测 → `Capabilities.graphemeClustering`；支持时自动启用（退出恢复） | `9f88fbc7` | `TtyTerminalDec2027Test`（5）+ `EventParser` 2027 例 + apiDump | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
 ### L5.4 clipboard（OSC 52）（`423f25b8`）
@@ -76,6 +77,13 @@
 - `mosaic.kt` 帧监听循环：批内 `pendingMotion` + 局部 `flushMotion()`——连续 `Motion/Drag` 只保留**最后坐标**；遇到离散事件先 flush 再处理；循环结束 flush。键盘/粘贴/剪贴板事件不受影响。
 - 测试：`TtyTerminalBackpressureTest.kt`（新）`largeBurstIsNotDropped`——写入 500 字符 → `events.receive()` 收到 500 条 `KeyboardEvent`（5s withTimeout，0 丢失；注意 `this@withTerminal.events.receive()`，block 接收者是 `Terminal`）。`MouseEventTest` 增 3 条：批内 3 motion+release → `["Motion@3,3","Release@3,3"]`；纯 motion 批 → 只投递单一最新 `["Motion@7,8"]`；双 Press 全部到达（离散事件绝不合并）。
 - 测试要点：`MouseEventTest` 中 `received` 状态必须被组合**读取**（Box 内 `Text(received.size.toString())`）才会触发重组 onDraw，`awaitSnapshot` 才能返回；否则分支压根不重组、1s 虚拟超时。
+
+### L6.2 DEC 2027 探测 → `graphemeClustering`（`9f88fbc7`）
+- **探测**：DECRPM 批次补 `CSI ?2027$p`（沿用既有模式：`ansi.kt` `graphemeClusteringMode=2027` + Enable/Disable）；`DecModeReportEvent` 2027 分支：`isSupported` → 置 `graphemeClustering`，当前为 reset 时发 `CSI ?2027h` 启用并记 `toggleGraphemeClustering`，退出 `CSI ?2027l` 恢复；set/permanentlySet 不重复启用。
+- **公开 API**：`Terminal.Capabilities` 新增只读 `graphemeClustering: Boolean`（文档标语义 + xterm 链接）；`TestTerminal`（默认 true）/`NonInteractiveTerminal`（false）补齐；`mosaic-terminal.api/.klib.api` 已 dump（`TtyTerminal` 为 private，tty-terminal 无公开 API 变化）。
+- **宽度口径落法（决策）**：只做「能力暴露 + 终端侧 enable」，**不做逐 rune 后备策略**。理由：① 逐 rune 后备只对不支持簇处理的旧终端有意义，且会让 ZWJ 族回退多格（视觉倒退）；② 本架构整帧 cell 定位，不依赖终端光标跟随，无需 `reanchorWideLine` 式漂移补偿；③ 能力字段即未来切换的开关，需要时再实现。
+- **测试**：`TtyTerminalDec2027Test`（5 例：reset→启用+退出恢复 / 已 set / permanentlySet / NotRecognized / permanentlyReset）+ `EventParserCsiDecModeReportEventTest` 增 2027 解析例。
+- 诊断：`tools/terminal-capability` 反射打印会自动多出 `graphemeClustering` 一行。
 
 ### L6.1 移除 `Tty.Callback.onKey/onMouse` 死回调（`cd6ce408`）
 - **决策**：`Callback.onKey/onMouse` 判定为死回调并**移除**（todo §9.4 P1）。依据：C 头 `MosaicTtyCallbackOnKey/OnMouse` 为 `// TODO params` 占位、从未被调用；Windows C 层把 `KEY_EVENT`/`MOUSE_EVENT` 经 `ReadFile` 转成 VT 转义序列走共享 `EventParser`（回调仅用于 `FOCUS_EVENT`/`WINDOW_BUFFER_SIZE_EVENT`）；唯一实现 `EventParserTtyCallback` 也仅是空实现。实现它们只会建第二条重复分发通道。
@@ -229,14 +237,15 @@
 
 - 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
 - 现状（2026-10-17 归档后）：HEAD `5f438a79`，JVM 与 linuxX64 四模块（runtime/terminal/tty/tty-terminal）全绿，全 samples 编译通过，rrtop kexe 已重链（工作树演示不含提交）。**L5 输入/事件已全部完成**：L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关 / L5.4 clipboard（OSC 52）/**L5.5 事件背压与 Motion 合并** / L5.6 特殊键核对与 repeat 投递。
-- 现状（2026-10-17 归档后）：HEAD `cd6ce408`，全模块 jvmTest + 关键 linuxX64Test 全绿，三套绑定从 merged 头文件重建通过。**L6 tty 适配启动**：L6.1 移除死回调（`cd6ce408`）；其余 L6 候选见下。
-- 决策（2026-10-17，已归档）：**L6 按「可本机验证优先」推进**——先做 DEC 2027（§10 P1，闭合 §13 P1 不确定宽回路）、raw mode 核对（§9.2 P1）、信号处理（§9.2 P2）；Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程后做。
+- 现状（2026-10-17 归档后）：HEAD `9f88fbc7`，全模块 jvmTest + 关键 linuxX64Test 全绿。**L6 tty 适配进行中**：L6.1 移除死回调（`cd6ce408`）、L6.2 DEC 2027 探测（`9f88fbc7`）。
+- 决策（2026-10-17，已归档）：**L6 按「可本机验证优先」推进**——已做 L6.2 DEC 2027（§10 P1）；剩余建议顺序：raw mode 核对（§9.2 P1）、信号处理（§9.2 P2）；Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程后做。
 - 决策（2026-10-17，已提交）：**外部组件待办整体推迟**——滚动容器 / 惰性列表 / 输入控件 / 鼠标交互 / 焦点 / 边框 / 定位回调 / 动画容器 / 第一方 widget 集属最外层组合组件，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；新增 `docs/todo.md` §15 仅登记不实现，优先级统一排在内部重构之后。
 - 决策（2026-10-17，已提交）：**布局缓存落地即完成 L4 布局层主干**——剩余可选优化（apply 失效查扫反向索引、未放置子树裁剪）留待后续需要时再做；L4 对外的下一候选是 intrinsic 复用（与布局缓存合并）或直接进入 **L5 输入**。
 - 决策（2026-10-17，已归档）：**L5 输入走"全量 opt-in + 能力探测后自动启用"**——鼠标/粘贴经 `runMosaic*` 参数显式开启；kitty 键盘协议在探测到支持后自动 push、退出 pop；repeat/release 事件解析后由 runtime 按 press-only 过滤，既有应用零行为变化。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. **L6.2 DEC 2027 探测并接到宽度口径**（todo §10 P1）：`CSI ?2027$p` 探测 + `DecModeReportEvent` 置位 + `Capabilities.graphemeClustering`；宽度口径在终端声明支持簇处理时信任 VS16 宽启发式（闭合 §13 P1）。纯协议层，可单测。
-  2. raw mode 核对（§9.2 P1）；信号处理加强（§9.2 P2，kitty 可实测 Ctrl+C/kill）。
+  1. **`§9.2 P1` raw mode 核对**：termios 清位逐项对照权威 raw mode（BRKINT/ICRNL/IXON/ECHO/ICANON/IEXTEN/ISIG…`IUTF8/OPOST/CS8/VMIN=1,VTIME=0`），审计+文档，低风险。
+  2. `§9.2 P2` 信号处理加强（SIGINT/SIGTERM 优雅退出 + raw 恢复兜底，kitty 可实测 Ctrl+C/kill）。
+  3. 之后 Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程。
 
 ### L4.5 调研记录：布局“比例”的 Compose 语法（未落地，方向调整）
 - 背景：原计划做“约束扩展”（Row/Column 补 `percentage`/`ratio` 弹性，参照线性布局 Constraint 优先级）。
