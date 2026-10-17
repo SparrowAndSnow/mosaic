@@ -32,6 +32,8 @@ import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart.UNDISPATCHED
 import kotlinx.coroutines.Dispatchers.Unconfined
@@ -42,6 +44,7 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 
 public fun runMosaicMain(
 	mouse: Boolean = false,
@@ -98,16 +101,27 @@ internal suspend fun runMosaicComposition(
 		while (true) {
 			clock.sendFrame(nanoTime())
 
-			// "1000 FPS should be enough for anybody"
-			// We need to yield in order for other coroutines on this dispatcher to run, otherwise
-			// this is effectively a spin loop. We do a delay instead of a yield since dispatchers
-			// are not required to support yield, but reasonable delay support is almost a guarantee.
-			delay(1)
+			// Resume, letting coroutines the frame dispatched (an animation advancing to its next
+			// frame, the recomposer applying work) run and re-register as frame awaiters before we
+			// decide the next interval; otherwise that re-registration races our busy check and
+			// would wrongly idle an actively animating composition.
+			yield()
+
+			// Pace the frame loop: while a frame is doing real work (a recomposition is pending,
+			// layout/draw is queued, or an animation awaits the next frame) run at ~60fps; when
+			// nothing is pending the loop idles at ~20fps instead of hammering the scheduler at
+			// ~1000fps. The delay is also what yields the dispatcher so other coroutines run.
+			delay(if (mosaicComposition.hasPendingFrameWork()) activeFrameDelay else idleFrameDelay)
 		}
 	}
 
 	mosaicComposition.awaitComplete()
 }
+
+/** Frame delay while work is pending: roughly the 60fps terminal pacing mainstream TUIs use. */
+private val activeFrameDelay: Duration = 16.milliseconds
+/** Frame delay while idle: keeps input latency bounded without a busy frame loop. */
+private val idleFrameDelay: Duration = 50.milliseconds
 
 public interface Mosaic {
 	public fun setContent(content: @Composable () -> Unit)
@@ -265,6 +279,15 @@ internal class MosaicComposition(
 
 	override fun dumpNodes(): String {
 		return rootNode.toString()
+	}
+
+	/**
+	 * Whether another frame should be produced promptly instead of idling: a layout or draw is
+	 * queued, a recomposition is outstanding, or a coroutine (an animation, a frame-scoped
+	 * effect, or the recomposer) is currently awaiting the frame clock.
+	 */
+	internal fun hasPendingFrameWork(): Boolean {
+		return needLayout || needDraw || recomposer.hasPendingWork || internalClock.hasAwaiters
 	}
 
 	private fun registerSnapshotApplyObserver(): ObserverHandle {

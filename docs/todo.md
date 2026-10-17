@@ -33,7 +33,7 @@
 
 ## 1. 架构 / 运行模型（mosaic-runtime `mosaic.kt`）
 
-- [ ] **P2 帧循环**：`runMosaicComposition` 的 `while(true){ clock.sendFrame(); delay(1) }`（≈1000fps）持续空转；提供 FPS 上限/自适应（参考 BubbleTea `defaultFPS=60`）。
+- [x] **P2 帧循环** ✅（L7.3）：`runMosaicComposition` 帧循环按负载自适应——活跃（重组/布局/绘制/动画等待中）~60fps、空闲 ~20fps，替代原 ~1000fps 恒发帧；`MosaicComposition.hasPendingFrameWork()` 判定 + `yield()` 消除动画重注册竞态；空闲帧不触发重绘（`FrameThrottleTest` 3 条）。
 - [ ] **P2 异常/panic 恢复**：绘制或布局抛异常时应确保终端状态恢复、错误可见（现有 `DebugRendering` 会吞并抛错；`AnsiRendering` 无兜底）。
 - [ ] **P2 多实例 / 复用**：`Mosaic(…)` 已可独立构造；明确 `setContent` 二次调用、`cancel`/`awaitComplete` 的并发语义（`mosaic.kt` 已有 "Re-evaluate this for correctness" TODO）。
 - [ ] **P3 运行时对齐**：`mosaic-animation/` 是手写 Compose animation port，需跟随 androidx 版本（`AnimateAsState`/`Animatable` 等）并评估是否上 `AnimationVector` 表维护成本。

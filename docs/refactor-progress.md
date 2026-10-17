@@ -71,6 +71,8 @@
 | L6 | L6.7 | 生命周期异常安全核对 + 加固：teardown 从「依赖 Unconfined 内联续传的异步 hook」改为「close() 同步执行 + 信号/shutdown hook 复用」幂等闭环 | `963279b3` | `TtyTerminalLifecycleTest`（新，3 条）+ 既有 teardown 输出用例全绿 + runtime 编译过 | ✅ 已归档 |
 | L6 | L6.8 | 探测清单完备性核对（审计）+ 清单回归测试：13 项探测逐一对账、theme 996/997 确认非笔误、「逐项重查」评估驳回 | `53ba2ea2` | `TtyTerminalProbeInventoryTest`（新，1 条）；tty-terminal 双平台 254 例全绿 | ✅ 已归档 |
 | L7 | L7.1 | 双平台微基准（`samples/bench`，commonMain 单一驱动）：render（单行 delta/全量重建/layout-pass）+ EventParser；JVM+native 对照；验证 native 达主流实时标准（见 §5 结论） | 待归档 | JVM `:samples:bench:runJvm` + native kexe 可运行；无传统单测（基准类负载，见 `docs/benchmarks.md`） | ⏳ 待确认 |
+| L7 | L7.2 | 绘制热路径低分配（surface 复用 / ASCII 测宽 / raw-Int 打包 / 源串-区间 cell / 簇切分 ASCII 快路径 / 对齐懒算 / 共用簇测量 / cell 级懒复位）+ native GC 调优实验（无效，恢复默认） | `c48a5d64` | `SurfaceReuseTest`/`StrWidthAsciiFastPathTest`/`PackedWidthEquivalenceTest`/`CellSliceTest`/`GraphemeFastPathTest`/`TextMeasuredDrawTest`/`SurfaceLazyResetTest` 等；双平台全绿 | ✅ 已归档 |
+| L7 | L7.3 | 帧节流：`runMosaicComposition` 帧循环按负载自适应（`hasPendingFrameWork` 判定，活跃 ~60fps / 空闲 ~20fps），替代 ~1000fps 恒空转 | `待填` | `FrameThrottleTest`（3 条：闲判定 / 动画保帧率 / 静态不空转重绘）；双平台全绿 | ⏳ 待确认 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
 ### L7.1 双平台微基准：native 是否达主流实时标准（todo §13 P2）
@@ -329,9 +331,10 @@
   ⑦ **布局/绘制共用一次簇测量**（方案 B）：`LineMeasure` 在 `measure()` 期对每行切分+测宽一次并缓存到 `lineMeasures`；`Text` 经 `TextCanvasDrawScope.drawMeasuredText` 复用（`as?` 安全下转，保底走原流式）；`alignedColumn` 直接用 `totalWidth`。**gprofng 验证**绘制侧 grapheme 测宽彻底移出绘制主路径。+ `TextMeasuredDrawTest`（两路径逐格/ANSI 对拍 5 条）。
   ⑧ **cell 级懒复位**：量化确认全量 `surface.reset()`（4800 格 × 6 字段写）占 draw-idle ~37% → `beginDraw` 清 per-cell written 位 + `resetCellsNotWritten` 只复位本帧未写格（遍历仅 1 布尔读/格）。**中途被 `MosaicTest` 移格回归抓到的正确性 bug**：行级粒度会残留"同行内本帧未写"的旧格，必须 cell 级才等价原全量语义。+ `SurfaceLazyResetTest`（5 条）。
   ⑨ **native GC 调优实验（结论：无效，恢复默认）**：`render-full-rebuild` 是差距最大负载（native ~700µs vs JVM ~390–440µs）。gprofng 采样定位：GC Sweep ≈31% + Compose 重组 ≈10%，自家布局+绘制 <10%；JVM 快在 HotSpot 逃逸分析+标量替换+分代 GC 把重组分配压到近零，K/N 无逃逸分析+ARC+整堆 Mark&Sweep 让同样分配变真实 GC 压力。试过 `gc=ms`（~757µs，更差）、`gcSchedulerType=Aggressive`（运行挂死，病态），默认即 Adaptive；**GC 参数无收益，已重链回默认**。结论：差距是架构性的、不在库代码，无法用 `-Xbinary` 追平；后续收窄只剩降 Compose 重组分配（制约在外层）或 JVM 为主部署。
+  ⑩ **帧节流（todo §11 P2 完成）**：原 `while(true){ sendFrame(); delay(1) }` ≈1000fps 恒空转 → 按负载分档：`hasPendingFrameWork()`（needLayout/needDraw/recomposer.hasPendingWork/internalClock.hasAwaiters 四路并）为真走 ~60fps（16ms），否则 ~20fps（50ms）。**测试抓到的关键坑**：`sendFrame` 后动画协程是**异步派发**恢复并重挂下一帧，立即判忙会漏掉动画（实测 30 帧 1490ms=被误判空闲）；`clock.sendFrame` 后加一次 `yield()` 让派发恢复先跑完再判。+ `FrameThrottleTest`（3 条：构造期闲判定 / 动画 30 帧 <1.2s 保帧率 / 静态 400ms 仅渲染 1 次不空转）。
   **native `render-draw-idle` 510µs → ~52µs（-90%）；JVM ~209 → ~31µs（-85%）**；draw-idle 比值 2.4×→**~1.7×**。
   **native draw-idle 约为 Rust 系纯渲染参照（~224µs）的四分之一**；最坏全帧 60fps 预算余量 ~23×。
-  E/F（`9d6fdd4c`）、G（`9a066233`）已归档；H（懒复位）待确认归档。
+  E/F（`9d6fdd4c`）、G（`9a066233`）、H+GC 记要（`c48a5d64`）已归档；帧节流本轮归档。
   下一步候选（需确认后做）：
   - 逐格写入本体：`writeCluster`（每格 11 字段含 5 个样式对象写）+ `canvas[row,col]` bounds-check/translation 仍占 draw-idle 大头——候选「样式 Color/TextStyle 打包成 primitive」或「遍历收敛局部 cell 引用」。
   - 或转 L7 收尾（异常安全/帧节流/示例），性能已远超既定目标。
