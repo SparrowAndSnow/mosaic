@@ -46,7 +46,7 @@
 - [x] **P1 旧渲染器去重** ✅（L3.8，`72e359af`）：删除全量 `AnsiRendering` 与其专属测试（410 行），`AnsiIncrementalRendering` 为唯一增量渲染器；关键行为覆盖已由 `AnsiIncrementalRenderingTest` 承接。
 - [x] **P2 宽格 diff 右缘防护 + 覆盖回归** ✅（L3.4，`76b8d301`）：`appendRowRange` 加 `rowEnd`，宽簇在末列放不下时以同风格空格占位（杜绝换行）；新增 `VirtualTerminal`（解析 ANSI→屏幕网格）与 `CellDiffRenderingTest`（15 条，覆盖宽→窄/窄→宽/ZWJ/keycap/相邻宽簇/右缘/resize）。调研中"覆盖残留"经 crafted-cell 全场景验证为**结构上已排除**（占位身份区分 + 簇边界扩展 + 区间合并），无需额外逻辑改动。
 - [ ] **P2 静态输出优化**：`static()` 分支目前用 `clearDisplay` 兜底整屏（`rendering.kt`）；可解析 `static` 行数 / 逐行 `EL` 最小化清理（注释里已说明是"为省事"）。
-- [ ] **P2 闪烁防护**：synchronized output（DEC 2026）已按能力包裹整帧；无该能力时可选加「光标 hide/show 包裹」（BubbleTea 的处理），当前只在启动时 `cursorDisable` 一次。
+- [x] **P2 闪烁防护** ✅（L3.6，`e15497c4`）：synchronized output（DEC 2026）按能力包裹整帧；无该能力且可切换光标时改为「光标 hide/show 包裹」（帧首 `hide` / 帧尾 `show`），空帧不包裹避免闪；`cursorVisibility=false` 时退化为裸帧。启动期 hide 一次/退出恢复逻辑不变。
 - [ ] **P2 输出缓冲**：`render` 结果一次 `print()`；评估批量/分片写、避免大字符串抖动。
 - [ ] **P3 光标 API**：运行中无自定义光标位置/形状（Ratatui `Frame::set_cursor_position`、BubbleTea `View.Cursor`）；如需 IME/输入框类 widget，需补。
 

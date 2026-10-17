@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：`e2497ca3` · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：`e15497c4` · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -50,7 +50,7 @@
 | L4 | L4.2 | Text `maxLines` / `overflow` 簇安全截断 | `de3c9a1a` | `TextLayoutWrapTest` 增 5 条 + `TextWrapRenderingTest` 增 2 条 | ✅ 已归档 |
 | L3 | L3.4 | cell 差分右缘防护 + 宽格 diff 回归（虚拟终端） | `76b8d301` | `CellDiffRenderingTest`（15 条）+ `VirtualTerminal`（解析 ANSI→屏幕网格） | ✅ 已归档 |
 | L3 | L3.5 | static 输出行级清理（替代一键 `clearDisplay`） | `e2497ca3` | `AnsiIncrementalRenderingTest`（16 条，改 4 + 新增 2） | ✅ 已归档 |
-| L3 | L3.6 | 无同步渲染时的闪烁防护（光标包裹） | — | — | ⬜ 未开始 |
+| L3 | L3.6 | 无同步渲染时的闪烁防护（光标包裹） | `e15497c4` | `AnsiIncrementalRenderingTest`（19 条，新增 3） | ✅ 已归档 |
 | L3 | L3.7 | 输出批量/分片写，避免大字符串抖动 | — | — | ⬜ 未开始 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -122,14 +122,20 @@
   - 语义不变型：static 行数恰好铺满旧区（无 leftover）时输出与旧协议一致（`staticFramesRedrawFromTop` 等）。
 - 测试：`AnsiIncrementalRenderingTest` 累计 16 条。改动既有 4 条（`shorterFrameClearsOldLines`/`staticFramesRedrawFromTop`/`staticWithHeightChangeClearsWholeArea` 由 `clearDisplay` 改为逐行 `clearLine`，补尾随空行），新增 2 条：`multiLineStaticClearsItsLinesIndividually`（多行 static 逐行清理）、`staticAndShorterDynamicClearLeftoverRowsPerLine`（static + 变矮 dynamic 的 leftover 行逐行清理）。
 
+
+### L3.6 无同步渲染时的闪烁防护（`e15497c4`）
+- `AnsiIncrementalRendering.render` 拆出统一帧包裹逻辑：有同步输出能力（DEC 2026）时保持 `enable … disable` 包整帧；无该能力且 `cursorVisibility`（可切换光标）时改用**光标 hide/show 包裹**：帧首 `CSI ? 25 l`（hide）、帧尾 `CSI ? 25 h`（show），终端实时重绘时光标跨行移动不再叠加闪烁。
+- 空帧处理：本次无任何输出（同内容帧）时不发 hide/show（`setLength(frameStart)` 回滚已插的 hide），避免空包裹导致光标闪。
+- 无光标切换能力的终端（`cursorVisibility=false`）不发包裹，退化为裸帧；该分支也天然绕过「启动时 hide 一次 + 每帧 show」的策略差异，行为保持最小变更。
+- 新增常量：`mosaic-runtime/ansi.kt` 的 `cursorMode=25`/`hideCursor`/`showCursor`。启动期 `cursorDisable` 单次隐藏、退出恢复的既有逻辑不动。
+
 ## 6. 当前状态 / 下一步候选
 
-- 现状：`refactor` 分支，HEAD `e2497ca3`，JVM + Native 全绿。上面功能步骤已归档。
+- 现状：`refactor` 分支，HEAD `e15497c4`，JVM + Native 全绿。上面功能步骤已归档。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. L3.6 无同步渲染时的闪烁防护（光标包裹）。
-  2. L3.7 输出批量/分片写。
-  3. L4 续项（Text `alignment`/`scroll`）或进入 L5 输入。
-  4. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
+  1. L3.7 输出批量/分片写（避免大字符串抖动）。
+  2. L4 续项（Text `alignment`/`scroll`）或进入 L5 输入。
+  3. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
 
 ## 7. 验证命令
 
