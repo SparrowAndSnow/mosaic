@@ -171,4 +171,39 @@ class TtyTerminalResizeTest {
 		// No attempt to disable focus events.
 		assertThat(teardown).doesNotContain("$CSI?2048l")
 	}
+
+	@Test fun inBandResizeIgnoresPlatformResizeSignal() = terminalTest {
+		expect("${CSI}0c", reply = "$CSI?62;22c")
+		expect("$CSI?2048\$p", reply = "$CSI?2048;1\$y")
+		expect("${CSI}5n", reply = "${CSI}0n")
+		expect("$CSI?2048h", reply = "${CSI}48;30;90;300;700t")
+		expect("${CSI}5n", reply = "${CSI}0n")
+
+		withTerminal {
+			assertThat(capabilities.inBandResizeEvents).isTrue()
+			assertThat(state.size.value).isEqualTo(Terminal.Size(90, 30, 700, 300))
+
+			// While in-band resize events are the active path the platform signal handler is never
+			// installed, so a platform resize must not deliver a conflicting or duplicate event.
+			testTerminal.resize(200, 60, 0, 0)
+			assertThat(state.size.value).isEqualTo(Terminal.Size(90, 30, 700, 300))
+		}
+	}
+
+	@Test fun inBandSupportedNoInitialValueSeedsFromOsSize() = terminalTest {
+		// Give the OS a non-default size so the fallback seed is observable.
+		testTerminal.resize(200, 60, 0, 0)
+
+		expect("${CSI}0c", reply = "$CSI?62;22c")
+		expect("$CSI?2048\$p", reply = "$CSI?2048;1\$y")
+		expect("${CSI}5n", reply = "${CSI}0n")
+		// No initial in-band size report is emitted.
+		expect("${CSI}5n", reply = "${CSI}0n")
+
+		withTerminal {
+			assertThat(capabilities.inBandResizeEvents).isTrue()
+			// The missing in-band report falls back to the OS-reported size rather than Default.
+			assertThat(state.size.value).isEqualTo(Terminal.Size(200, 60, 0, 0))
+		}
+	}
 }

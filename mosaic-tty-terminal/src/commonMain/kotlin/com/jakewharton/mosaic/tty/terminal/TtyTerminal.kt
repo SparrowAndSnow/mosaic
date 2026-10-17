@@ -163,6 +163,7 @@ public suspend fun Tty.asTerminalIn(
 	var cursorVisibility = false
 	var focusEvents = false
 	var inBandResizeEvents = false
+	var receivedInBandSize = false
 	var kittyGraphics = false
 	var kittyKeyboard = false
 	var kittyNotifications = false
@@ -351,6 +352,7 @@ public suspend fun Tty.asTerminalIn(
 
 				is ResizeEvent -> {
 					if (inBandResizeEvents) {
+						receivedInBandSize = true
 						size.value = Terminal.Size(event.columns, event.rows, event.width, event.height)
 					} else {
 						// TODO Report unsolicited resize events... somewhere.
@@ -394,6 +396,13 @@ public suspend fun Tty.asTerminalIn(
 			size.value = Terminal.Size(columns, rows)
 		}
 		enableWindowResizeEvents()
+	} else if (!receivedInBandSize) {
+		// Seed with the OS-reported size when the terminal advertises in-band resize support but
+		// did not emit an initial size report. A genuine in-band event replaces this with the
+		// authoritative (pixel) data once one arrives.
+		currentSize().let { (columns, rows) ->
+			size.value = Terminal.Size(columns, rows)
+		}
 	}
 
 	val ansiLevel = detectAnsiLevel()
