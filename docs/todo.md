@@ -119,7 +119,7 @@
 - [ ] **P3 Zig 工具链**：Zig 0.15.1 仅用于交叉编译 C；评估升级锁定、缓存目录（`.zig-cache`）gitignore 状态与 CI 可重复性。
 
 ### 9.2 POSIX（linux / macos）
-- [ ] **P1 raw mode 核对**：`mosaic-tty-posix.c` `c_iflag/c_lflag` 清位（BRKINT/ICRNL/IXON/ECHO/ICANON/IEXTEN/ISIG…）+ `VMIN=1, VTIME=0`；与 termios 权威 raw 模式逐 flag 核对（含 `IUTF8`、`OPOST`、`CS8`，VTIME 是否需要）。
+- [x] **P1 raw mode 核对** ✅（L6.3，审计无代码改动）：`mosaic-tty-posix.c` 清位与 glibc `cfmakeraw(3)` 权威定义**逐位一致**（8 iffags、OPOST、lflag ECHO/ECHONL/ICANON/ISIG/IEXTEN、CS8、VMIN=1/VTIME=0）；`IUTF8`/`HUPCL`/`CLOCAL` 保留正确（raw 已去 ICANON，该位无影响）；TCSAFLUSH + 失败恢复完备。对照表见 progress §5 L6.3。
 - [ ] **P1 resize**：`SIGWINCH` + `TIOCGWINSZ` 已有；核对与 in-band resize（2048）并存时的竞态/重复发事件。
 - [ ] **P2 macOS 特判**：`TIOCGWINSZ`/termios 在 macOS 的差异（`HUPCL`/`c_cc`）、终端类型差异与 Linux 不同的行为。
 - [ ] **P2 信号处理加强**：当前 SIGINT/SIGTERM 无专用处理（仅靠 Ctrl+C 按键取消）；补优雅退出与 raw 恢复的兜底（BubbleTea `handleSignals`）。
