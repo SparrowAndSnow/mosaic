@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：`8a0d3e7c` · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：`271f53fa` · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -48,6 +48,7 @@
 | L3 | L3.8 | 删除旧全量渲染器 `AnsiRendering`（去重） | `72e359af` | 无新增；删除 `AnsiRenderingTest`（410 行），覆盖已由 `AnsiIncrementalRenderingTest` 承接 | ✅ 已归档 |
 | L4 | L4.1 | Text 簇级安全软换行 + 布局约束透传 | `9c622d53` | `TextLayoutWrapTest`（12 条）+ `TextWrapRenderingTest`（2 条） | ✅ 已归档 |
 | L4 | L4.2 | Text `maxLines` / `overflow` 簇安全截断 | `de3c9a1a` | `TextLayoutWrapTest` 增 5 条 + `TextWrapRenderingTest` 增 2 条 | ✅ 已归档 |
+| L4 | L4.3 | Text `textAlign`（Start/Center/End，复用 `Alignment.Horizontal`） | `271f53fa` | `TextAlignRenderingTest`（7 条） | ✅ 已归档 |
 | L3 | L3.4 | cell 差分右缘防护 + 宽格 diff 回归（虚拟终端） | `76b8d301` | `CellDiffRenderingTest`（15 条）+ `VirtualTerminal`（解析 ANSI→屏幕网格） | ✅ 已归档 |
 | L3 | L3.5 | static 输出行级清理（替代一键 `clearDisplay`） | `e2497ca3` | `AnsiIncrementalRenderingTest`（16 条，改 4 + 新增 2） | ✅ 已归档 |
 | L3 | L3.6 | 无同步渲染时的闪烁防护（光标包裹） | `e15497c4` | `AnsiIncrementalRenderingTest`（19 条，新增 3） | ✅ 已归档 |
@@ -137,11 +138,18 @@
 - `mosaic.kt` 的 `onDraw` 改为 `frameWriter.write(rendering.render(rootNode))`；`chunkSize` 与两个写出 sink 可注入，便于纯 commonTest 断言字节流。
 - 测试 `FrameWriterTest`（9 条）：ASCII 单块 / 空帧零写但每帧 flush / 码点跨块原子性 / 多字节字符整块 defer / 代理对读前视 / 超块输入多块 / 孤立代理替换 / chunkSize<4 拒绝 / 跨帧缓冲复用。
 
+
+### L4.3 Text `textAlign`（`271f53fa`）
+- `Text`（String 与 AnnotatedString 两个重载）新增 `textAlign: Alignment.Horizontal = Alignment.Start`，复用既有 `Alignment.Horizontal.align(size, space)` 做行内偏移，不引入新枚举。
+- 语义：有**有界入向宽度**（`it.maxWidth != Infinity`，无论 `softWrap` 与否）且 `textAlign != Start` 时，文本框按对齐宽度撑开为 `max(width, alignmentWidth)`，每行按 `align(lineWidth, boxWidth)` 求列偏移后 `drawText(row, column, …)` 绘制；`Start` 或缺宽度时保持紧凑内容宽（零回归）。
+- `TextLayout` 增加 `alignmentWidth` 属性（`measure` 新参数，纳入脏缓存键）：不可用（Infinity）→ 无对齐；超宽行（宽簇独占行）以 `coerceAtLeast(0)` 兜底不会画负列。
+- 测试 `TextAlignRenderingTest`（7 条）：居中/右对齐于给定宽、Start 保持紧凑、无界宽对齐无效果、软换行行居中、居中对齐把盒子撑宽影响 Row 后续兄弟、AnnotatedString 对齐。
+
 ## 6. 当前状态 / 下一步候选
 
-- 现状：`refactor` 分支，HEAD `8a0d3e7c`，JVM + Native 全绿。上面功能步骤已归档。
+- 现状：`refactor` 分支，HEAD `271f53fa`，JVM + Native 全绿。上面功能步骤已归档。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. L4 续项（Text `alignment`/`scroll`）或进入 L5 输入。
+  1. L4 续项（Text `scroll`，或约束扩展/布局缓存/Modifier 缺口）或进入 L5 输入。
   3. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
 
 ## 7. 验证命令

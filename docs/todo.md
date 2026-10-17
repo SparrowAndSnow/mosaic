@@ -82,7 +82,7 @@
 
 ## 5. 布局（`layout/` + `ui/`）
 - [x] **P1 Text 内建排版（簇级安全换行）** ✅（L4.1，`9c622d53`）：`Text` 参数化 `softWrap`（默认 false 不回归），开启时按入向 `maxWidth` 约束在**字素簇边界**软换行；ZWJ 家庭/组合字符/变体/旗帜永不拆开，超宽簇独占行，空段落保留；约束变化即时重排。测试：`TextLayoutWrapTest` + `TextWrapRenderingTest`。
-- [x] **P2 换行/截断参数** ✅（L4.2，`de3c9a1a`）：`Text` 增加 `maxLines` 与 `overflow`（`TextOverflow.Clip/Ellipsis`），超出行数时 Clip 保留前 N 行、Ellipsis 对可见末行做**簇安全截断**并追加省略号（超宽整簇直接丢弃、无宽度预算时退化为 Clip）。待办：`alignment`/`scroll`/参数组合的 Compose 语义核对。
+- [x] **P2 换行/截断/对齐参数** ✅（L4.2 `de3c9a1a` + L4.3 `271f53fa`）：`Text` 增加 `maxLines`/`overflow`（Clip/Ellipsis 簇安全截断）与 `textAlign`（`Alignment.Horizontal` Start/Center/End，有界宽下按行偏移、Start/无界宽零回归）。待办：`scroll`/参数组合的 Compose 语义核对。
 - [ ] **P2 约束扩展**：Row/Column 只有 `weight`；补 `percentage`/`fill`/`ratio` 式弹性（Ratatui Constraint 优先级 Min>Max>Length>Percentage>Ratio>Fill），并考虑对 gap/overlap（Ratatui `Spacing`）支持。
 - [ ] **P2 布局缓存**：`needLayout` 时全树重跑 `measureAndPlace`；对相同 constraints+size 结果做 LRU（Ratatui `layout-cache` feature），缓解高频 resize 与同构重排。
 - [ ] **P2 Modifier 缺口**：现有 `padding/offset/aspectRatio/size/weight/drawBehind/onKeyEvent`；评估 `margin`、`fillMaxSize/widthIn…` 类便捷约束、`onGloballyPositioned` 类回调。
@@ -92,7 +92,7 @@
 ## 6. 文本 / 样式（`text/` + `ui/Text.kt`）
 - [x] **P1 测/绘口径统一** ✅（L1.2/L2.1）：`TextLayout` 与 `drawText` 已共用簇级宽度；勿在 `TextLayout` 单独加 override（会和 `©=1/☀︎=1` 锁定语义冲突）。
 - [ ] **P2 `AnnotatedString` 维护**：470 行手写富文本 + `SpanStyleRange`；核对与 androidx compose ui text 语义差异（合并/覆盖规则），或评估是否足够维持现状。
-- [ ] **P2 换行/截断 API**：见 §5 P1；另加 `maxLines`、`overflow=Ellipsis/Clip` 此类参数化入口。
+- [x] **P2 换行/截断/对齐 API** ✅（L4.1~L4.3）：`softWrap`/`maxLines`/`overflow`/`textAlign` 已落地；`scroll` 仍待办。
 - [ ] **P3 widget 补齐**：Ratatui 有 Block/Border/Chart/Gauge/List/Table/Tabs/Scrollbar 等内建；Mosaic 目前靠 Box/Row/Column/Text 拼装——确定是否做第一方 widget 集（影响发布节奏）。
 
 ## 7. 颜色（`ansi.kt` / `Color.kt`）
