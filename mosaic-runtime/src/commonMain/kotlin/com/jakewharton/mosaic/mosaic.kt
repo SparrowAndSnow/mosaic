@@ -34,6 +34,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart.UNDISPATCHED
 import kotlinx.coroutines.Dispatchers.Unconfined
@@ -77,16 +78,16 @@ public suspend fun runMosaic(
 		AnsiIncrementalRendering(terminal.capabilities)
 	}
 
-	runMosaicComposition(terminal, rendering, content)
+	runMosaicComposition(terminal, rendering, content = content)
 }
 
 internal suspend fun runMosaicComposition(
 	terminal: Terminal,
 	rendering: Rendering,
+	frameWriter: FrameWriter = FrameWriter(),
 	content: @Composable () -> Unit,
 ) {
 	val clock = BroadcastFrameClock()
-	val frameWriter = FrameWriter()
 	val mosaicComposition = MosaicComposition(
 		coroutineContext = coroutineContext + clock,
 		onDraw = { rootNode ->
@@ -95,33 +96,65 @@ internal suspend fun runMosaicComposition(
 		terminal = terminal,
 	)
 
-	mosaicComposition.setContent(content)
+	try {
+		mosaicComposition.setContent(content)
 
-	mosaicComposition.scope.launch {
-		while (true) {
-			clock.sendFrame(nanoTime())
+		mosaicComposition.scope.launch {
+			while (true) {
+				clock.sendFrame(nanoTime())
 
-			// Resume, letting coroutines the frame dispatched (an animation advancing to its next
-			// frame, the recomposer applying work) run and re-register as frame awaiters before we
-			// decide the next interval; otherwise that re-registration races our busy check and
-			// would wrongly idle an actively animating composition.
-			yield()
+				// Resume, letting coroutines the frame dispatched (an animation advancing to its next
+				// frame, the recomposer applying work) run and re-register as frame awaiters before we
+				// decide the next interval; otherwise that re-registration races our busy check and
+				// would wrongly idle an actively animating composition.
+				yield()
 
-			// Pace the frame loop: while a frame is doing real work (a recomposition is pending,
-			// layout/draw is queued, or an animation awaits the next frame) run at ~60fps; when
-			// nothing is pending the loop idles at ~20fps instead of hammering the scheduler at
-			// ~1000fps. The delay is also what yields the dispatcher so other coroutines run.
-			delay(if (mosaicComposition.hasPendingFrameWork()) activeFrameDelay else idleFrameDelay)
+				// Pace the frame loop: while a frame is doing real work (a recomposition is pending,
+				// layout/draw is queued, or an animation awaits the next frame) run at ~60fps; when
+				// nothing is pending the loop idles at ~20fps instead of hammering the scheduler at
+				// ~1000fps. The delay is also what yields the dispatcher so other coroutines run.
+				delay(if (mosaicComposition.hasPendingFrameWork()) activeFrameDelay else idleFrameDelay)
+			}
 		}
-	}
 
-	mosaicComposition.awaitComplete()
+		mosaicComposition.awaitComplete()
+	} catch (t: Throwable) {
+		// A failure in recomposition, layout, or drawing kills the frame loop and propagates out of
+		// this call. Before it does, write a plain-text error frame so the user sees what happened
+		// even though the app is about to tear down; withTerminal's use-block then restores the
+		// terminal. Cancellations (Ctrl-C, explicit cancel) are normal shutdown, not errors.
+		if (t !is CancellationException) {
+			runCatching { frameWriter.write(errorFrame(mosaicComposition, t)) }
+			// Stop the recomposer, snapshot observer, and the scope so their child coroutines do
+			// not keep awaiting frames forever and stall the caller's own teardown.
+			runCatching { mosaicComposition.cancel() }
+		}
+		throw t
+	}
 }
 
 /** Frame delay while work is pending: roughly the 60fps terminal pacing mainstream TUIs use. */
 private val activeFrameDelay: Duration = 16.milliseconds
 /** Frame delay while idle: keeps input latency bounded without a busy frame loop. */
 private val idleFrameDelay: Duration = 50.milliseconds
+
+/**
+ * A plain-text frame describing a fatal composition failure, written before [runMosaicComposition]
+ * rethrows so the terminal shows a readable error even though the app is about to exit.
+ */
+internal fun errorFrame(
+	mosaicComposition: MosaicComposition,
+	throwable: Throwable,
+): CharSequence = buildString {
+	append("Mosaic error")
+	append("\r\n")
+	append(throwable.stackTraceToString())
+	append("\r\n\r\nNODES:\r\n")
+	runCatching {
+		append(mosaicComposition.dumpNodes().replace("\n", "\r\n"))
+	}
+	append("\r\n")
+}
 
 public interface Mosaic {
 	public fun setContent(content: @Composable () -> Unit)
