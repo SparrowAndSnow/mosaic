@@ -133,7 +133,7 @@ internal class BoxMeasurePolicy(
 	}
 }
 
-private fun Placeable.PlacementScope.placeInBox(
+internal fun Placeable.PlacementScope.placeInBox(
 	placeable: Placeable,
 	measurable: Measurable,
 	boxWidth: Int,
@@ -199,7 +199,7 @@ public interface BoxScope {
 	public fun Modifier.matchParentSize(): Modifier
 }
 
-private object BoxScopeInstance : BoxScope {
+internal object BoxScopeInstance : BoxScope {
 
 	@Stable
 	override fun Modifier.align(alignment: Alignment): Modifier = this.then(
@@ -218,7 +218,7 @@ private object BoxScopeInstance : BoxScope {
 	)
 }
 
-private class AlignModifier(
+internal class AlignModifier(
 	private val alignment: Alignment,
 	private val matchParentSize: Boolean,
 ) : ParentDataModifier {
@@ -233,13 +233,13 @@ private class AlignModifier(
 	override fun toString(): String = "Align($alignment)"
 }
 
-private data class BoxParentData(
+internal data class BoxParentData(
 	var alignment: Alignment,
 	var matchParentSize: Boolean,
 )
 
-private val Measurable.boxParentData: BoxParentData?
+internal val Measurable.boxParentData: BoxParentData?
 	get() = this.parentData as? BoxParentData
 
-private val Measurable.matchesParentSize: Boolean
+internal val Measurable.matchesParentSize: Boolean
 	get() = boxParentData?.matchParentSize ?: false
