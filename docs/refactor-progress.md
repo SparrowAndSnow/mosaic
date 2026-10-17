@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：`e15497c4` · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：`8a0d3e7c` · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -51,7 +51,7 @@
 | L3 | L3.4 | cell 差分右缘防护 + 宽格 diff 回归（虚拟终端） | `76b8d301` | `CellDiffRenderingTest`（15 条）+ `VirtualTerminal`（解析 ANSI→屏幕网格） | ✅ 已归档 |
 | L3 | L3.5 | static 输出行级清理（替代一键 `clearDisplay`） | `e2497ca3` | `AnsiIncrementalRenderingTest`（16 条，改 4 + 新增 2） | ✅ 已归档 |
 | L3 | L3.6 | 无同步渲染时的闪烁防护（光标包裹） | `e15497c4` | `AnsiIncrementalRenderingTest`（19 条，新增 3） | ✅ 已归档 |
-| L3 | L3.7 | 输出批量/分片写，避免大字符串抖动 | — | — | ⬜ 未开始 |
+| L3 | L3.7 | 输出批量/分片写，避免大字符串抖动 | `8a0d3e7c` | `FrameWriterTest`（9 条） | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
 ### L3.8 删除旧全量渲染器（`72e359af`）
@@ -129,12 +129,19 @@
 - 无光标切换能力的终端（`cursorVisibility=false`）不发包裹，退化为裸帧；该分支也天然绕过「启动时 hide 一次 + 每帧 show」的策略差异，行为保持最小变更。
 - 新增常量：`mosaic-runtime/ansi.kt` 的 `cursorMode=25`/`hideCursor`/`showCursor`。启动期 `cursorDisable` 单次隐藏、退出恢复的既有逻辑不动。
 
+
+### L3.7 输出批量/分片写（`8a0d3e7c`）
+- 引入 `FrameWriter`（`mosaic-runtime/FrameWriter.kt`）：渲染结果 `CharSequence`（复用 StringBuilder 载体）→ **增量 UTF-8 编码进固定 8KB 缓冲 → 分块写出**，取代原 `print(rendering.render(...).toString())` 的每帧整帧 String 拷贝 + 单次巨型写。
+- 编码按**码点原子落块**：读 ASCII/代理对判码点后整体编码，装不进缓冲就先 flush 再写，保证多字节码点永不被分到两个块（无半字符）；孤立代理替换为 `?`，与 `String.encodeToByteArray` 行为一致。
+- 写口 expect/actual：common 声明 `writeScreenBytes`/`flushScreenBytes`，JVM 走 `System.out.write(byte[],off,len)` + 每帧 `flush()`（保留实时上屏，且字节直通规避 `file.encoding` 问题）；Native 走 `platform.posix.write(STDOUT_FILENO, …)` 循环写（处理部分写），flush 为空实现。
+- `mosaic.kt` 的 `onDraw` 改为 `frameWriter.write(rendering.render(rootNode))`；`chunkSize` 与两个写出 sink 可注入，便于纯 commonTest 断言字节流。
+- 测试 `FrameWriterTest`（9 条）：ASCII 单块 / 空帧零写但每帧 flush / 码点跨块原子性 / 多字节字符整块 defer / 代理对读前视 / 超块输入多块 / 孤立代理替换 / chunkSize<4 拒绝 / 跨帧缓冲复用。
+
 ## 6. 当前状态 / 下一步候选
 
-- 现状：`refactor` 分支，HEAD `e15497c4`，JVM + Native 全绿。上面功能步骤已归档。
+- 现状：`refactor` 分支，HEAD `8a0d3e7c`，JVM + Native 全绿。上面功能步骤已归档。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. L3.7 输出批量/分片写（避免大字符串抖动）。
-  2. L4 续项（Text `alignment`/`scroll`）或进入 L5 输入。
+  1. L4 续项（Text `alignment`/`scroll`）或进入 L5 输入。
   3. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
 
 ## 7. 验证命令
