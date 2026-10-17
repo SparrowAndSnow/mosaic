@@ -23,6 +23,7 @@ import com.jakewharton.mosaic.TextSurface
 import com.jakewharton.mosaic.UnspecifiedCodePoint
 import com.jakewharton.mosaic.isUnspecifiedCodePoint
 import com.jakewharton.mosaic.text.AnnotatedString
+import com.jakewharton.mosaic.text.LineMeasure
 import com.jakewharton.mosaic.text.SpanStyle
 import com.jakewharton.mosaic.text.getLocalRawSpanStyles
 import com.jakewharton.mosaic.text.grapheme.forEachGraphemeClusterRange
@@ -256,9 +257,27 @@ internal open class TextCanvasDrawScope(
 		underlineStyle: UnderlineStyle,
 		underlineColor: Color,
 	) {
-		drawText(row, column, string.text, foreground, background, textStyle, underlineStyle, underlineColor) { start, end ->
-			string.getLocalRawSpanStyles(start, end)
-		}
+		drawText(
+			row, column, string.text, foreground, background, textStyle, underlineStyle, underlineColor,
+			spanStylesProvider = { start, end ->
+				string.getLocalRawSpanStyles(start, end)
+			},
+		)
+	}
+
+	internal fun drawMeasuredText(
+		row: Int,
+		column: Int,
+		string: String,
+		measure: LineMeasure,
+		spanStylesProvider: ((start: Int, end: Int) -> List<SpanStyle>)?,
+		foreground: Color = Color.Unspecified,
+		background: Color = Color.Unspecified,
+		textStyle: TextStyle = TextStyle.Unspecified,
+		underlineStyle: UnderlineStyle = UnderlineStyle.Unspecified,
+		underlineColor: Color = Color.Unspecified,
+	) {
+		drawText(row, column, string, foreground, background, textStyle, underlineStyle, underlineColor, spanStylesProvider, measure)
 	}
 
 	private fun drawText(
@@ -271,14 +290,19 @@ internal open class TextCanvasDrawScope(
 		underlineStyle: UnderlineStyle,
 		underlineColor: Color,
 		spanStylesProvider: ((start: Int, end: Int) -> List<SpanStyle>)?,
+		measure: LineMeasure? = null,
 	) {
 		var characterColumn = column
-		text.forEachGraphemeClusterRange { clusterStart, clusterEnd ->
+		fun writeCluster(
+			clusterStart: Int,
+			clusterEnd: Int,
+			clusterWidth: Int,
+		) {
 			// Measure and draw at extended-grapheme-cluster granularity so a synthesized cluster
 			// (ZWJ emoji family, keycap, flag, Hangul jamo run) is written as one unit into its
 			// head cell, with only its continuation cells reserved. This mirrors measurement, so
 			// layout and drawing can never disagree about where a cluster starts or how wide it is.
-			val w = text.graphemeClusterWidth(clusterStart, clusterEnd)
+			val w = clusterWidth
 
 			val character = canvas[row, characterColumn]
 			character.updateTextPixel(text, clusterStart, clusterEnd, w, foreground, background, textStyle, underlineStyle, underlineColor)
@@ -297,6 +321,18 @@ internal open class TextCanvasDrawScope(
 			}
 
 			characterColumn += w
+		}
+		if (measure != null) {
+			val starts = measure.clusterStarts
+			for (i in starts.indices) {
+				val start = starts[i]
+				val endValue = if (i + 1 < starts.size) starts[i + 1] else text.length
+				writeCluster(start, endValue, measure.clusterWidths[i])
+			}
+		} else {
+			text.forEachGraphemeClusterRange { start, end ->
+				writeCluster(start, end, text.graphemeClusterWidth(start, end))
+			}
 		}
 	}
 

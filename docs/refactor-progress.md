@@ -326,11 +326,12 @@
   ④ 单元格「源串+区间」模型（TextPixel 存 `textSource`/`textStart`/`textEnd`，`drawText` 不再逐簇 `substring`；渲染/差分按区间读出与比较）+ `CellSliceTest`（6 条：source 身份/偏移/多字符簇/span 覆盖/跨源相等/copyFrom/reset）。
   ⑤ **gprofng 采样定位**簇切分族占 draw-idle ~65% → `forEachGraphemeClusterRange` 加 printable-ASCII/tab 单码点快路径（跳过 `gcbClassOf`/`isExtendedPictographic`/`inCbClassOf`/`codepointAt`；排除 GB9b Prepend 例外）+ `GraphemeFastPathTest`（ref 对拍 6 条）。
   ⑥ `Text.drawBehind` 对齐列懒算（`alignedColumn` 改懒 lambda：Start/无界直接 0，不再每行白算 `graphemeWidth()`）+ 官方字素套件回归。
-  **native `render-draw-idle` 510→~129µs（-75%），JVM ~209→~58µs（-72%）**；全部负载 native -60%~-75%、JVM -35%~-72%。
-  **native 首次稳超 Rust 系纯渲染参照**（~129µs vs ~224µs，且含布局+绘制）；最坏全帧 60fps 预算余量 ~23×。
-  D/E/F 待确认归档（D 对应 `fbb8ff9d` 前三步后的第四步，尚未提交）。
+  ⑦ **布局/绘制共用一次簇测量**（方案 B）：`LineMeasure` 在 `measure()` 期对每行切分+测宽一次并缓存到 `lineMeasures`；`Text` 经 `TextCanvasDrawScope.drawMeasuredText` 复用（`as?` 安全下转，保底走原流式）；`alignedColumn` 直接用 `totalWidth`。**gprofng 验证**绘制侧 grapheme 测宽彻底移出绘制主路径。+ `TextMeasuredDrawTest`（两路径逐格/ANSI 对拍 5 条）。
+  **native `render-draw-idle` 510µs → ~65µs（-87%）；JVM ~209 → ~37µs（-82%）**；draw-idle 比值 2.4×→**~1.8×**。
+  **native draw-idle 仅为 Rust 系纯渲染参照（~224µs）的三分之一**；最坏全帧 60fps 预算余量 ~23×。
+  E/F（`9d6fdd4c` 已归档）；G（方案 B）待确认归档。
   下一步候选（需确认后做）：
-  - 方案 B：布局/绘制共用一次簇宽测量（`drawText` 复用布局期算好的簇宽度，避免每簇算两遍；当前 `graphemeClusterWidth` incl 仍 ~32%）。
+  - 逐格开销：`surface.reset()` + `writeCluster` 仍占 draw-idle ~50%（每格写 11 字段 + 4800 格重置）——候选「lazy reset 脏标记」或「样式字段打包」。
   - 或转 L7 收尾（异常安全/帧节流/示例），性能已远超既定目标。
 - 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
 - 现状（2026-10-17 归档后）：HEAD `5f438a79`，JVM 与 linuxX64 四模块（runtime/terminal/tty/tty-terminal）全绿，全 samples 编译通过，rrtop kexe 已重链（工作树演示不含提交）。**L5 输入/事件已全部完成**：L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关 / L5.4 clipboard（OSC 52）/**L5.5 事件背压与 Motion 合并** / L5.6 特殊键核对与 repeat 投递。

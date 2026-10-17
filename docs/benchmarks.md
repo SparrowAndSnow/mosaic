@@ -31,16 +31,16 @@ best-of-3 rounds）。render 负载驱动真实 `Mosaic` 组合，`onDraw` 里�
 
 ## 基线（2026-10-18 · linux x64 · JDK25 / K/N release）
 
-> 下表为**低分配 + 热路径快路径改造后**数字（surface 复用 / ASCII 快路径 / raw-Int 打包 / 源串-区间单元格 / 簇切分 ASCII 快路径 / 对齐列懒算）。
+> 下表为**低分配 + 热路径改造后**数字（surface 复用 / ASCII 快路径 / raw-Int 打包 / 源串-区间单元格 / 簇切分 ASCII 快路径 / 对齐列懒算 / 布局-绘制共用簇测量）。
 > 改造前基线见下文「优化记录」。
 
 | 负载 | JVM | Native(kexe) | 说明 |
 | --- | --- | --- | --- |
-| `render-draw-idle` | ~58 µs | **~129 µs** | **native ≈ 2.2×（原 2.4×；绝对 -75%）** |
-| `render-one-row-delta` | ~237 µs | ~314 µs | native ≈ 1.3× |
-| `render-full-rebuild` | ~340 µs | ~705 µs | native ≈ 2.1×（绝对 -70%） |
-| `layout-pass` | ~271 µs | ~452 µs | native ≈ 1.7× |
-| `event-parser` | ~193 µs | ~89 µs | native ≈ 0.46×（更快） |
+| `render-draw-idle` | ~37 µs | **~65 µs** | **native ≈ 1.8×（原 2.4×；绝对 -87%）** |
+| `render-one-row-delta` | ~200 µs | ~250 µs | native ≈ 1.25× |
+| `render-full-rebuild` | ~318 µs | ~700 µs | native ≈ 2.2×（绝对 -82%） |
+| `layout-pass` | ~240 µs | ~462 µs | native ≈ 1.9× |
+| `event-parser` | ~174 µs | ~134 µs | native ≈ 0.77× |
 
 ## 优化记录（L7.2 绘制热路径低分配，2026-10-18）
 
@@ -53,8 +53,9 @@ best-of-3 rounds）。render 负载驱动真实 `Mosaic` 组合，`onDraw` 里�
 | +单元格「源串+区间」模型（TextPixel 存 `textSource`/`textStart`/`textEnd`，`drawText` 不再逐簇 `substring`；渲染/差分按区间读出与比较） | ~326 µs | 消除绘制热路径**最后一处每簇分配**；`CellSliceTest` 锁 source 身份/偏移/零长续格/copyFrom/跨源相等；native -8%（vs 打包后）、-36%（vs 原始） |
 | `graphemeClusterWidth` 上层簇切分 ASCII 快路径（`forEachGraphemeClusterRange` 对 printable-ASCII/tab 单码点跳过 `gcbClassOf`/`isExtendedPictographic`/`inCbClassOf`/`codepointAt`；GB9b Prepend 例外已排除） | ~205 µs | **gprofng 采样定位**：簇切分族原占 draw-idle ~65%；native -37%、JVM -37%；`GraphemeFastPathTest`（ref 对拍 6 条）+ 官方套件回归 |
 | 对齐列懒算（`alignedColumn` 改懒 lambda，Start/无界不再每行 `graphemeWidth()`） | ~129 µs | **根因**：`Text.drawBehind` 默认 Start 对齐也每帧白算整行宽度；native -37%、JVM -41%；全负载回归绿 |
-- JVM 对照：~209 → ~58 µs（原始 -72%）；native ~510 → ~129 µs（原始 **-75%**）。
-- 结论：native 已在同一 120×40 仪表盘内容下**首次稳超 Rust 系纯渲染参照**（draw-idle 129µs vs 参照 ~224µs，且我们含布局+绘制）；剩余热点扁平分散（簇宽表查 32% / 遍历 11% / GC 9% / cell get 7%），无单一可再 C 化的巨大点。
+| 布局/绘制共用一次簇测量（`LineMeasure`：measure 期切分+测宽每行一次并缓存，`Text` 经 `drawMeasuredText` 复用；`alignedColumn` 复用 `totalWidth`） | ~129→~65 µs | native **-50%**、JVM ~58→~38 µs（-34%）；`TextMeasuredDrawTest` 对拍两路径逐格/ANSI 一致（5 条） |
+- JVM 对照：~209 → ~37 µs（原始 **-82%**）；native ~510 → ~65 µs（原始 **-87%**）。
+- 结论：native draw-idle **~65µs**（同内容下不到 Rust 系纯渲染参照 ~224µs 的三分之一）；剩余热点扁平（遍历+`surface.reset()` 32%、逐格写入 18%、GC 9%），无单一可再 C 化的巨大点。
 
 **阶段拆分（2026-10-18）**
 

@@ -4,13 +4,14 @@ package com.jakewharton.mosaic.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import com.jakewharton.mosaic.layout.TextCanvasDrawScope
 import com.jakewharton.mosaic.layout.drawBehind
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.text.AnnotatedString
 import com.jakewharton.mosaic.text.AnnotatedStringTextLayout
 import com.jakewharton.mosaic.text.StringTextLayout
 import com.jakewharton.mosaic.text.TextLayout
-import com.jakewharton.mosaic.text.grapheme.graphemeWidth
+import com.jakewharton.mosaic.text.getLocalRawSpanStyles
 import com.jakewharton.mosaic.ui.unit.Constraints
 import kotlin.jvm.JvmName
 import kotlin.math.max
@@ -50,9 +51,15 @@ public fun Text(
 			layout(layout.alignedBoxWidth(textAlign), layout.height)
 		},
 		modifier = modifier.drawBehind {
-			layout.lines.forEachIndexed { row, line ->
-				val column = layout.alignedColumn(textAlign) { line.graphemeWidth() }
-				drawText(row, column, line, color, background, textStyle, underlineStyle, underlineColor)
+			val measuredScope = this as? TextCanvasDrawScope
+			layout.lineMeasures.forEachIndexed { row, measure ->
+				val line = layout.lines[row]
+				val column = layout.alignedColumn(textAlign) { measure.totalWidth }
+				if (measuredScope != null) {
+					measuredScope.drawMeasuredText(row, column, line, measure, null, color, background, textStyle, underlineStyle, underlineColor)
+				} else {
+					drawText(row, column, line, color, background, textStyle, underlineStyle, underlineColor)
+				}
 			}
 		},
 	)
@@ -93,9 +100,17 @@ public fun Text(
 			layout(layout.alignedBoxWidth(textAlign), layout.height)
 		},
 		modifier = modifier.drawBehind {
-			layout.lines.forEachIndexed { row, line ->
-				val column = layout.alignedColumn(textAlign) { line.text.graphemeWidth() }
-				drawText(row, column, line, color, background, textStyle, underlineStyle, underlineColor)
+			val measuredScope = this as? TextCanvasDrawScope
+			layout.lineMeasures.forEachIndexed { row, measure ->
+				val line = layout.lines[row]
+				val column = layout.alignedColumn(textAlign) { measure.totalWidth }
+				if (measuredScope != null) {
+					measuredScope.drawMeasuredText(row, column, line.text, measure, { start, end ->
+						line.getLocalRawSpanStyles(start, end)
+					}, color, background, textStyle, underlineStyle, underlineColor)
+				} else {
+					drawText(row, column, line, color, background, textStyle, underlineStyle, underlineColor)
+				}
 			}
 		},
 	)

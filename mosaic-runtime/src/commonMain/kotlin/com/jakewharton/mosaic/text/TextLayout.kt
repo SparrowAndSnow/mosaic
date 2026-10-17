@@ -6,6 +6,19 @@ import com.jakewharton.mosaic.text.grapheme.graphemeClusterWidth
 import com.jakewharton.mosaic.ui.TextOverflow
 import com.jakewharton.mosaic.ui.unit.Constraints
 
+/**
+ * The grapheme-cluster layout of a single laid-out line, produced once during measurement and
+ * reused by drawing so the draw pass does not re-segment or re-measure the line. [clusterStarts]
+ * holds the start offset (in code units) of every cluster; the `i`-th cluster spans
+ * `[clusterStarts[i], clusterStarts[i+1])` (or to `text.length` for the last one) and occupies
+ * [clusterWidths][i] columns.
+ */
+internal class LineMeasure internal constructor(
+	val clusterStarts: IntArray,
+	val clusterWidths: IntArray,
+	val totalWidth: Int,
+)
+
 internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 
 	var value: T = initialValue
@@ -36,6 +49,13 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 			check(!dirty) { "Missing call to measure()" }
 			return field
 		}
+
+	/**
+	 * Per-line cluster metadata aligned with [lines], produced during [measure] and consumed by
+	 * the draw pass to avoid re-segmenting and re-measuring every line.
+	 */
+	var lineMeasures: List<LineMeasure> = emptyList()
+		private set
 
 	/**
 	 * The width in display columns that [lines] may be aligned within, or [Constraints.Infinity]
@@ -128,9 +148,15 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 			}
 		}
 
-		width = result.maxOfOrNull { it.textWidth() } ?: 0
+		val measures = buildList {
+			for (line in result) {
+				add(line.measureLine())
+			}
+		}
+		width = measures.maxOfOrNull { it.totalWidth } ?: 0
 		height = result.size
 		lines = result
+		lineMeasures = measures
 		lastMaxWidth = effectiveMaxWidth
 		lastMaxLines = effectiveMaxLines
 		lastOverflow = overflow
@@ -141,6 +167,9 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 	}
 
 	protected abstract fun T.textWidth(): Int
+
+	/** Segments and measures this line once so the draw pass can reuse [LineMeasure]. */
+	protected abstract fun T.measureLine(): LineMeasure
 
 	protected abstract fun T.splitByLines(): List<T>
 
@@ -202,6 +231,8 @@ internal class StringTextLayout : TextLayout<String>(initialValue = "") {
 
 	override fun String.textWidth(): Int = graphemeWidth()
 
+	override fun String.measureLine(): LineMeasure = measureClusters()
+
 	override fun String.subSlice(from: Int, to: Int): String = substring(from, to)
 
 	override fun String.truncateForEllipsis(maxWidth: Int): String = clipTo(maxWidth - 1) + "\u2026"
@@ -218,8 +249,27 @@ internal class AnnotatedStringTextLayout :
 
 	override fun AnnotatedString.textWidth(): Int = text.graphemeWidth()
 
+	override fun AnnotatedString.measureLine(): LineMeasure = text.measureClusters()
+
 	override fun AnnotatedString.subSlice(from: Int, to: Int): AnnotatedString = subSequence(from, to)
 
 	override fun AnnotatedString.truncateForEllipsis(maxWidth: Int): AnnotatedString =
 		clipTo(maxWidth - 1) + AnnotatedString("\u2026")
+}
+
+/**
+ * Segments [this] into grapheme clusters and measures each one, returning a [LineMeasure] that
+ * the draw pass can consume to skip its own segmentation and width measurement.
+ */
+internal fun CharSequence.measureClusters(): LineMeasure {
+	val starts = ArrayList<Int>()
+	val widths = ArrayList<Int>()
+	var total = 0
+	forEachGraphemeClusterRange { start, end ->
+		val w = graphemeClusterWidth(start, end)
+		starts.add(start)
+		widths.add(w)
+		total += w
+	}
+	return LineMeasure(starts.toIntArray(), widths.toIntArray(), total)
 }
