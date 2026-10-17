@@ -145,7 +145,7 @@
 - [ ] **P3 env 兜底**：`detectAnsiLevel` 扩展 `TERM_PROGRAM`（iTerm2/WezTerm…）与 kitty/OSC 12 兜底（BubbleTea colorprofile 思路）。
 
 ## 11. 生命周期 / 集成
-- [ ] **P1 异常安全**：`runMosaic{...}` 内抛错应先恢复终端；核实 `withTerminal` 的 `use` + `finalizationHook` 在协程取消/异常路径全覆盖（`TtyTerminal.kt` 的 "design of finalization hook fights us here" TODO）。
+- [x] **P1 异常安全** ✅（L6.7，`963279b3`）：teardown 提为幂等函数（`AtomicBoolean` 单次），`close()` 同步先跑再 `closeJob.cancel()`，保证先于 `tty.close()` 完成恢复；finalization hook 复用同一 teardown 兜底信号/shutdown 路径。异常/取消/信号三条路径核实全覆盖；消除对 `Unconfined` 内联续传的隐性依赖。
 - [ ] **P2 非交互策略**：`NonInteractivePolicy` 五态已有；补充在 `AssumeAndIgnore` 时 `NonInteractiveTerminal` 的能力提示（避免静默画错）。
 - [ ] **P3 静态日志**：`StaticEffect`/`static()` 与整帧渲染并发写 stdout 的原子性（`rendering.kt` 已考虑 `clearDisplay` 兜底）。
 

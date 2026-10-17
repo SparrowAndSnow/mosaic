@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L6.6（`4428a77b`）后 · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：L6.7（`963279b3`）后 · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -68,6 +68,7 @@
 | L6 | L6.4 | native 信号兜底：`SIGSEGV/SIGILL/SIGPIPE` C 级 async-safe 恢复 termios + 保留终止语义重发；随 raw 生命周期装/卸 | `39db32b8` | `SignalGuardTest`（6，fork 真实信号）+ tty/tty-terminal 两平台全绿 + apiCheck 修复 | ✅ 已归档 |
 | L6 | L6.5 | resize 通路核对 + 加固：SIGWINCH 与 in-band 互斥（构造保证）；in-band 无初始报告时 `currentSize()` 播种 | `d469ad0a` | `TtyTerminalResizeTest` 增 2（互斥 + 播种），双平台 10 例全过 | ✅ 已归档 |
 | L6 | L6.6 | 读写缓冲核对（审计）+ 加固：控制序列写循环已正确；`reset()` 三平台补 `close()` 后指针守卫（closed 后幂等空操作） | `4428a77b` | `TestTtyTest` 增 2（close/reset-after-close 幂等），tty 两平台全绿 | ✅ 已归档 |
+| L6 | L6.7 | 生命周期异常安全核对 + 加固：teardown 从「依赖 Unconfined 内联续传的异步 hook」改为「close() 同步执行 + 信号/shutdown hook 复用」幂等闭环 | `963279b3` | `TtyTerminalLifecycleTest`（新，3 条）+ 既有 teardown 输出用例全绿 + runtime 编译过 | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
 ### L5.4 clipboard（OSC 52）（`423f25b8`）
@@ -81,6 +82,15 @@
 - `mosaic.kt` 帧监听循环：批内 `pendingMotion` + 局部 `flushMotion()`——连续 `Motion/Drag` 只保留**最后坐标**；遇到离散事件先 flush 再处理；循环结束 flush。键盘/粘贴/剪贴板事件不受影响。
 - 测试：`TtyTerminalBackpressureTest.kt`（新）`largeBurstIsNotDropped`——写入 500 字符 → `events.receive()` 收到 500 条 `KeyboardEvent`（5s withTimeout，0 丢失；注意 `this@withTerminal.events.receive()`，block 接收者是 `Terminal`）。`MouseEventTest` 增 3 条：批内 3 motion+release → `["Motion@3,3","Release@3,3"]`；纯 motion 批 → 只投递单一最新 `["Motion@7,8"]`；双 Press 全部到达（离散事件绝不合并）。
 - 测试要点：`MouseEventTest` 中 `received` 状态必须被组合**读取**（Box 内 `Text(received.size.toString())`）才会触发重组 onDraw，`awaitSnapshot` 才能返回；否则分支压根不重组、1s 虚拟超时。
+
+### L6.7 生命周期异常安全核对 + teardown 同步化（`963279b3`）
+- **审计结论**：
+  - **正常关闭顺序脆弱（关键）**：`TtyTerminal.close()` 原为 `closeJob.cancel()`（异步），而 `withTerminal` 的 `tty.use` 在无挂起点处紧接着同步 `tty.close()`。teardown（`setCallback(null)` + 回滚写入 + `reset()`）能否先于 `tty.close()`（释放 C 指针）跑完，依赖 `launch(Unconfined)` 的**内联续传**碰巧同步执行——正对应旧 TODO "design of finalization hook fights us here"。探针（复刻 `withTerminal` 嵌套 + 循环 200 次）实证现状不崩，但属隐性依赖：换 dispatcher 即可能打到已释放指针。
+  - **异常路径全覆盖**：`asTerminalIn` 中途抛错 → `tty.use.close()` 兜底恢复 termios；应用 block 抛错 → `terminal.use.close()` 触发清理 + `coroutineScope` 取消 reader/interruptJob 子协程。
+  - **信号/shutdown 兜底**：`withFinalizationHook`（native 信号 → cancel → hook → 恢复默认重发；JVM 另加 shutdown hook）。L6.4 C 守卫只管 SEGV/ILL/PIPE，与它信号集不重叠、无冲突。
+- **修复**：抽出幂等 `teardown()`（`AtomicBoolean` 保证单次）；`close()` 同步先跑 `teardown()` 再 `closeJob.cancel()`，正常关闭**保证**先于 `tty.close()` 完成恢复；finalization hook 复用同一 teardown 兜底信号/shutdown 路径，重复调用由守卫去重。
+- **测试**：新增 `TtyTerminalLifecycleTest`（3 条 commonTest，jvm + linuxX64）：`closeOrderingMatchesWithTerminal`（复刻 withTerminal 同 scope 内 tty 紧跟关闭）/ `doubleCloseIsIdempotent` / `exceptionInBlockStillCloses`；既有 teardown 输出用例（Cursor/Mouse/Theme 等）原样通过；runtime 两平台 compile 通过。
+- **既有遗留（非本次引入）**：`apiCheck` 在 `linuxArm64` 目标失败——L6.4 新增 C 符号（`mosaic_tty_signal_guard`）的 `linuxArm64` cinterop 陈旧未再生成，需后续补全 target 生成（本地只建 linuxX64）。
 
 ### L6.6 读写缓冲核对 + reset 幂等加固（`4428a77b`）
 - **审计结论**：
@@ -292,7 +302,7 @@
 
 - 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
 - 现状（2026-10-17 归档后）：HEAD `5f438a79`，JVM 与 linuxX64 四模块（runtime/terminal/tty/tty-terminal）全绿，全 samples 编译通过，rrtop kexe 已重链（工作树演示不含提交）。**L5 输入/事件已全部完成**：L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关 / L5.4 clipboard（OSC 52）/**L5.5 事件背压与 Motion 合并** / L5.6 特殊键核对与 repeat 投递。
-- 现状（2026-10-17 归档后）：**L6 tty 适配进行中**：L6.1 移除死回调、L6.2 DEC 2027、L6.3 raw mode 核对（审计）、**L6.4 native 信号兜底（`39db32b8`）**、**L6.5 resize 通路核对 + OS 播种（`d469ad0a`）**、**L6.6 读写缓冲核对 + reset 幂等加固（`4428a77b`）**。HEAD `4428a77b`，tty / tty-terminal 两平台测试全绿。
+- 现状（2026-10-17 归档后）：**L6 tty 适配进行中**：L6.1 移除死回调、L6.2 DEC 2027、L6.3 raw mode 核对（审计）、**L6.4 native 信号兜底（`39db32b8`）**、**L6.5 resize 通路核对 + OS 播种（`d469ad0a`）**、**L6.6 读写缓冲核对 + reset 幂等加固（`4428a77b`）**、**L6.7 生命周期异常安全 + teardown 同步化（`963279b3`）**。HEAD `963279b3`，tty / tty-terminal 两平台测试全绿。
 - 决策（2026-10-17，已归档）：**L6 按「可本机验证优先」推进**——已做 L6.2 DEC 2027（§10 P1）；剩余建议顺序：raw mode 核对（§9.2 P1）、信号处理（§9.2 P2）；Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程后做。
 - 决策（2026-10-17，已提交）：**外部组件待办整体推迟**——滚动容器 / 惰性列表 / 输入控件 / 鼠标交互 / 焦点 / 边框 / 定位回调 / 动画容器 / 第一方 widget 集属最外层组合组件，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；新增 `docs/todo.md` §15 仅登记不实现，优先级统一排在内部重构之后。
 - 决策（2026-10-17，已提交）：**布局缓存落地即完成 L4 布局层主干**——剩余可选优化（apply 失效查扫反向索引、未放置子树裁剪）留待后续需要时再做；L4 对外的下一候选是 intrinsic 复用（与布局缓存合并）或直接进入 **L5 输入**。
