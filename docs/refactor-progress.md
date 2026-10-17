@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L6.4（`39db32b8`）后 · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：L6.5（`d469ad0a`）后 · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -30,7 +30,7 @@
 | L3 渲染管线 | 按簇绘制 → 增量输出 → 差分/缓冲/静态/闪烁 | §2 | 完成（L3.1~L3.8） |
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
-| L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 进行中（L6.1~L6.4 已归档） |
+| L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 进行中（L6.1~L6.5 已归档） |
 | L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 未开始 |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
@@ -66,6 +66,7 @@
 | L6 | L6.2 | DEC 2027 探测 → `Capabilities.graphemeClustering`；支持时自动启用（退出恢复） | `9f88fbc7` | `TtyTerminalDec2027Test`（5）+ `EventParser` 2027 例 + apiDump | ✅ 已归档 |
 | L6 | L6.3 | POSIX raw mode 核对（审计）：与 `cfmakeraw(3)` 逐位一致，零代码差异 | —（审计无代码改动） | —（审计；基线全绿） | ✅ 已归档 |
 | L6 | L6.4 | native 信号兜底：`SIGSEGV/SIGILL/SIGPIPE` C 级 async-safe 恢复 termios + 保留终止语义重发；随 raw 生命周期装/卸 | `39db32b8` | `SignalGuardTest`（6，fork 真实信号）+ tty/tty-terminal 两平台全绿 + apiCheck 修复 | ✅ 已归档 |
+| L6 | L6.5 | resize 通路核对 + 加固：SIGWINCH 与 in-band 互斥（构造保证）；in-band 无初始报告时 `currentSize()` 播种 | `d469ad0a` | `TtyTerminalResizeTest` 增 2（互斥 + 播种），双平台 10 例全过 | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
 ### L5.4 clipboard（OSC 52）（`423f25b8`）
@@ -79,6 +80,17 @@
 - `mosaic.kt` 帧监听循环：批内 `pendingMotion` + 局部 `flushMotion()`——连续 `Motion/Drag` 只保留**最后坐标**；遇到离散事件先 flush 再处理；循环结束 flush。键盘/粘贴/剪贴板事件不受影响。
 - 测试：`TtyTerminalBackpressureTest.kt`（新）`largeBurstIsNotDropped`——写入 500 字符 → `events.receive()` 收到 500 条 `KeyboardEvent`（5s withTimeout，0 丢失；注意 `this@withTerminal.events.receive()`，block 接收者是 `Terminal`）。`MouseEventTest` 增 3 条：批内 3 motion+release → `["Motion@3,3","Release@3,3"]`；纯 motion 批 → 只投递单一最新 `["Motion@7,8"]`；双 Press 全部到达（离散事件绝不合并）。
 - 测试要点：`MouseEventTest` 中 `received` 状态必须被组合**读取**（Box 内 `Text(received.size.toString())`）才会触发重组 onDraw，`awaitSnapshot` 才能返回；否则分支压根不重组、1s 虚拟超时。
+
+### L6.5 resize 通路核对 + 加固（`d469ad0a`）
+- **审计结论**：
+  - **互斥由构造保证**：`TtyTerminal` 只在 `inBandResizeEvents == false` 时 `enableWindowResizeEvents()`（装 SIGWINCH）；in-band（2048）支持时 SIGWINCH 永不安装 → **不存在重复发事件**。
+  - **收敛单点**：两条通路都写 `size` StateFlow（runtime 唯一尺寸真相源）；channel 上的 `ResizeEvent` runtime 不消费，`trySend` 满仓丢弃也无害；`MutableStateFlow` 原子写 + last-write-wins，无竞态污染。
+  - unsolicited `CSI 48;...t`：in-band 未支持时按 unsolicited 丢弃，不会误改尺寸。
+  - in-band 通路**天然规避**「SIGWINCH 信号上下文直接调 Kotlin 回调」（该路径仅 in-band 不可用时启用），更安全。
+- **边界隐患 + 修复**：in-band 支持但终端**未发出初始尺寸报告**时尺寸停留 `Default(80×24)`（旧版 `replySetNoInitialValue` 固化）。新增 `receivedInBandSize` 标记（in-band 尺寸事件到达即置位），bootstrap 后若 in-band 启用却从未收到尺寸报告，用 `currentSize()`（`TIOCGWINSZ`）播种；真实 in-band 事件（含像素）到达后覆盖，不干扰正常像素路径。
+- **测试**：`TtyTerminalResizeTest` 增 2（jvm + linuxX64 双平台，共 10 例全绿）：
+  - `inBandResizeIgnoresPlatformResizeSignal`：in-band 激活下 `testTerminal.resize(...)`（SIGWINCH）不影响 `state.size` → 互斥契约负向固化；
+  - `inBandSupportedNoInitialValueSeedsFromOsSize`：先把 PTY 调到 200×60，构造「in-band 支持但无初始报告」→ `state.size == Size(200, 60, 0, 0)`（不再是 Default）。
 
 ### L6.4 native 信号兜底：终止型信号 raw 恢复（`39db32b8`）
 - **审计（关键）**：`SIGINT/SIGTERM` 等**已由「生命周期收尾机制」覆盖**——native 侧 POSIX 信号处理器取消中断协程 → teardown hook 恢复终端 → 恢复默认处置并重发信号；JVM 侧 shutdown hook 恢复终端。真正缺口是**没有任何 C 级兜底的终止型信号** `SIGSEGV/SIGILL/SIGPIPE`：崩溃/断管道会直接把终端留在 raw 状态。
@@ -270,14 +282,14 @@
 
 - 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
 - 现状（2026-10-17 归档后）：HEAD `5f438a79`，JVM 与 linuxX64 四模块（runtime/terminal/tty/tty-terminal）全绿，全 samples 编译通过，rrtop kexe 已重链（工作树演示不含提交）。**L5 输入/事件已全部完成**：L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关 / L5.4 clipboard（OSC 52）/**L5.5 事件背压与 Motion 合并** / L5.6 特殊键核对与 repeat 投递。
-- 现状（2026-10-17 归档后）：**L6 tty 适配进行中**：L6.1 移除死回调（`cd6ce408`）、L6.2 DEC 2027 探测（`9f88fbc7`）、L6.3 POSIX raw mode 核对（审计）、**L6.4 native 信号兜底（`39db32b8`，SIGSEGV/SIGILL/SIGPIPE C 级 raw 恢复，nativeTest 6 例）**。HEAD `39db32b8`，tty / tty-terminal 两平台测试全绿，rrtop kexe 已重链（含本提交）。
+- 现状（2026-10-17 归档后）：**L6 tty 适配进行中**：L6.1 移除死回调、L6.2 DEC 2027、L6.3 raw mode 核对（审计）、**L6.4 native 信号兜底（`39db32b8`）**、**L6.5 resize 通路核对 + OS 播种（`d469ad0a`）**。HEAD `d469ad0a`，tty / tty-terminal 两平台测试全绿。
 - 决策（2026-10-17，已归档）：**L6 按「可本机验证优先」推进**——已做 L6.2 DEC 2027（§10 P1）；剩余建议顺序：raw mode 核对（§9.2 P1）、信号处理（§9.2 P2）；Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程后做。
 - 决策（2026-10-17，已提交）：**外部组件待办整体推迟**——滚动容器 / 惰性列表 / 输入控件 / 鼠标交互 / 焦点 / 边框 / 定位回调 / 动画容器 / 第一方 widget 集属最外层组合组件，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；新增 `docs/todo.md` §15 仅登记不实现，优先级统一排在内部重构之后。
 - 决策（2026-10-17，已提交）：**布局缓存落地即完成 L4 布局层主干**——剩余可选优化（apply 失效查扫反向索引、未放置子树裁剪）留待后续需要时再做；L4 对外的下一候选是 intrinsic 复用（与布局缓存合并）或直接进入 **L5 输入**。
 - 决策（2026-10-17，已归档）：**L5 输入走"全量 opt-in + 能力探测后自动启用"**——鼠标/粘贴经 `runMosaic*` 参数显式开启；kitty 键盘协议在探测到支持后自动 push、退出 pop；repeat/release 事件解析后由 runtime 按 press-only 过滤，既有应用零行为变化。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. **`§9.2 P1` resize 竞态核对**：`SIGWINCH` + in-band resize（2048）并存时的竞态/重复发事件（剩余 §9.2 本机项）。
-  2. **`§9.2 P2` macOS 特判**：`TIOCGWINSZ`/termios 的 macOS 差异（`HUPCL`/`c_cc`）。
+  1. **`§9.2 P2` macOS 特判**：`TIOCGWINSZ`/termios 的 macOS 差异（`HUPCL`/`c_cc`）——需 macOS 环境，暂不可本机验证。
+  2. **`§9.2 P2` 读写缓冲**：`Tty.write` 循环写 + `reset`/`close` 幂等性；评估批量 flush 与 interrupt 语义（本机可做）。
   3. 之后 Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程。
 
 ### L4.5 调研记录：布局“比例”的 Compose 语法（未落地，方向调整）

@@ -120,7 +120,7 @@
 
 ### 9.2 POSIX（linux / macos）
 - [x] **P1 raw mode 核对** ✅（L6.3，审计无代码改动）：`mosaic-tty-posix.c` 清位与 glibc `cfmakeraw(3)` 权威定义**逐位一致**（8 iffags、OPOST、lflag ECHO/ECHONL/ICANON/ISIG/IEXTEN、CS8、VMIN=1/VTIME=0）；`IUTF8`/`HUPCL`/`CLOCAL` 保留正确（raw 已去 ICANON，该位无影响）；TCSAFLUSH + 失败恢复完备。对照表见 progress §5 L6.3。
-- [ ] **P1 resize**：`SIGWINCH` + `TIOCGWINSZ` 已有；核对与 in-band resize（2048）并存时的竞态/重复发事件。
+- [x] **P1 resize** ✅（L6.5，`d469ad0a`）：`SIGWINCH` 与 in-band（2048）互斥由构造保证（in-band 支持则不装 SIGWINCH handler），收敛 `size` StateFlow 单点；补「in-band 无初始报告时用 `currentSize()` 播种」＋两平台互斥/播种回归测试。详见 progress §5 L6.5。
 - [ ] **P2 macOS 特判**：`TIOCGWINSZ`/termios 在 macOS 的差异（`HUPCL`/`c_cc`）、终端类型差异与 Linux 不同的行为。
 - [x] **P2 信号处理加强** ✅（L6.4，`39db32b8`）：SIGINT/SIGTERM 已由生命周期收尾机制覆盖（native POSIX 信号处理器→teardown→重发信号 / JVM shutdown hook）；补 **`SIGSEGV/SIGILL/SIGPIPE` 的 C 级兜底**（async-safe 恢复 termios + 唤醒 reader + 保留终止语义重发），随 native raw mode 生命周期装/卸。详见 progress §5 L6.4。
 - [ ] **P3 非 UTF-8 locale**：`read`/`write` 假定 UTF-8；核对 locale 非 UTF-8 时字节流的解析与写回（或明确文档限制）。
