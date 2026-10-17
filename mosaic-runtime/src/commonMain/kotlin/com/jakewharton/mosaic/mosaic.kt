@@ -193,6 +193,9 @@ internal class MosaicComposition(
 	private fun performLayout() {
 		needLayout = false
 
+		// Per-node dependencies are tracked in MosaicNode.measure for the fine-grained layout
+		// cache, but the whole-tree observation below additionally covers state reads that happen
+		// during placement (e.g. a changeable offset), which must still trigger a layout pass.
 		readStatesOnLayout.clear()
 		Snapshot.observe(readObserver = readStatesOnLayoutObserver) {
 			rootNode.measureAndPlace()
@@ -253,15 +256,24 @@ internal class MosaicComposition(
 
 	private fun registerSnapshotApplyObserver(): ObserverHandle {
 		return Snapshot.registerApplyObserver { changedStates, _ ->
-			if (!needLayout) {
+			var layoutInvalidated = false
+			if (changedStates.isNotEmpty()) {
+				layoutInvalidated = invalidateLayoutCaches(changedStates)
+			}
+			var layoutReadChanged = false
+			for (state in changedStates) {
+				if (state in readStatesOnLayout) {
+					layoutReadChanged = true
+					break
+				}
+			}
+			if (layoutInvalidated || layoutReadChanged) {
+				needLayout = true
+			} else if (!needLayout) {
 				var setDraw = needDraw
 				for (state in changedStates) {
-					if (state in readStatesOnLayout) {
-						needLayout = true
-						break
-					}
 					if (setDraw) {
-						continue
+						break
 					}
 					if (state in readStatesOnDraw) {
 						setDraw = true
@@ -270,6 +282,29 @@ internal class MosaicComposition(
 				}
 			}
 		}
+	}
+
+	/**
+	 * Walks the tree and invalidates the layout cache of every node whose measured dependencies
+	 * include any of the changed states, propagating the invalidation to all ancestors. Returns
+	 * whether any node was invalidated (and therefore whether a layout pass is required).
+	 */
+	private fun invalidateLayoutCaches(changedStates: Set<Any>): Boolean {
+		var invalidated = false
+		fun visit(node: MosaicNode) {
+			for (state in changedStates) {
+				if (state in node.measureDependencies) {
+					node.invalidateLayoutVersion()
+					invalidated = true
+					break
+				}
+			}
+			for (child in node.children) {
+				visit(child)
+			}
+		}
+		visit(rootNode)
+		return invalidated
 	}
 
 	private fun startRecomposer() {
@@ -371,14 +406,18 @@ internal class MosaicNodeApplier(
 
 	override fun insertBottomUp(index: Int, instance: MosaicNode) {
 		current.children.add(index, instance)
+		instance.parent = current
+		current.invalidateLayoutVersion()
 	}
 
 	override fun remove(index: Int, count: Int) {
 		current.children.remove(index, count)
+		current.invalidateLayoutVersion()
 	}
 
 	override fun move(from: Int, to: Int, count: Int) {
 		current.children.move(from, to, count)
+		current.invalidateLayoutVersion()
 	}
 
 	override fun onClear() {

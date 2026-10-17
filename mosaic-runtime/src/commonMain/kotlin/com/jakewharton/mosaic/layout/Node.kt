@@ -1,5 +1,7 @@
 package com.jakewharton.mosaic.layout
 
+import androidx.collection.mutableScatterSetOf
+import androidx.compose.runtime.snapshots.Snapshot
 import com.jakewharton.mosaic.TextCanvas
 import com.jakewharton.mosaic.TextSurface
 import com.jakewharton.mosaic.layout.Placeable.PlacementScope
@@ -83,15 +85,56 @@ internal object NotMeasured : MeasureResult {
 }
 
 internal class MosaicNode(
-	var measurePolicy: MeasurePolicy,
+	measurePolicy: MeasurePolicy,
 	var debugPolicy: DebugPolicy,
 	val isStatic: Boolean,
 ) : Measurable {
 	val children = ArrayList<MosaicNode>()
 
+	internal var measurePolicy: MeasurePolicy = measurePolicy
+		set(value) {
+			field = value
+			invalidateLayoutVersion()
+		}
+
 	private val bottomLayer: MosaicNodeLayer = BottomLayer(this)
 	var topLayer: MosaicNodeLayer = bottomLayer
 		private set
+
+	/**
+	 * The enclosing node this node is currently a child of, or `null` for the composition root.
+	 * Maintained by the applier, and used to propagate layout version invalidation upward.
+	 */
+	internal var parent: MosaicNode? = null
+
+	// Layout cache state. `MosaicNode.measure` memoizes the most recent measurement, keyed on the
+	// incoming constraints plus a monotonically increasing layout version. The version is bumped
+	// (and propagated to all ancestors) whenever this node's modifier chain, measure policy, or
+	// children change structurally, or when a snapshot state read by this subtree during
+	// measurement changes. A memo hit lets the whole subtree skip re-measurement entirely.
+	private var layoutVersion = 0L
+	private var cachedConstraints: Constraints? = null
+	private var cachedResult: Placeable? = null
+	private var cachedVersion = -1L
+
+	/** Snapshot states this subtree read during its most recent measurement. */
+	internal val measureDependencies = mutableScatterSetOf<Any>()
+
+	/** Number of times an actual (non-cached) measurement ran on this node. */
+	internal var measureCount: Long = 0
+		private set
+	/** Number of times a cached measurement result was reused on this node. */
+	internal var cacheHitCount: Long = 0
+		private set
+
+	/** Invalidates the cached layout of this node and all of its ancestors. */
+	internal fun invalidateLayoutVersion() {
+		var node: MosaicNode? = this
+		while (node != null) {
+			node.layoutVersion++
+			node = node.parent
+		}
+	}
 
 	override var parentData: Any? = null
 		private set
@@ -100,6 +143,7 @@ internal class MosaicNode(
 		private set
 
 	fun setModifier(modifier: Modifier) {
+		invalidateLayoutVersion()
 		topLayer = modifier.foldOut(bottomLayer) { element, nextLayer ->
 			var nextLayer = nextLayer
 			// The Modifier class can inherit from several key Modifier types
@@ -123,7 +167,22 @@ internal class MosaicNode(
 		}
 	}
 
-	override fun measure(constraints: Constraints): Placeable = topLayer.apply { measure(constraints) }
+	override fun measure(constraints: Constraints): Placeable {
+		val cached = cachedResult
+		if (cached != null && cachedConstraints == constraints && cachedVersion == layoutVersion) {
+			cacheHitCount++
+			return cached
+		}
+		measureCount++
+		measureDependencies.clear()
+		val result = Snapshot.observe(readObserver = measureDependencies::add) {
+			topLayer.measure(constraints)
+		}
+		cachedResult = result
+		cachedConstraints = constraints
+		cachedVersion = layoutVersion
+		return result
+	}
 
 	val width: Int get() = topLayer.width
 	val height: Int get() = topLayer.height
