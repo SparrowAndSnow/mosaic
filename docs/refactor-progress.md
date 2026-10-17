@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：`271f53fa` · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：`ac703463` · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -49,6 +49,7 @@
 | L4 | L4.1 | Text 簇级安全软换行 + 布局约束透传 | `9c622d53` | `TextLayoutWrapTest`（12 条）+ `TextWrapRenderingTest`（2 条） | ✅ 已归档 |
 | L4 | L4.2 | Text `maxLines` / `overflow` 簇安全截断 | `de3c9a1a` | `TextLayoutWrapTest` 增 5 条 + `TextWrapRenderingTest` 增 2 条 | ✅ 已归档 |
 | L4 | L4.3 | Text `textAlign`（Start/Center/End，复用 `Alignment.Horizontal`） | `271f53fa` | `TextAlignRenderingTest`（7 条） | ✅ 已归档 |
+| L4 | L4.4 | Text `scroll`（垂直查看窗口，Ratatui `Paragraph.scroll` 参照） | `ac703463` | `TextLayoutWrapTest` 增 7 条 + `TextScrollRenderingTest`（3 条） | ✅ 已归档 |
 | L3 | L3.4 | cell 差分右缘防护 + 宽格 diff 回归（虚拟终端） | `76b8d301` | `CellDiffRenderingTest`（15 条）+ `VirtualTerminal`（解析 ANSI→屏幕网格） | ✅ 已归档 |
 | L3 | L3.5 | static 输出行级清理（替代一键 `clearDisplay`） | `e2497ca3` | `AnsiIncrementalRenderingTest`（16 条，改 4 + 新增 2） | ✅ 已归档 |
 | L3 | L3.6 | 无同步渲染时的闪烁防护（光标包裹） | `e15497c4` | `AnsiIncrementalRenderingTest`（19 条，新增 3） | ✅ 已归档 |
@@ -145,11 +146,18 @@
 - `TextLayout` 增加 `alignmentWidth` 属性（`measure` 新参数，纳入脏缓存键）：不可用（Infinity）→ 无对齐；超宽行（宽簇独占行）以 `coerceAtLeast(0)` 兜底不会画负列。
 - 测试 `TextAlignRenderingTest`（7 条）：居中/右对齐于给定宽、Start 保持紧凑、无界宽对齐无效果、软换行行居中、居中对齐把盒子撑宽影响 Row 后续兄弟、AnnotatedString 对齐。
 
+
+### L4.4 Text `scroll` 查看窗口（`ac703463`）
+- `Text`（两个重载）新增 `scroll: Int = 0`：先完整排版（wrap 到 `maxWidth`），再以 `scroll` 选**首个可见行**，之后最多显示 `maxLines` 行窗口；随 `overflow` 决定窗口方式——`Clip` 取窗口，`Ellipsis` 在「窗口末尾仍有内容」时对可见末行加省略号。
+- `scroll=0` 严格等价旧逻辑（同一分支），负值 clamp 到 0，`scroll` 超出末尾时 clamp 到最后一行使视图不空，`maxOfOrNull ?: 0` 兜底空结果；`scroll` 纳入 `TextLayout` 脏缓存键。
+- 语义定调（与 Mosaic Text 高度自适应一致）：窗口行数 = min(剩余行, `maxLines`)，内容不满窗口时盒子不高/空——如需固定窗口配合外层高度约束。
+- 测试：`TextLayoutWrapTest` 增 7 条（窗口偏移/超尾/无界行数/Ellipsis 跟随内容/换行+对齐数据不冲突/负值 clamp/滚动到末行不空）；`TextScrollRenderingTest` 3 条渲染快照（窗口、越界显示末段、Ellipsis）。
+
 ## 6. 当前状态 / 下一步候选
 
-- 现状：`refactor` 分支，HEAD `271f53fa`，JVM + Native 全绿。上面功能步骤已归档。
+- 现状：`refactor` 分支，HEAD `ac703463`，JVM + Native 全绿。上面功能步骤已归档。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. L4 续项（Text `scroll`，或约束扩展/布局缓存/Modifier 缺口）或进入 L5 输入。
+  1. L4 续项（约束扩展/布局缓存）或进入 L5 输入。
   3. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
 
 ## 7. 验证命令
