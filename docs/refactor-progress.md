@@ -28,7 +28,7 @@
 | L1 文本度量 | 字素簇分割 + 簇级列宽（唯一口径） | §3 核心 | 完成 |
 | L2 缓冲/cell 模型 | `TextPixel` 升级为「簇字符串 + 显式列宽」 | §4 | 完成 |
 | L3 渲染管线 | 按簇绘制 → 增量输出 → 差分/缓冲/静态/闪烁 | §2 | 进行中（L3.3、L3.8 完成） |
-| L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 进行中（L4.1 完成） |
+| L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 进行中（L4.1~L4.4、L4.6 完成） |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压 | §8 | 未开始 |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 未开始（大头） |
 | L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 未开始 |
@@ -50,6 +50,7 @@
 | L4 | L4.2 | Text `maxLines` / `overflow` 簇安全截断 | `de3c9a1a` | `TextLayoutWrapTest` 增 5 条 + `TextWrapRenderingTest` 增 2 条 | ✅ 已归档 |
 | L4 | L4.3 | Text `textAlign`（Start/Center/End，复用 `Alignment.Horizontal`） | `271f53fa` | `TextAlignRenderingTest`（7 条） | ✅ 已归档 |
 | L4 | L4.4 | Text `scroll`（垂直查看窗口，Ratatui `Paragraph.scroll` 参照） | `ac703463` | `TextLayoutWrapTest` 增 7 条 + `TextScrollRenderingTest`（3 条） | ✅ 已归档 |
+| L4 | L4.6 | `BoxWithConstraints`（内容读取父级约束做精确比例布局；单槽位子组合） | `d2780c1a` | `BoxWithConstraintsTest`（7 条） | ✅ 已归档 |
 | L3 | L3.4 | cell 差分右缘防护 + 宽格 diff 回归（虚拟终端） | `76b8d301` | `CellDiffRenderingTest`（15 条）+ `VirtualTerminal`（解析 ANSI→屏幕网格） | ✅ 已归档 |
 | L3 | L3.5 | static 输出行级清理（替代一键 `clearDisplay`） | `e2497ca3` | `AnsiIncrementalRenderingTest`（16 条，改 4 + 新增 2） | ✅ 已归档 |
 | L3 | L3.6 | 无同步渲染时的闪烁防护（光标包裹） | `e15497c4` | `AnsiIncrementalRenderingTest`（19 条，新增 3） | ✅ 已归档 |
@@ -153,12 +154,29 @@
 - 语义定调（与 Mosaic Text 高度自适应一致）：窗口行数 = min(剩余行, `maxLines`)，内容不满窗口时盒子不高/空——如需固定窗口配合外层高度约束。
 - 测试：`TextLayoutWrapTest` 增 7 条（窗口偏移/超尾/无界行数/Ellipsis 跟随内容/换行+对齐数据不冲突/负值 clamp/滚动到末行不空）；`TextScrollRenderingTest` 3 条渲染快照（窗口、越界显示末段、Ellipsis）。
 
+### L4.6 `BoxWithConstraints`（`d2780c1a`）
+- 移植 Compose 同名 API：`BoxWithConstraints(modifier, contentAlignment, propagateMinConstraints, content)`；`BoxWithConstraintsScope` 暴露 `constraints`/`minWidth`/`maxWidth`/`minHeight`/`maxHeight`/`hasBounded*`/`hasFixed*`（Int 像素）+ 复用 `BoxScope` 的 `align`/`matchParentSize`。
+- 实现：**单槽位子组合**——`Composition(applier, parent)` + `rememberCompositionContext()`（`InternalComposeApi`），内容在**首次 measure 时**用传入约束组合，约束变化时 `setContent` 以新约束重组合（无首帧空跑）；子组合根仅作结构容器，测量策略**直接测量其孩子**，因此 `matchParentSize`/对齐与 `Box` 语义一致。
+- 失效联动：子组合每次应用变更，通过 `version` snapshot 状态 +1；测量第一阶段读取该状态，使父布局 `needLayout` 被触发，重新排版。
+- 边界：无界约束 → 按内容收敛（与 `Box` 一致）；`fillMaxSize`/`weight` 等外部 modifier 照常生效。
+- 可见性调整：`Box` 的 `BoxScopeInstance`/`AlignModifier`/`BoxParentData`/`boxParentData`/`matchesParentSize`/`placeInBox` 由 private 放开为 internal（无行为变化）。
+- 测试：`BoxWithConstraintsTest` 7 条（读 `maxWidth` 定宽、min/有界标志、2/3 比例、父尺寸变化重组合、matchParentSize+居中、无界收敛、状态驱动动态列数）。
+
 ## 6. 当前状态 / 下一步候选
 
-- 现状：`refactor` 分支，HEAD `ac703463`，JVM + Native 全绿。上面功能步骤已归档。
+- 现状：`refactor` 分支，HEAD `d2780c1a`，JVM + Native 全绿。上面功能步骤已归档。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. L4 续项（约束扩展/布局缓存）或进入 L5 输入。
-  3. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
+  1. L4 续项（布局缓存，或进入 L5 输入）。
+  2. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
+
+### L4.5 调研记录：布局“比例”的 Compose 语法（未落地，方向调整）
+- 背景：原计划做“约束扩展”（Row/Column 补 `percentage`/`ratio` 弹性，参照线性布局 Constraint 优先级）。
+- 调研（依据 androidx `foundation-layout` 1.10.4 源码，本地 Gradle 缓存可复核）：Compose **没有** `Modifier.percentage()`/`Modifier.ratio()` 这类“占剩余空间百分比”的 modifier；布局比例的官方语法只有三种，且 mosaic 已具备前两种：
+  1. `Modifier.weight(weight, fill=true)`：Row/Column 内“扣除无 weight 子项后平分剩余主轴”的唯一一等公民；等宽列 = 每列 `weight(1f)`。
+  2. `Modifier.fillMaxWidth/H/S(fraction)`：占父级传入 `maxWidth` 的 `fraction`（`Infinity` 时无效果）——即 Compose 的“百分比”。官方示例用 `fillMaxSize(0.5f)` 表示“占一半”。mosaic 已有（`layout/Size.kt`）。
+  3. `BoxWithConstraints`：需要“固定 + 精确比例 + 剩余细分”手算的官方标准答法——子组合在 measure 阶段读取 `constraints`/`maxWidth` 后自定尺寸。
+- 结论/决策：**自造 `percentage`/`ratio` 不符合 Compose 语法，已撤销，不进入 API**；这类需求用 `weight` + `fillMaxWidth(fraction)` 覆盖。`BoxWithConstraints` 曾评估需要通用 runtime 级 subcomposition（`Compose` 子实例 + slot 复用/回收），后按 L4.6 以**最小单槽位子组合**实现落地（`d2780c1a`，见第 48 行台账），无需先行抽象通用 API。
+- 归档：本调研结论入台账；调研阶段无代码改动，回归基线 509 条 JVM 全绿。
 
 ## 7. 验证命令
 
