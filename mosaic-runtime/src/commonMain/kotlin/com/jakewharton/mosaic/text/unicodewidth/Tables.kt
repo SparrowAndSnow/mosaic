@@ -156,6 +156,76 @@ private const val LIGATURE_TRANSPARENT_MASK: Int = 0b0010_0000_0000_0000
  */
 public val UNICODE_VERSION: Triple<Int, Int, Int> = Triple(16, 0, 0)
 
+// Raw-state width state machine. The UAX #11 machines below (lookupWidth / widthInStr and
+// their CJK variants) are the ported crest of the upstream implementation, which in Rust returns
+// (width, WidthInfo) tuples for free. Kotlin has no free tuple, so every Pair allocated per
+// codepoint is heap garbage this project strips from the draw/measure hot path. Instead each
+// step packs its width (a small signed int) and 16-bit state (WidthInfo.raw) into a single Int:
+// raw occupies bits 4..19, the signed width its low 4 bits.
+
+internal inline fun packResult(width: Int, raw: Int): Int = (raw shl 4) or (width and 0xF)
+internal inline fun widthOf(packed: Int): Int = (packed shl 28) shr 28
+internal inline fun rawOf(packed: Int): Int = packed ushr 4
+
+/*
+ * The raw-state predicates and transitions below mirror `WidthInfo` exactly (same bit patterns)
+ * so the state machine can run on a bare Int without constructing WidthInfo objects.
+ */
+private inline fun isLigatureTransparentRaw(raw: Int): Boolean =
+	(raw and 0b0000_1000_0000_0000) == 0b0000_1000_0000_0000
+private inline fun setZwjBitRaw(raw: Int): Int = raw or 0b0000_0100_0000_0000
+private inline fun isEmojiPresentationRaw(raw: Int): Boolean =
+	(raw and WidthInfo.VARIATION_SELECTOR_16.raw) == WidthInfo.VARIATION_SELECTOR_16.raw
+private inline fun isZwjEmojiPresentationRaw(raw: Int): Boolean =
+	(raw and 0b1011_0000_0000_0000) == 0b1001_0000_0000_0000
+private inline fun setEmojiPresentationRaw(raw: Int): Int =
+	if ((raw and LIGATURE_TRANSPARENT_MASK) == LIGATURE_TRANSPARENT_MASK ||
+		(raw and 0b1001_0000_0000_0000) == 0b0001_0000_0000_0000
+	) {
+		raw or (
+			WidthInfo.VARIATION_SELECTOR_16.raw
+				and WidthInfo.VARIATION_SELECTOR_15.raw.inv()
+				and WidthInfo.VARIATION_SELECTOR_1_OR_2.raw.inv()
+		)
+	} else {
+		WidthInfo.VARIATION_SELECTOR_16.raw
+	}
+private inline fun unsetEmojiPresentationRaw(raw: Int): Int =
+	if ((raw and LIGATURE_TRANSPARENT_MASK) == LIGATURE_TRANSPARENT_MASK) {
+		raw and WidthInfo.VARIATION_SELECTOR_16.raw.inv() and 0xFFFF
+	} else {
+		WidthInfo.DEFAULT.raw
+	}
+private inline fun isTextPresentationRaw(raw: Int): Boolean =
+	(raw and WidthInfo.VARIATION_SELECTOR_15.raw) == WidthInfo.VARIATION_SELECTOR_15.raw
+private inline fun setTextPresentationRaw(raw: Int): Int =
+	if ((raw and LIGATURE_TRANSPARENT_MASK) == LIGATURE_TRANSPARENT_MASK) {
+		raw or (
+			WidthInfo.VARIATION_SELECTOR_15.raw
+				and WidthInfo.VARIATION_SELECTOR_16.raw.inv()
+				and WidthInfo.VARIATION_SELECTOR_1_OR_2.raw.inv()
+		)
+	} else {
+		WidthInfo.VARIATION_SELECTOR_15.raw
+	}
+private inline fun unsetTextPresentationRaw(raw: Int): Int =
+	raw and WidthInfo.VARIATION_SELECTOR_15.raw.inv() and 0xFFFF
+private inline fun isVs12Raw(raw: Int): Boolean =
+	(raw and WidthInfo.VARIATION_SELECTOR_1_OR_2.raw) == WidthInfo.VARIATION_SELECTOR_1_OR_2.raw
+private inline fun setVs12Raw(raw: Int): Int =
+	if ((raw and LIGATURE_TRANSPARENT_MASK) == LIGATURE_TRANSPARENT_MASK) {
+		raw or (
+			WidthInfo.VARIATION_SELECTOR_1_OR_2.raw
+				and WidthInfo.VARIATION_SELECTOR_15.raw.inv()
+				and WidthInfo.VARIATION_SELECTOR_16.raw.inv()
+		)
+	} else {
+		WidthInfo.VARIATION_SELECTOR_1_OR_2.raw
+	}
+private inline fun unsetVs12Raw(raw: Int): Int =
+	raw and WidthInfo.VARIATION_SELECTOR_1_OR_2.raw.inv() and 0xFFFF
+
+
 /**
  * Returns the [UAX #11](https://www.unicode.org/reports/tr11/) based width of `c` by
  * consulting a multi-level lookup table.
@@ -166,7 +236,7 @@ public val UNICODE_VERSION: Triple<Int, Int, Int> = Triple(16, 0, 0)
  * structure of the lookup tables (perhaps by editing the `makeTables` function
  * in `unicode.py`) you must ensure that this code reflects those changes.
  */
-internal fun lookupWidth(c: Int): Pair<Int, WidthInfo> {
+internal fun lookupWidth(c: Int): Int {
     val cp = c
 
     val t1Offset = WIDTH_ROOT[cp shr 13]
@@ -186,26 +256,26 @@ internal fun lookupWidth(c: Int): Pair<Int, WidthInfo> {
     val width = (packedWidths shr (2 * (cp and 0b11))) and 0b11
 
     return if (width < 3) {
-        Pair(width, WidthInfo.DEFAULT)
+        packResult(width, WidthInfo.DEFAULT.raw)
     } else {
         when (c) {
-            0xA -> Pair(1, WidthInfo.LINE_FEED)
-            0x5DC -> Pair(1, WidthInfo.HEBREW_LETTER_LAMED)
-            in 0x622..0x882 -> Pair(1, WidthInfo.JOINING_GROUP_ALEF)
-            in 0x1780..0x17AF -> Pair(1, WidthInfo.KHMER_COENG_ELIGIBLE_LETTER)
-            0x17D8 -> Pair(3, WidthInfo.DEFAULT)
-            0x1A10 -> Pair(1, WidthInfo.BUGINESE_LETTER_YA)
-            in 0x2D31..0x2D6F -> Pair(1, WidthInfo.TIFINAGH_CONSONANT)
-            in 0xA4FC..0xA4FD -> Pair(1, WidthInfo.LISU_TONE_LETTER_MYA_NA_JEU)
-            0xFE01 -> Pair(0, WidthInfo.VARIATION_SELECTOR_1_OR_2)
-            0xFE0E -> Pair(0, WidthInfo.VARIATION_SELECTOR_15)
-            0xFE0F -> Pair(0, WidthInfo.VARIATION_SELECTOR_16)
-            0x10C03 -> Pair(1, WidthInfo.OLD_TURKIC_LETTER_ORKHON_I)
-            0x16D67 -> Pair(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_E)
-            0x16D68 -> Pair(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI)
-            in 0x1F1E6..0x1F1FF -> Pair(1, WidthInfo.REGIONAL_INDICATOR)
-            in 0x1F3FB..0x1F3FF -> Pair(2, WidthInfo.EMOJI_MODIFIER)
-            else -> Pair(2, WidthInfo.EMOJI_PRESENTATION)
+            0xA -> packResult(1, WidthInfo.LINE_FEED.raw)
+            0x5DC -> packResult(1, WidthInfo.HEBREW_LETTER_LAMED.raw)
+            in 0x622..0x882 -> packResult(1, WidthInfo.JOINING_GROUP_ALEF.raw)
+            in 0x1780..0x17AF -> packResult(1, WidthInfo.KHMER_COENG_ELIGIBLE_LETTER.raw)
+            0x17D8 -> packResult(3, WidthInfo.DEFAULT.raw)
+            0x1A10 -> packResult(1, WidthInfo.BUGINESE_LETTER_YA.raw)
+            in 0x2D31..0x2D6F -> packResult(1, WidthInfo.TIFINAGH_CONSONANT.raw)
+            in 0xA4FC..0xA4FD -> packResult(1, WidthInfo.LISU_TONE_LETTER_MYA_NA_JEU.raw)
+            0xFE01 -> packResult(0, WidthInfo.VARIATION_SELECTOR_1_OR_2.raw)
+            0xFE0E -> packResult(0, WidthInfo.VARIATION_SELECTOR_15.raw)
+            0xFE0F -> packResult(0, WidthInfo.VARIATION_SELECTOR_16.raw)
+            0x10C03 -> packResult(1, WidthInfo.OLD_TURKIC_LETTER_ORKHON_I.raw)
+            0x16D67 -> packResult(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw)
+            0x16D68 -> packResult(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI.raw)
+            in 0x1F1E6..0x1F1FF -> packResult(1, WidthInfo.REGIONAL_INDICATOR.raw)
+            in 0x1F3FB..0x1F3FF -> packResult(2, WidthInfo.EMOJI_MODIFIER.raw)
+            else -> packResult(2, WidthInfo.EMOJI_PRESENTATION.raw)
         }
     }
 }
@@ -226,7 +296,7 @@ public fun singleCharWidth(c: Int): Int? =
         }
     } else if (c >= 0xA0) {
         // No characters >= U+00A0 are control codes, so we can consult the lookup tables
-        lookupWidth(c).first
+        widthOf(lookupWidth(c))
     } else {
         // U+007F to U+00A0 (exclusive) are control codes
         null
@@ -236,233 +306,232 @@ public fun singleCharWidth(c: Int): Int? =
  * Returns the [UAX #11](https://www.unicode.org/reports/tr11/) based width of `c`.
  * Ambiguous width characters are treated as narrow.
  */
-internal fun widthInStr(c: Int, nextInfoIn: WidthInfo): Pair<Int, WidthInfo> {
-    var nextInfo = nextInfoIn
-    if (nextInfo.isEmojiPresentation()) {
+internal fun widthInStr(c: Int, nextInfoRaw: Int): Int {
+    var nextInfo = nextInfoRaw
+    if (isEmojiPresentationRaw(nextInfo)) {
         if (startsEmojiPresentationSeq(c)) {
-            val width = if (nextInfo.isZwjEmojiPresentation()) 0 else 2
-            return Pair(width, WidthInfo.EMOJI_PRESENTATION)
+            val width = if (isZwjEmojiPresentationRaw(nextInfo)) 0 else 2
+            return packResult(width, WidthInfo.EMOJI_PRESENTATION.raw)
         } else {
-            nextInfo = nextInfo.unsetEmojiPresentation()
+            nextInfo = unsetEmojiPresentationRaw(nextInfo)
         }
     }
     if (c <= 0xA0) {
         return when (c) {
-            0xA -> Pair(1, WidthInfo.LINE_FEED)
-            0xD -> if (nextInfo == WidthInfo.LINE_FEED) Pair(0, WidthInfo.DEFAULT) else Pair(1, WidthInfo.DEFAULT)
-            else -> Pair(1, WidthInfo.DEFAULT)
+            0xA -> packResult(1, WidthInfo.LINE_FEED.raw)
+            0xD -> if (nextInfo == WidthInfo.LINE_FEED.raw) packResult(0, WidthInfo.DEFAULT.raw) else packResult(1, WidthInfo.DEFAULT.raw)
+            else -> packResult(1, WidthInfo.DEFAULT.raw)
         }
     } else {
         // Fast path
-        if (nextInfo != WidthInfo.DEFAULT) {
+        if (nextInfo != WidthInfo.DEFAULT.raw) {
             if (c == 0xFE0F) {
-                return Pair(0, nextInfo.setEmojiPresentation())
+                return packResult(0, setEmojiPresentationRaw(nextInfo))
             }
             if (c == 0xFE01) {
-                return Pair(0, nextInfo.setVs12())
+                return packResult(0, setVs12Raw(nextInfo))
             }
             if (c == 0xFE0E) {
-                return Pair(0, nextInfo.setTextPresentation())
+                return packResult(0, setTextPresentationRaw(nextInfo))
             }
-            if (nextInfo.isTextPresentation()) {
+            if (isTextPresentationRaw(nextInfo)) {
                 if (startsNonIdeographicTextPresentationSeq(c)) {
-                    return Pair(1, WidthInfo.DEFAULT)
+                    return packResult(1, WidthInfo.DEFAULT.raw)
                 } else {
-                    nextInfo = nextInfo.unsetTextPresentation()
+                    nextInfo = unsetTextPresentationRaw(nextInfo)
                 }
-            } else if (nextInfo.isVs12()) {
+            } else if (isVs12Raw(nextInfo)) {
                 if (c == 0x2018 || c == 0x2019 || c == 0x201C || c == 0x201D) {
-                    return Pair(2, WidthInfo.DEFAULT)
+                    return packResult(2, WidthInfo.DEFAULT.raw)
                 } else {
-                    nextInfo = nextInfo.unsetVs12()
+                    nextInfo = unsetVs12Raw(nextInfo)
                 }
             }
-            if (nextInfo.isLigatureTransparent()) {
+            if (isLigatureTransparentRaw(nextInfo)) {
                 if (c == 0x200D) {
-                    return Pair(0, nextInfo.setZwjBit())
+                    return packResult(0, setZwjBitRaw(nextInfo))
                 } else if (isLigatureTransparent(c)) {
-                    return Pair(0, nextInfo)
+                    return packResult(0, nextInfo)
                 }
             }
 
             // Arabic Lam-Alef ligature
-            if (nextInfo == WidthInfo.JOINING_GROUP_ALEF &&
+            if (nextInfo == WidthInfo.JOINING_GROUP_ALEF.raw &&
                 (c == 0x644 || c in 0x6B5..0x6B8 || c == 0x76A || c == 0x8A6 || c == 0x8C7)
             ) {
-                return Pair(0, WidthInfo.DEFAULT)
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
-            if (nextInfo == WidthInfo.JOINING_GROUP_ALEF && isTransparentZeroWidth(c)) {
-                return Pair(0, WidthInfo.JOINING_GROUP_ALEF)
+            if (nextInfo == WidthInfo.JOINING_GROUP_ALEF.raw && isTransparentZeroWidth(c)) {
+                return packResult(0, WidthInfo.JOINING_GROUP_ALEF.raw)
             }
 
             // Hebrew Alef-ZWJ-Lamed ligature
-            if (nextInfo == WidthInfo.ZWJ_HEBREW_LETTER_LAMED && c == 0x05D0) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.ZWJ_HEBREW_LETTER_LAMED.raw && c == 0x05D0) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
 
             // Khmer coeng signs
-            if (nextInfo == WidthInfo.KHMER_COENG_ELIGIBLE_LETTER && c == 0x17D2) {
-                return Pair(-1, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.KHMER_COENG_ELIGIBLE_LETTER.raw && c == 0x17D2) {
+                return packResult(-1, WidthInfo.DEFAULT.raw)
             }
 
             // Buginese <a, -i> ZWJ ya ligature
-            if (nextInfo == WidthInfo.ZWJ_BUGINESE_LETTER_YA && c == 0x1A17) {
-                return Pair(0, WidthInfo.BUGINESE_VOWEL_SIGN_I_ZWJ_LETTER_YA)
+            if (nextInfo == WidthInfo.ZWJ_BUGINESE_LETTER_YA.raw && c == 0x1A17) {
+                return packResult(0, WidthInfo.BUGINESE_VOWEL_SIGN_I_ZWJ_LETTER_YA.raw)
             }
-            if (nextInfo == WidthInfo.BUGINESE_VOWEL_SIGN_I_ZWJ_LETTER_YA && c == 0x1A15) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.BUGINESE_VOWEL_SIGN_I_ZWJ_LETTER_YA.raw && c == 0x1A15) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
 
             // Tifinagh bi-consonants
-            if ((nextInfo == WidthInfo.TIFINAGH_CONSONANT || nextInfo == WidthInfo.ZWJ_TIFINAGH_CONSONANT) &&
+            if ((nextInfo == WidthInfo.TIFINAGH_CONSONANT.raw || nextInfo == WidthInfo.ZWJ_TIFINAGH_CONSONANT.raw) &&
                 c == 0x2D7F
             ) {
-                return Pair(1, WidthInfo.TIFINAGH_JOINER_CONSONANT)
+                return packResult(1, WidthInfo.TIFINAGH_JOINER_CONSONANT.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_TIFINAGH_CONSONANT && (c in 0x2D31..0x2D65 || c == 0x2D6F)) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.ZWJ_TIFINAGH_CONSONANT.raw && (c in 0x2D31..0x2D65 || c == 0x2D6F)) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
-            if (nextInfo == WidthInfo.TIFINAGH_JOINER_CONSONANT && (c in 0x2D31..0x2D65 || c == 0x2D6F)) {
-                return Pair(-1, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.TIFINAGH_JOINER_CONSONANT.raw && (c in 0x2D31..0x2D65 || c == 0x2D6F)) {
+                return packResult(-1, WidthInfo.DEFAULT.raw)
             }
 
             // Lisu tone letter combinations
-            if (nextInfo == WidthInfo.LISU_TONE_LETTER_MYA_NA_JEU && c in 0xA4F8..0xA4FB) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.LISU_TONE_LETTER_MYA_NA_JEU.raw && c in 0xA4F8..0xA4FB) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
 
             // Old Turkic ligature
-            if (nextInfo == WidthInfo.ZWJ_OLD_TURKIC_LETTER_ORKHON_I && c == 0x10C32) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.ZWJ_OLD_TURKIC_LETTER_ORKHON_I.raw && c == 0x10C32) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
             // Emoji modifier
-            if (nextInfo == WidthInfo.EMOJI_MODIFIER && isEmojiModifierBase(c)) {
-                return Pair(0, WidthInfo.EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.EMOJI_MODIFIER.raw && isEmojiModifierBase(c)) {
+                return packResult(0, WidthInfo.EMOJI_PRESENTATION.raw)
             }
 
             // Regional indicator
-            if ((nextInfo == WidthInfo.REGIONAL_INDICATOR || nextInfo == WidthInfo.SEVERAL_REGIONAL_INDICATOR) &&
+            if ((nextInfo == WidthInfo.REGIONAL_INDICATOR.raw || nextInfo == WidthInfo.SEVERAL_REGIONAL_INDICATOR.raw) &&
                 c in 0x1F1E6..0x1F1FF
             ) {
-                return Pair(1, WidthInfo.SEVERAL_REGIONAL_INDICATOR)
+                return packResult(1, WidthInfo.SEVERAL_REGIONAL_INDICATOR.raw)
             }
 
             // ZWJ emoji
             if ((
-                    nextInfo == WidthInfo.EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.SEVERAL_REGIONAL_INDICATOR ||
-                        nextInfo == WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION ||
-                        nextInfo == WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION ||
-                        nextInfo == WidthInfo.EMOJI_MODIFIER
+                    nextInfo == WidthInfo.EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.SEVERAL_REGIONAL_INDICATOR.raw ||
+                        nextInfo == WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.EMOJI_MODIFIER.raw
                 ) &&
                 c == 0x200D
             ) {
-                return Pair(0, WidthInfo.ZWJ_EMOJI_PRESENTATION)
+                return packResult(0, WidthInfo.ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION && c == 0x20E3) {
-                return Pair(0, WidthInfo.KEYCAP_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION.raw && c == 0x20E3) {
+                return packResult(0, WidthInfo.KEYCAP_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.VS16_ZWJ_EMOJI_PRESENTATION && startsEmojiPresentationSeq(c)) {
-                return Pair(0, WidthInfo.EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.VS16_ZWJ_EMOJI_PRESENTATION.raw && startsEmojiPresentationSeq(c)) {
+                return packResult(0, WidthInfo.EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.VS16_KEYCAP_ZWJ_EMOJI_PRESENTATION &&
+            if (nextInfo == WidthInfo.VS16_KEYCAP_ZWJ_EMOJI_PRESENTATION.raw &&
                 (c in 0x30..0x39 || c == 0x23 || c == 0x2A)
             ) {
-                return Pair(0, WidthInfo.EMOJI_PRESENTATION)
+                return packResult(0, WidthInfo.EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION && c in 0x1F1E6..0x1F1FF) {
-                return Pair(1, WidthInfo.REGIONAL_INDICATOR_ZWJ_PRESENTATION)
+            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION.raw && c in 0x1F1E6..0x1F1FF) {
+                return packResult(1, WidthInfo.REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw)
             }
             if ((
-                    nextInfo == WidthInfo.REGIONAL_INDICATOR_ZWJ_PRESENTATION ||
-                        nextInfo == WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION
+                    nextInfo == WidthInfo.REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw
                 ) &&
                 c in 0x1F1E6..0x1F1FF
             ) {
-                return Pair(-1, WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION)
+                return packResult(-1, WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION && c in 0x1F1E6..0x1F1FF) {
-                return Pair(3, WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION)
+            if (nextInfo == WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw && c in 0x1F1E6..0x1F1FF) {
+                return packResult(3, WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION && c in 0x1F3FB..0x1F3FF) {
-                return Pair(0, WidthInfo.EMOJI_MODIFIER)
+            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION.raw && c in 0x1F3FB..0x1F3FF) {
+                return packResult(0, WidthInfo.EMOJI_MODIFIER.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION && c == 0xE007F) {
-                return Pair(0, WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION.raw && c == 0xE007F) {
+                return packResult(0, WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A6_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A6_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
             if ((
-                    nextInfo == WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION
+                    nextInfo == WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION.raw
                 ) &&
                 c in 0xE0030..0xE0039
             ) {
-                return Pair(0, WidthInfo.TAG_D1_END_ZWJ_EMOJI_PRESENTATION)
+                return packResult(0, WidthInfo.TAG_D1_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_D1_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0030..0xE0039) {
-                return Pair(0, WidthInfo.TAG_D2_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_D1_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0030..0xE0039) {
+                return packResult(0, WidthInfo.TAG_D2_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_D2_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0030..0xE0039) {
-                return Pair(0, WidthInfo.TAG_D3_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_D2_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0030..0xE0039) {
+                return packResult(0, WidthInfo.TAG_D3_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
             if ((
-                    nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A6_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_D3_END_ZWJ_EMOJI_PRESENTATION
+                    nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A6_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_D3_END_ZWJ_EMOJI_PRESENTATION.raw
                 ) &&
                 c == 0x1F3F4
             ) {
-                return Pair(0, WidthInfo.EMOJI_PRESENTATION)
+                return packResult(0, WidthInfo.EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION &&
-                lookupWidth(c).second == WidthInfo.EMOJI_PRESENTATION
+            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION.raw &&
+                rawOf(lookupWidth(c)) == WidthInfo.EMOJI_PRESENTATION.raw
             ) {
-                return Pair(0, WidthInfo.EMOJI_PRESENTATION)
+                return packResult(0, WidthInfo.EMOJI_PRESENTATION.raw)
             }
 
-            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E && c == 0x16D63) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw && c == 0x16D63) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
-            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E && c == 0x16D67) {
-                return Pair(0, WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI)
+            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw && c == 0x16D67) {
+                return packResult(0, WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI.raw)
             }
-            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E && c == 0x16D68) {
-                return Pair(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_E)
+            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw && c == 0x16D68) {
+                return packResult(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw)
             }
-            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E && c == 0x16D69) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw && c == 0x16D69) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
-            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI && c == 0x16D63) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI.raw && c == 0x16D63) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
 
             // Fallback
         }
 
-        val ret = lookupWidth(c)
-        return Pair(ret.first, ret.second)
+        return lookupWidth(c)
     }
 }
 
@@ -472,8 +541,14 @@ internal fun widthInStr(c: Int, nextInfoIn: WidthInfo): Pair<Int, WidthInfo> {
  * without allocating a substring per cluster.
  */
 internal fun strWidth(s: CharSequence, from: Int, to: Int): Int {
+	// Fast path: printable ASCII (plus tab) is always one column per character and never leaves
+	// the state machine in a non-default state, so a whole printable-ASCII range can be measured
+	// in place without running the per-codepoint (allocating) width loop at all.
+	if (isPrintableAsciiRange(s, from, to)) {
+		return to - from
+	}
     var sum = 0
-    var nextInfo = WidthInfo.DEFAULT
+    var nextRaw = 0
     var i = to
     while (i > from) {
         i--
@@ -485,11 +560,22 @@ internal fun strWidth(s: CharSequence, from: Int, to: Int): Int {
             } else {
                 low.code
             }
-        val (add, info) = widthInStr(cp, nextInfo)
-        sum += add
-        nextInfo = info
+        val packed = widthInStr(cp, nextRaw)
+        sum += widthOf(packed)
+        nextRaw = rawOf(packed)
     }
     return sum
+}
+
+/** Returns whether every code unit in `s[from, to)` is printable ASCII (or tab), one column each. */
+private fun isPrintableAsciiRange(s: CharSequence, from: Int, to: Int): Boolean {
+	var i = from
+	while (i < to) {
+		val code = s[i].code
+		if (code !in 0x20..0x7E && code != 0x09) return false
+		i++
+	}
+	return true
 }
 
 internal fun strWidth(s: String): Int = strWidth(s, 0, s.length)
@@ -500,7 +586,7 @@ internal fun strWidth(s: String): Int = strWidth(s, 0, s.length)
  *
  * Maintenance: see [lookupWidth].
  */
-internal fun lookupWidthCjk(c: Int): Pair<Int, WidthInfo> {
+internal fun lookupWidthCjk(c: Int): Int {
     val cp = c
 
     val t1Offset = WIDTH_ROOT_CJK[cp shr 13]
@@ -512,26 +598,26 @@ internal fun lookupWidthCjk(c: Int): Pair<Int, WidthInfo> {
     val width = (packedWidths shr (2 * (cp and 0b11))) and 0b11
 
     return if (width < 3) {
-        Pair(width, WidthInfo.DEFAULT)
+        packResult(width, WidthInfo.DEFAULT.raw)
     } else {
         when (c) {
-            0xA -> Pair(1, WidthInfo.LINE_FEED)
-            0x338 -> Pair(0, WidthInfo.COMBINING_LONG_SOLIDUS_OVERLAY)
-            0x5DC -> Pair(1, WidthInfo.HEBREW_LETTER_LAMED)
-            in 0x622..0x882 -> Pair(1, WidthInfo.JOINING_GROUP_ALEF)
-            in 0x1780..0x17AF -> Pair(1, WidthInfo.KHMER_COENG_ELIGIBLE_LETTER)
-            0x17D8 -> Pair(3, WidthInfo.DEFAULT)
-            0x1A10 -> Pair(1, WidthInfo.BUGINESE_LETTER_YA)
-            in 0x2D31..0x2D6F -> Pair(1, WidthInfo.TIFINAGH_CONSONANT)
-            in 0xA4FC..0xA4FD -> Pair(1, WidthInfo.LISU_TONE_LETTER_MYA_NA_JEU)
-            in 0xFE00..0xFE02 -> Pair(0, WidthInfo.VARIATION_SELECTOR_1_OR_2)
-            0xFE0F -> Pair(0, WidthInfo.VARIATION_SELECTOR_16)
-            0x10C03 -> Pair(1, WidthInfo.OLD_TURKIC_LETTER_ORKHON_I)
-            0x16D67 -> Pair(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_E)
-            0x16D68 -> Pair(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI)
-            in 0x1F1E6..0x1F1FF -> Pair(1, WidthInfo.REGIONAL_INDICATOR)
-            in 0x1F3FB..0x1F3FF -> Pair(2, WidthInfo.EMOJI_MODIFIER)
-            else -> Pair(2, WidthInfo.EMOJI_PRESENTATION)
+            0xA -> packResult(1, WidthInfo.LINE_FEED.raw)
+            0x338 -> packResult(0, WidthInfo.COMBINING_LONG_SOLIDUS_OVERLAY.raw)
+            0x5DC -> packResult(1, WidthInfo.HEBREW_LETTER_LAMED.raw)
+            in 0x622..0x882 -> packResult(1, WidthInfo.JOINING_GROUP_ALEF.raw)
+            in 0x1780..0x17AF -> packResult(1, WidthInfo.KHMER_COENG_ELIGIBLE_LETTER.raw)
+            0x17D8 -> packResult(3, WidthInfo.DEFAULT.raw)
+            0x1A10 -> packResult(1, WidthInfo.BUGINESE_LETTER_YA.raw)
+            in 0x2D31..0x2D6F -> packResult(1, WidthInfo.TIFINAGH_CONSONANT.raw)
+            in 0xA4FC..0xA4FD -> packResult(1, WidthInfo.LISU_TONE_LETTER_MYA_NA_JEU.raw)
+            in 0xFE00..0xFE02 -> packResult(0, WidthInfo.VARIATION_SELECTOR_1_OR_2.raw)
+            0xFE0F -> packResult(0, WidthInfo.VARIATION_SELECTOR_16.raw)
+            0x10C03 -> packResult(1, WidthInfo.OLD_TURKIC_LETTER_ORKHON_I.raw)
+            0x16D67 -> packResult(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw)
+            0x16D68 -> packResult(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI.raw)
+            in 0x1F1E6..0x1F1FF -> packResult(1, WidthInfo.REGIONAL_INDICATOR.raw)
+            in 0x1F3FB..0x1F3FF -> packResult(2, WidthInfo.EMOJI_MODIFIER.raw)
+            else -> packResult(2, WidthInfo.EMOJI_PRESENTATION.raw)
         }
     }
 }
@@ -549,7 +635,7 @@ public fun singleCharWidthCjk(c: Int): Int? =
             null
         }
     } else if (c >= 0xA0) {
-        lookupWidthCjk(c).first
+        widthOf(lookupWidthCjk(c))
     } else {
         null
     }
@@ -558,250 +644,249 @@ public fun singleCharWidthCjk(c: Int): Int? =
  * Returns the [UAX #11](https://www.unicode.org/reports/tr11/) based width of `c`.
  * Ambiguous width characters are treated as wide.
  */
-internal fun widthInStrCjk(c: Int, nextInfoIn: WidthInfo): Pair<Int, WidthInfo> {
-    var nextInfo = nextInfoIn
-    if (nextInfo.isEmojiPresentation()) {
+internal fun widthInStrCjk(c: Int, nextInfoRaw: Int): Int {
+    var nextInfo = nextInfoRaw
+    if (isEmojiPresentationRaw(nextInfo)) {
         if (startsEmojiPresentationSeq(c)) {
-            val width = if (nextInfo.isZwjEmojiPresentation()) 0 else 2
-            return Pair(width, WidthInfo.EMOJI_PRESENTATION)
+            val width = if (isZwjEmojiPresentationRaw(nextInfo)) 0 else 2
+            return packResult(width, WidthInfo.EMOJI_PRESENTATION.raw)
         } else {
-            nextInfo = nextInfo.unsetEmojiPresentation()
+            nextInfo = unsetEmojiPresentationRaw(nextInfo)
         }
     }
     if ((
-            nextInfo == WidthInfo.COMBINING_LONG_SOLIDUS_OVERLAY ||
-                nextInfo == WidthInfo.SOLIDUS_OVERLAY_ALEF
+            nextInfo == WidthInfo.COMBINING_LONG_SOLIDUS_OVERLAY.raw ||
+                nextInfo == WidthInfo.SOLIDUS_OVERLAY_ALEF.raw
         ) &&
         (c == '<'.code || c == '='.code || c == '>'.code)
     ) {
-        return Pair(2, WidthInfo.DEFAULT)
+        return packResult(2, WidthInfo.DEFAULT.raw)
     }
     if (c <= 0xA0) {
         return when (c) {
-            0xA -> Pair(1, WidthInfo.LINE_FEED)
-            0xD -> if (nextInfo == WidthInfo.LINE_FEED) Pair(0, WidthInfo.DEFAULT) else Pair(1, WidthInfo.DEFAULT)
-            else -> Pair(1, WidthInfo.DEFAULT)
+            0xA -> packResult(1, WidthInfo.LINE_FEED.raw)
+            0xD -> if (nextInfo == WidthInfo.LINE_FEED.raw) packResult(0, WidthInfo.DEFAULT.raw) else packResult(1, WidthInfo.DEFAULT.raw)
+            else -> packResult(1, WidthInfo.DEFAULT.raw)
         }
     } else {
         // Fast path
-        if (nextInfo != WidthInfo.DEFAULT) {
+        if (nextInfo != WidthInfo.DEFAULT.raw) {
             if (c == 0xFE0F) {
-                return Pair(0, nextInfo.setEmojiPresentation())
+                return packResult(0, setEmojiPresentationRaw(nextInfo))
             }
             if (c == 0xFE00) {
-                return Pair(0, nextInfo.setVs12())
+                return packResult(0, setVs12Raw(nextInfo))
             }
-            if (nextInfo.isVs12()) {
+            if (isVs12Raw(nextInfo)) {
                 if (c == 0x2018 || c == 0x2019 || c == 0x201C || c == 0x201D) {
-                    return Pair(1, WidthInfo.DEFAULT)
+                    return packResult(1, WidthInfo.DEFAULT.raw)
                 } else {
-                    nextInfo = nextInfo.unsetVs12()
+                    nextInfo = unsetVs12Raw(nextInfo)
                 }
             }
-            if (nextInfo.isLigatureTransparent()) {
+            if (isLigatureTransparentRaw(nextInfo)) {
                 if (c == 0x200D) {
-                    return Pair(0, nextInfo.setZwjBit())
+                    return packResult(0, setZwjBitRaw(nextInfo))
                 } else if (isLigatureTransparent(c)) {
-                    return Pair(0, nextInfo)
+                    return packResult(0, nextInfo)
                 }
             }
 
-            if (nextInfo == WidthInfo.COMBINING_LONG_SOLIDUS_OVERLAY && isSolidusTransparent(c)) {
-                return Pair(
-                    lookupWidthCjk(c).first,
-                    WidthInfo.COMBINING_LONG_SOLIDUS_OVERLAY,
+            if (nextInfo == WidthInfo.COMBINING_LONG_SOLIDUS_OVERLAY.raw && isSolidusTransparent(c)) {
+                return packResult(
+                    widthOf(lookupWidthCjk(c)),
+                    WidthInfo.COMBINING_LONG_SOLIDUS_OVERLAY.raw,
                 )
             }
-            if (nextInfo == WidthInfo.JOINING_GROUP_ALEF && c == 0x0338) {
-                return Pair(0, WidthInfo.SOLIDUS_OVERLAY_ALEF)
+            if (nextInfo == WidthInfo.JOINING_GROUP_ALEF.raw && c == 0x0338) {
+                return packResult(0, WidthInfo.SOLIDUS_OVERLAY_ALEF.raw)
             }
             // Arabic Lam-Alef ligature
             if ((
-                    nextInfo == WidthInfo.JOINING_GROUP_ALEF ||
-                        nextInfo == WidthInfo.SOLIDUS_OVERLAY_ALEF
+                    nextInfo == WidthInfo.JOINING_GROUP_ALEF.raw ||
+                        nextInfo == WidthInfo.SOLIDUS_OVERLAY_ALEF.raw
                 ) &&
                 (c == 0x644 || c in 0x6B5..0x6B8 || c == 0x76A || c == 0x8A6 || c == 0x8C7)
             ) {
-                return Pair(0, WidthInfo.DEFAULT)
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
-            if (nextInfo == WidthInfo.JOINING_GROUP_ALEF && isTransparentZeroWidth(c)) {
-                return Pair(0, WidthInfo.JOINING_GROUP_ALEF)
+            if (nextInfo == WidthInfo.JOINING_GROUP_ALEF.raw && isTransparentZeroWidth(c)) {
+                return packResult(0, WidthInfo.JOINING_GROUP_ALEF.raw)
             }
 
             // Hebrew Alef-ZWJ-Lamed ligature
-            if (nextInfo == WidthInfo.ZWJ_HEBREW_LETTER_LAMED && c == 0x05D0) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.ZWJ_HEBREW_LETTER_LAMED.raw && c == 0x05D0) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
 
             // Khmer coeng signs
-            if (nextInfo == WidthInfo.KHMER_COENG_ELIGIBLE_LETTER && c == 0x17D2) {
-                return Pair(-1, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.KHMER_COENG_ELIGIBLE_LETTER.raw && c == 0x17D2) {
+                return packResult(-1, WidthInfo.DEFAULT.raw)
             }
 
             // Buginese <a, -i> ZWJ ya ligature
-            if (nextInfo == WidthInfo.ZWJ_BUGINESE_LETTER_YA && c == 0x1A17) {
-                return Pair(0, WidthInfo.BUGINESE_VOWEL_SIGN_I_ZWJ_LETTER_YA)
+            if (nextInfo == WidthInfo.ZWJ_BUGINESE_LETTER_YA.raw && c == 0x1A17) {
+                return packResult(0, WidthInfo.BUGINESE_VOWEL_SIGN_I_ZWJ_LETTER_YA.raw)
             }
-            if (nextInfo == WidthInfo.BUGINESE_VOWEL_SIGN_I_ZWJ_LETTER_YA && c == 0x1A15) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.BUGINESE_VOWEL_SIGN_I_ZWJ_LETTER_YA.raw && c == 0x1A15) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
 
             // Tifinagh bi-consonants
-            if ((nextInfo == WidthInfo.TIFINAGH_CONSONANT || nextInfo == WidthInfo.ZWJ_TIFINAGH_CONSONANT) &&
+            if ((nextInfo == WidthInfo.TIFINAGH_CONSONANT.raw || nextInfo == WidthInfo.ZWJ_TIFINAGH_CONSONANT.raw) &&
                 c == 0x2D7F
             ) {
-                return Pair(1, WidthInfo.TIFINAGH_JOINER_CONSONANT)
+                return packResult(1, WidthInfo.TIFINAGH_JOINER_CONSONANT.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_TIFINAGH_CONSONANT && (c in 0x2D31..0x2D65 || c == 0x2D6F)) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.ZWJ_TIFINAGH_CONSONANT.raw && (c in 0x2D31..0x2D65 || c == 0x2D6F)) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
-            if (nextInfo == WidthInfo.TIFINAGH_JOINER_CONSONANT && (c in 0x2D31..0x2D65 || c == 0x2D6F)) {
-                return Pair(-1, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.TIFINAGH_JOINER_CONSONANT.raw && (c in 0x2D31..0x2D65 || c == 0x2D6F)) {
+                return packResult(-1, WidthInfo.DEFAULT.raw)
             }
 
             // Lisu tone letter combinations
-            if (nextInfo == WidthInfo.LISU_TONE_LETTER_MYA_NA_JEU && c in 0xA4F8..0xA4FB) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.LISU_TONE_LETTER_MYA_NA_JEU.raw && c in 0xA4F8..0xA4FB) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
 
             // Old Turkic ligature
-            if (nextInfo == WidthInfo.ZWJ_OLD_TURKIC_LETTER_ORKHON_I && c == 0x10C32) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.ZWJ_OLD_TURKIC_LETTER_ORKHON_I.raw && c == 0x10C32) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
             // Emoji modifier
-            if (nextInfo == WidthInfo.EMOJI_MODIFIER && isEmojiModifierBase(c)) {
-                return Pair(0, WidthInfo.EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.EMOJI_MODIFIER.raw && isEmojiModifierBase(c)) {
+                return packResult(0, WidthInfo.EMOJI_PRESENTATION.raw)
             }
 
             // Regional indicator
-            if ((nextInfo == WidthInfo.REGIONAL_INDICATOR || nextInfo == WidthInfo.SEVERAL_REGIONAL_INDICATOR) &&
+            if ((nextInfo == WidthInfo.REGIONAL_INDICATOR.raw || nextInfo == WidthInfo.SEVERAL_REGIONAL_INDICATOR.raw) &&
                 c in 0x1F1E6..0x1F1FF
             ) {
-                return Pair(1, WidthInfo.SEVERAL_REGIONAL_INDICATOR)
+                return packResult(1, WidthInfo.SEVERAL_REGIONAL_INDICATOR.raw)
             }
 
             // ZWJ emoji
             if ((
-                    nextInfo == WidthInfo.EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.SEVERAL_REGIONAL_INDICATOR ||
-                        nextInfo == WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION ||
-                        nextInfo == WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION ||
-                        nextInfo == WidthInfo.EMOJI_MODIFIER
+                    nextInfo == WidthInfo.EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.SEVERAL_REGIONAL_INDICATOR.raw ||
+                        nextInfo == WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.EMOJI_MODIFIER.raw
                 ) &&
                 c == 0x200D
             ) {
-                return Pair(0, WidthInfo.ZWJ_EMOJI_PRESENTATION)
+                return packResult(0, WidthInfo.ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION && c == 0x20E3) {
-                return Pair(0, WidthInfo.KEYCAP_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION.raw && c == 0x20E3) {
+                return packResult(0, WidthInfo.KEYCAP_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.VS16_ZWJ_EMOJI_PRESENTATION && startsEmojiPresentationSeq(c)) {
-                return Pair(0, WidthInfo.EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.VS16_ZWJ_EMOJI_PRESENTATION.raw && startsEmojiPresentationSeq(c)) {
+                return packResult(0, WidthInfo.EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.VS16_KEYCAP_ZWJ_EMOJI_PRESENTATION &&
+            if (nextInfo == WidthInfo.VS16_KEYCAP_ZWJ_EMOJI_PRESENTATION.raw &&
                 (c in 0x30..0x39 || c == 0x23 || c == 0x2A)
             ) {
-                return Pair(0, WidthInfo.EMOJI_PRESENTATION)
+                return packResult(0, WidthInfo.EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION && c in 0x1F1E6..0x1F1FF) {
-                return Pair(1, WidthInfo.REGIONAL_INDICATOR_ZWJ_PRESENTATION)
+            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION.raw && c in 0x1F1E6..0x1F1FF) {
+                return packResult(1, WidthInfo.REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw)
             }
             if ((
-                    nextInfo == WidthInfo.REGIONAL_INDICATOR_ZWJ_PRESENTATION ||
-                        nextInfo == WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION
+                    nextInfo == WidthInfo.REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw
                 ) &&
                 c in 0x1F1E6..0x1F1FF
             ) {
-                return Pair(-1, WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION)
+                return packResult(-1, WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION && c in 0x1F1E6..0x1F1FF) {
-                return Pair(3, WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION)
+            if (nextInfo == WidthInfo.EVEN_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw && c in 0x1F1E6..0x1F1FF) {
+                return packResult(3, WidthInfo.ODD_REGIONAL_INDICATOR_ZWJ_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION && c in 0x1F3FB..0x1F3FF) {
-                return Pair(0, WidthInfo.EMOJI_MODIFIER)
+            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION.raw && c in 0x1F3FB..0x1F3FF) {
+                return packResult(0, WidthInfo.EMOJI_MODIFIER.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION && c == 0xE007F) {
-                return Pair(0, WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION.raw && c == 0xE007F) {
+                return packResult(0, WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0061..0xE007A) {
-                return Pair(0, WidthInfo.TAG_A6_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0061..0xE007A) {
+                return packResult(0, WidthInfo.TAG_A6_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
             if ((
-                    nextInfo == WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION
+                    nextInfo == WidthInfo.TAG_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A1_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A2_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION.raw
                 ) &&
                 c in 0xE0030..0xE0039
             ) {
-                return Pair(0, WidthInfo.TAG_D1_END_ZWJ_EMOJI_PRESENTATION)
+                return packResult(0, WidthInfo.TAG_D1_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_D1_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0030..0xE0039) {
-                return Pair(0, WidthInfo.TAG_D2_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_D1_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0030..0xE0039) {
+                return packResult(0, WidthInfo.TAG_D2_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.TAG_D2_END_ZWJ_EMOJI_PRESENTATION && c in 0xE0030..0xE0039) {
-                return Pair(0, WidthInfo.TAG_D3_END_ZWJ_EMOJI_PRESENTATION)
+            if (nextInfo == WidthInfo.TAG_D2_END_ZWJ_EMOJI_PRESENTATION.raw && c in 0xE0030..0xE0039) {
+                return packResult(0, WidthInfo.TAG_D3_END_ZWJ_EMOJI_PRESENTATION.raw)
             }
             if ((
-                    nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_A6_END_ZWJ_EMOJI_PRESENTATION ||
-                        nextInfo == WidthInfo.TAG_D3_END_ZWJ_EMOJI_PRESENTATION
+                    nextInfo == WidthInfo.TAG_A3_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A4_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A5_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_A6_END_ZWJ_EMOJI_PRESENTATION.raw ||
+                        nextInfo == WidthInfo.TAG_D3_END_ZWJ_EMOJI_PRESENTATION.raw
                 ) &&
                 c == 0x1F3F4
             ) {
-                return Pair(0, WidthInfo.EMOJI_PRESENTATION)
+                return packResult(0, WidthInfo.EMOJI_PRESENTATION.raw)
             }
-            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION &&
-                lookupWidthCjk(c).second == WidthInfo.EMOJI_PRESENTATION
+            if (nextInfo == WidthInfo.ZWJ_EMOJI_PRESENTATION.raw &&
+                rawOf(lookupWidthCjk(c)) == WidthInfo.EMOJI_PRESENTATION.raw
             ) {
-                return Pair(0, WidthInfo.EMOJI_PRESENTATION)
+                return packResult(0, WidthInfo.EMOJI_PRESENTATION.raw)
             }
 
-            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E && c == 0x16D63) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw && c == 0x16D63) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
-            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E && c == 0x16D67) {
-                return Pair(0, WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI)
+            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw && c == 0x16D67) {
+                return packResult(0, WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI.raw)
             }
-            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E && c == 0x16D68) {
-                return Pair(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_E)
+            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw && c == 0x16D68) {
+                return packResult(1, WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw)
             }
-            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E && c == 0x16D69) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_E.raw && c == 0x16D69) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
-            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI && c == 0x16D63) {
-                return Pair(0, WidthInfo.DEFAULT)
+            if (nextInfo == WidthInfo.KIRAT_RAI_VOWEL_SIGN_AI.raw && c == 0x16D63) {
+                return packResult(0, WidthInfo.DEFAULT.raw)
             }
 
             // Fallback
         }
 
-        val ret = lookupWidthCjk(c)
-        return Pair(ret.first, ret.second)
+        return lookupWidthCjk(c)
     }
 }
 
 internal fun strWidthCjk(s: String): Int {
     var sum = 0
-    var nextInfo = WidthInfo.DEFAULT
+    var nextRaw = 0
     var i = s.length
     while (i > 0) {
         i--
@@ -813,16 +898,16 @@ internal fun strWidthCjk(s: String): Int {
             } else {
                 low.code
             }
-        val (add, info) = widthInStrCjk(cp, nextInfo)
-        sum += add
-        nextInfo = info
+        val packed = widthInStrCjk(cp, nextRaw)
+        sum += widthOf(packed)
+        nextRaw = rawOf(packed)
     }
     return sum
 }
 
-internal fun strWidthTest(s: String, init: WidthInfo): Int {
+internal fun strWidthTest(s: String, initRaw: Int): Int {
     var sum = 0
-    var nextInfo = init
+    var nextRaw = initRaw
     var i = s.length
     while (i > 0) {
         i--
@@ -834,16 +919,16 @@ internal fun strWidthTest(s: String, init: WidthInfo): Int {
             } else {
                 low.code
             }
-        val (add, info) = widthInStr(cp, nextInfo)
-        sum += add
-        nextInfo = info
+        val packed = widthInStr(cp, nextRaw)
+        sum += widthOf(packed)
+        nextRaw = rawOf(packed)
     }
     return sum
 }
 
-internal fun strWidthTestCjk(s: String, init: WidthInfo): Int {
+internal fun strWidthTestCjk(s: String, initRaw: Int): Int {
     var sum = 0
-    var nextInfo = init
+    var nextRaw = initRaw
     var i = s.length
     while (i > 0) {
         i--
@@ -855,9 +940,9 @@ internal fun strWidthTestCjk(s: String, init: WidthInfo): Int {
             } else {
                 low.code
             }
-        val (add, info) = widthInStrCjk(cp, nextInfo)
-        sum += add
-        nextInfo = info
+        val packed = widthInStrCjk(cp, nextRaw)
+        sum += widthOf(packed)
+        nextRaw = rawOf(packed)
     }
     return sum
 }
@@ -871,7 +956,7 @@ internal fun testNormalization() {
  * of this (only ZWJ is excepted) which is transparent for non-Arabic ligatures.
  */
 internal fun isTransparentZeroWidth(c: Int): Boolean {
-    if (lookupWidth(c).first != 0) {
+    if (widthOf(lookupWidth(c)) != 0) {
         return false
     }
     return rangeListContains(NON_TRANSPARENT_ZERO_WIDTHS, c).not()

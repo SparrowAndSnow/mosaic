@@ -31,7 +31,7 @@
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 完成（L6.1~L6.8 已归档） |
-| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 未开始 |
+| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 进行中（L7.1 基准基线就绪，待归档） |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
 
@@ -70,7 +70,16 @@
 | L6 | L6.6 | 读写缓冲核对（审计）+ 加固：控制序列写循环已正确；`reset()` 三平台补 `close()` 后指针守卫（closed 后幂等空操作） | `4428a77b` | `TestTtyTest` 增 2（close/reset-after-close 幂等），tty 两平台全绿 | ✅ 已归档 |
 | L6 | L6.7 | 生命周期异常安全核对 + 加固：teardown 从「依赖 Unconfined 内联续传的异步 hook」改为「close() 同步执行 + 信号/shutdown hook 复用」幂等闭环 | `963279b3` | `TtyTerminalLifecycleTest`（新，3 条）+ 既有 teardown 输出用例全绿 + runtime 编译过 | ✅ 已归档 |
 | L6 | L6.8 | 探测清单完备性核对（审计）+ 清单回归测试：13 项探测逐一对账、theme 996/997 确认非笔误、「逐项重查」评估驳回 | `53ba2ea2` | `TtyTerminalProbeInventoryTest`（新，1 条）；tty-terminal 双平台 254 例全绿 | ✅ 已归档 |
+| L7 | L7.1 | 双平台微基准（`samples/bench`，commonMain 单一驱动）：render（单行 delta/全量重建/layout-pass）+ EventParser；JVM+native 对照；验证 native 达主流实时标准（见 §5 结论） | 待归档 | JVM `:samples:bench:runJvm` + native kexe 可运行；无传统单测（基准类负载，见 `docs/benchmarks.md`） | ⏳ 待确认 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
+
+### L7.1 双平台微基准：native 是否达主流实时标准（todo §13 P2）
+- **结构决策**：微基准从 `mosaic-runtime`（`explicitApi` + apiCheck 约束 + 二进制会进发布制品）迁到 `samples/bench`（不发布、不进 API 基线）。render 负载走**公共 API**（`Mosaic` + `onDraw` 里 `mosaic.draw()`/`static()`）镜像生产「计算屏幕内容」阶段；JVM 与 native 共用同一 `commonMain` 驱动，逐平台独立读数。
+- `event-parser` 走真实 PTY（`TestTerminal`）：720 字节纯字母数字流（每字节=1 `KeyboardEvent`，计数由构造确定）；JVM 与 native 都必须先 `enableRawMode()`。
+- **关键坑（可从历史恢复）**：`TestTerminal` 新建的 PTY 默认**规范模式**，无换行的 `read` 永久阻塞——`EventParser.next()` 卡死（曾卡 40s+，`jstack` 定位 `EventParser.kt:125` 的 `tty.read` 确诊）。必须先 `testTerminal.tty.enableRawMode()`。
+- **K/N 可执行直接放库模块会撞墙**：`explicitApi()` 要求显式可见性，`internal` 顶层函数在 K/N 被**改名破坏**导致 `-e` 找不到；`public` 又污染 `.klib.api` 基线（apiCheck 红线）。所以 native 可执行必须放 sample。
+- **基线（2026-10-18 · linux x64 · JDK25 / K/N release）**：JVM/Native —— one-row-delta 338/697µs、full-rebuild 502/1279µs、layout-pass 347/739µs、event-parser 198/139µs。
+- **结论（达主流标准）**：native 最坏全屏重建 ≈1.28ms，占 60fps 预算（16.6ms）**~8%**，余量 >10×；输入 ≈520 万事件/秒。**native 渲染约慢于 JVM 2–2.5×**（K/N 无 JIT + Compose 分配高），故 §2/§5 低分配优化对 native 收益最大，是性能主战场。明细见 `docs/benchmarks.md`。
 
 ### L5.4 clipboard（OSC 52）（`423f25b8`）
 - `mosaic-terminal`：`ClipboardEvent(selection: Clipboard/Primary/Unknown, text: String?)`——`null`=终端拒绝/解码失败，`""`=空剪贴板；`Terminal` 接口新增 `requestClipboardRead(selection)` / `writeClipboard(text, selection)`。
@@ -310,6 +319,12 @@
 
 ## 6. 当前状态 / 下一步候选
 
+- 进行中（2026-10-18）：**L7 性能「绘制热路径低分配」**。已落地三项（未归档，等确认）：
+  ① surface 复用（每帧不再 `new TextSurface`=4800 对象，`reset()` 复用）+ `SurfaceReuseTest`（2 条）；
+  ② `strWidth` printable-ASCII 快路径（纯 ASCII 范围直接 `to-from`，跳过逐码点 Pair 分配）+ `StrWidthAsciiFastPathTest`（5 条）；
+  ③ 宽度状态机 raw-Int 打包（`packResult` 打包 width+raw 单 Int，12 个 raw 版谓词直读；消除 `Pair<Int,WidthInfo>` 分配）+ `PackedWidthEquivalenceTest`（JVM，oracle 重放全等 ~560 万次）。
+  native `render-draw-idle` 510→354µs（-31%），native/JVM 2.4×→**2.0×**；JVM / linuxX64 全绿（含等价性 oracle）。
+  剩余分配热点（JFR）：`drawText` 每簇 `text.substring`；候选=单元格改存「源串+区间」在绘制热路径消除 substring（涉及 surface 数据模型，风险大，等确认）。
 - 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
 - 现状（2026-10-17 归档后）：HEAD `5f438a79`，JVM 与 linuxX64 四模块（runtime/terminal/tty/tty-terminal）全绿，全 samples 编译通过，rrtop kexe 已重链（工作树演示不含提交）。**L5 输入/事件已全部完成**：L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关 / L5.4 clipboard（OSC 52）/**L5.5 事件背压与 Motion 合并** / L5.6 特殊键核对与 repeat 投递。
 - 现状（2026-10-17 归档后）：**L6 tty 适配已收官（L6.1~L6.8 全归档，HEAD `53ba2ea2`）**：死回调移除 / DEC 2027 / raw 核对 / native 信号兜底 / resize 通路 / 读写缓冲 / 生命周期异常安全 / 探测清单完备性。tty / tty-terminal 两平台测试全绿。L6 余项（macOS/Windows/三套绑定一致性/`linuxArm64` cinterop）需远程环境，登记不改码。

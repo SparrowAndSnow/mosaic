@@ -44,6 +44,21 @@ internal class TextSurface(
 		return cells[y * width + x]
 	}
 
+	/**
+	 * Resets every cell to its blank default so this surface can be reused for the next frame's
+	 * draw without allocating a fresh cell array. Size changes allocate a new surface instead.
+	 */
+	internal fun reset() {
+		val cells = cells
+		var i = 0
+		while (i < cells.size) {
+			cells[i].reset()
+			i++
+		}
+		translationX = 0
+		translationY = 0
+	}
+
 	override fun appendRowTo(appendable: Appendable, row: Int, ansiLevel: AnsiLevel, supportsKittyUnderlines: Boolean) {
 		val rowStart = row * width
 		var to = rowStart + width
@@ -276,6 +291,18 @@ internal class TextPixel(
 		text = ""
 		width = 0
 		isPlaceholder = true
+	}
+
+	/** Resets this cell back to its default blank state so it can be reused by the next frame. */
+	internal fun reset() {
+		text = " "
+		width = 1
+		isPlaceholder = false
+		background = Color.Unspecified
+		foreground = Color.Unspecified
+		textStyle = TextStyle.Empty
+		underlineStyle = UnderlineStyle.Unspecified
+		underlineColor = Color.Unspecified
 	}
 
 	/**

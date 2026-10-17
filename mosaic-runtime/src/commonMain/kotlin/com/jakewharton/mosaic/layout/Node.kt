@@ -124,6 +124,7 @@ internal class MosaicNode(
 	private var cachedConstraints: Constraints? = null
 	private var cachedResult: Placeable? = null
 	private var cachedVersion = -1L
+	private var cachedCanvas: TextSurface? = null
 
 	/** Snapshot states this subtree read during its most recent measurement. */
 	internal val measureDependencies = mutableScatterSetOf<Any>()
@@ -213,7 +214,14 @@ internal class MosaicNode(
 	 * A call to [measureAndPlace] must precede calls to this function.
 	 */
 	fun draw(): TextCanvas {
-		val surface = TextSurface(width, height)
+		val w = width
+		val h = height
+		var surface = cachedCanvas
+		if (surface == null || surface.width != w || surface.height != h) {
+			surface = TextSurface(w, h)
+			cachedCanvas = surface
+		}
+		surface.reset()
 		topLayer.drawTo(surface)
 		return surface
 	}
