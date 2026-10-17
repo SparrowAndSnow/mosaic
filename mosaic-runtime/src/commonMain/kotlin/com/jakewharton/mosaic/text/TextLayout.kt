@@ -37,11 +37,20 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 			return field
 		}
 
+	/**
+	 * The width in display columns that [lines] may be aligned within, or [Constraints.Infinity]
+	 * when no bounded width is available. Lines narrower than this are drawn inset by their
+	 * alignment offset instead of starting at column 0.
+	 */
+	var alignmentWidth: Int = Constraints.Infinity
+		private set
+
 	private var dirty = true
 
 	private var lastMaxWidth = Int.MAX_VALUE
 	private var lastMaxLines = Int.MAX_VALUE
 	private var lastOverflow = TextOverflow.Clip
+	private var lastAlignmentWidth = Int.MAX_VALUE
 
 	/**
 	 * Recomputes the laid-out [lines] using at most [maxWidth] display columns per line. Clusters
@@ -61,10 +70,17 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 		maxWidth: Int = Constraints.Infinity,
 		maxLines: Int = Int.MAX_VALUE,
 		overflow: TextOverflow = TextOverflow.Clip,
+		alignmentWidth: Int = Constraints.Infinity,
 	) {
 		val effectiveMaxWidth = if (maxWidth == Constraints.Infinity) Int.MAX_VALUE else maxWidth
 		val effectiveMaxLines = maxLines.coerceAtLeast(1)
-		if (!dirty && effectiveMaxWidth == lastMaxWidth && effectiveMaxLines == lastMaxLines && overflow == lastOverflow) {
+		val effectiveAlignmentWidth = if (alignmentWidth == Constraints.Infinity) Int.MAX_VALUE else alignmentWidth
+		if (!dirty &&
+			effectiveMaxWidth == lastMaxWidth &&
+			effectiveMaxLines == lastMaxLines &&
+			overflow == lastOverflow &&
+			effectiveAlignmentWidth == lastAlignmentWidth
+		) {
 			return
 		}
 
@@ -101,6 +117,8 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 		lastMaxWidth = effectiveMaxWidth
 		lastMaxLines = effectiveMaxLines
 		lastOverflow = overflow
+		this.alignmentWidth = effectiveAlignmentWidth
+		lastAlignmentWidth = effectiveAlignmentWidth
 		dirty = false
 	}
 
