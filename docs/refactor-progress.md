@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L6.3（审计）后 · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：L6.4（`39db32b8`）后 · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -30,7 +30,7 @@
 | L3 渲染管线 | 按簇绘制 → 增量输出 → 差分/缓冲/静态/闪烁 | §2 | 完成（L3.1~L3.8） |
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
-| L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 进行中（L6.1~L6.3 已归档） |
+| L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 进行中（L6.1~L6.4 已归档） |
 | L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 未开始 |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
@@ -65,6 +65,7 @@
 | L6 | L6.1 | 移除 `Tty.Callback.onKey/onMouse` 死回调（三套绑定同步，事件走共享字节流通道） | `cd6ce408` | `TtyTest` 清理 + 三套绑定编译/测试全绿 | ✅ 已归档 |
 | L6 | L6.2 | DEC 2027 探测 → `Capabilities.graphemeClustering`；支持时自动启用（退出恢复） | `9f88fbc7` | `TtyTerminalDec2027Test`（5）+ `EventParser` 2027 例 + apiDump | ✅ 已归档 |
 | L6 | L6.3 | POSIX raw mode 核对（审计）：与 `cfmakeraw(3)` 逐位一致，零代码差异 | —（审计无代码改动） | —（审计；基线全绿） | ✅ 已归档 |
+| L6 | L6.4 | native 信号兜底：`SIGSEGV/SIGILL/SIGPIPE` C 级 async-safe 恢复 termios + 保留终止语义重发；随 raw 生命周期装/卸 | `39db32b8` | `SignalGuardTest`（6，fork 真实信号）+ tty/tty-terminal 两平台全绿 + apiCheck 修复 | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
 ### L5.4 clipboard（OSC 52）（`423f25b8`）
@@ -78,6 +79,23 @@
 - `mosaic.kt` 帧监听循环：批内 `pendingMotion` + 局部 `flushMotion()`——连续 `Motion/Drag` 只保留**最后坐标**；遇到离散事件先 flush 再处理；循环结束 flush。键盘/粘贴/剪贴板事件不受影响。
 - 测试：`TtyTerminalBackpressureTest.kt`（新）`largeBurstIsNotDropped`——写入 500 字符 → `events.receive()` 收到 500 条 `KeyboardEvent`（5s withTimeout，0 丢失；注意 `this@withTerminal.events.receive()`，block 接收者是 `Terminal`）。`MouseEventTest` 增 3 条：批内 3 motion+release → `["Motion@3,3","Release@3,3"]`；纯 motion 批 → 只投递单一最新 `["Motion@7,8"]`；双 Press 全部到达（离散事件绝不合并）。
 - 测试要点：`MouseEventTest` 中 `received` 状态必须被组合**读取**（Box 内 `Text(received.size.toString())`）才会触发重组 onDraw，`awaitSnapshot` 才能返回；否则分支压根不重组、1s 虚拟超时。
+
+### L6.4 native 信号兜底：终止型信号 raw 恢复（`39db32b8`）
+- **审计（关键）**：`SIGINT/SIGTERM` 等**已由「生命周期收尾机制」覆盖**——native 侧 POSIX 信号处理器取消中断协程 → teardown hook 恢复终端 → 恢复默认处置并重发信号；JVM 侧 shutdown hook 恢复终端。真正缺口是**没有任何 C 级兜底的终止型信号** `SIGSEGV/SIGILL/SIGPIPE`：崩溃/断管道会直接把终端留在 raw 状态。
+- **C 层实现（POSIX only，native 启用）**：
+  - 新增 `mosaic_tty_enable_signal_guard` / `mosaic_tty_disable_signal_guard`：为 `SIGSEGV/SIGILL/SIGPIPE` 装 async-safe handler；**只接管当前处置为 `SIG_DFL`** 的信号（自定义 / `SIG_IGN` 一律跳过，不劫持）。
+  - handler 顺序：恢复 `saved` termios（best-effort；Linux/BSD 上 `tcsetattr` 即直通 ioctl）→ 写 interrupt pipe 唤醒 reader → 恢复 `SIG_DFL` 并重发信号（**保留原始终止语义**：waitpid 状态 / core dump / 退出码不变）；重发异常时 `_exit(128+sig)` 兜底。
+  - disable：仅当当前处置仍是我们的 handler 才还原旧处置——应用在 enable **之后**改过的处置不被回写覆盖。
+  - 生命周期：native `Tty.enableRawMode()` 装 guard；`mosaic_tty_reset`（reset/close/free 共用）末尾自动卸。
+- **JVM/Windows 不受影响**：JVM 不装（覆盖 JVM 自管的 `SIGSEGV/SIGILL/SIGPIPE` 处理会破坏运行时；且 native 才是目标）；Windows 无 POSIX 信号，shared 头声明 + 空实现保证链接。
+- **测试**：`SignalGuardTest`（nativeTest，6 例，全部真实 fork + raise）：
+  - SIGSEGV / SIGILL / SIGPIPE：fork 子进程 raise → 断言子进程按原信号终止（wait 低 7 位）+ 父进程经**共享 PTY** 观测到 termios 恢复 cooked + `tty.read` 返回 0（pipe 唤醒）；
+  - SIGPIPE 在 enable 前已 `SIG_IGN` → 不劫持；enable 后被改为 `SIG_IGN` → disable 不覆盖；
+  - `enableRawMode` 重复调用幂等。
+- **harness 辅助**：`mosaic_test_tty_termios_cooked`（`mosaic-test` 返回 `c_lflag` 的 `ECHO|ICANON` 位，供断言）。
+- **构建教训（延续 L6.1）**：改 `mosaic-tty.h` 后 cinterop **不跟踪 include 图头文件**——`cinteropMosaicLinuxX64` 判 UP-TO-DATE，须 `--rerun` 强制再生成（本例同时改了 .c 内容，增量 cklib 正常）。
+- **顺带修正**：`mosaic-tty.api` 净删 `Tty$Callback.onKey/onMouse` 两行（L6.1 已删实现、dump 未同步），`apiCheck` 转绿。
+- **手动验证**：kitty 运行已重链的 rrtop.kexe，另一终端 `kill -SEGV $(pgrep rrtop)` → 终端恢复非 raw、进程按信号退出（`$?`=139）。
 
 ### L6.3 POSIX raw mode 核对（审计，无代码改动）
 - **结论**：`mosaic-tty-posix.c` `mosaic_tty_enable_raw_mode` 与权威 raw mode（glibc `cfmakeraw(3)`，即 `linux.die.net/man/3/termios` "Raw mode" 节）**逐位一致**，零代码差异。
@@ -252,14 +270,14 @@
 
 - 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
 - 现状（2026-10-17 归档后）：HEAD `5f438a79`，JVM 与 linuxX64 四模块（runtime/terminal/tty/tty-terminal）全绿，全 samples 编译通过，rrtop kexe 已重链（工作树演示不含提交）。**L5 输入/事件已全部完成**：L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关 / L5.4 clipboard（OSC 52）/**L5.5 事件背压与 Motion 合并** / L5.6 特殊键核对与 repeat 投递。
-- 现状（2026-10-17 归档后）：**L6 tty 适配进行中**：L6.1 移除死回调（`cd6ce408`）、L6.2 DEC 2027 探测（`9f88fbc7`）、L6.3 POSIX raw mode 核对（审计，无代码改动）。
+- 现状（2026-10-17 归档后）：**L6 tty 适配进行中**：L6.1 移除死回调（`cd6ce408`）、L6.2 DEC 2027 探测（`9f88fbc7`）、L6.3 POSIX raw mode 核对（审计）、**L6.4 native 信号兜底（`39db32b8`，SIGSEGV/SIGILL/SIGPIPE C 级 raw 恢复，nativeTest 6 例）**。HEAD `39db32b8`，tty / tty-terminal 两平台测试全绿，rrtop kexe 已重链（含本提交）。
 - 决策（2026-10-17，已归档）：**L6 按「可本机验证优先」推进**——已做 L6.2 DEC 2027（§10 P1）；剩余建议顺序：raw mode 核对（§9.2 P1）、信号处理（§9.2 P2）；Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程后做。
 - 决策（2026-10-17，已提交）：**外部组件待办整体推迟**——滚动容器 / 惰性列表 / 输入控件 / 鼠标交互 / 焦点 / 边框 / 定位回调 / 动画容器 / 第一方 widget 集属最外层组合组件，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；新增 `docs/todo.md` §15 仅登记不实现，优先级统一排在内部重构之后。
 - 决策（2026-10-17，已提交）：**布局缓存落地即完成 L4 布局层主干**——剩余可选优化（apply 失效查扫反向索引、未放置子树裁剪）留待后续需要时再做；L4 对外的下一候选是 intrinsic 复用（与布局缓存合并）或直接进入 **L5 输入**。
 - 决策（2026-10-17，已归档）：**L5 输入走"全量 opt-in + 能力探测后自动启用"**——鼠标/粘贴经 `runMosaic*` 参数显式开启；kitty 键盘协议在探测到支持后自动 push、退出 pop；repeat/release 事件解析后由 runtime 按 press-only 过滤，既有应用零行为变化。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. **`§9.2 P1` raw mode 核对**：termios 清位逐项对照权威 raw mode（BRKINT/ICRNL/IXON/ECHO/ICANON/IEXTEN/ISIG…`IUTF8/OPOST/CS8/VMIN=1,VTIME=0`），审计+文档，低风险。
-  2. `§9.2 P2` 信号处理加强（SIGINT/SIGTERM 优雅退出 + raw 恢复兜底，kitty 可实测 Ctrl+C/kill）。
+  1. **`§9.2 P1` resize 竞态核对**：`SIGWINCH` + in-band resize（2048）并存时的竞态/重复发事件（剩余 §9.2 本机项）。
+  2. **`§9.2 P2` macOS 特判**：`TIOCGWINSZ`/termios 的 macOS 差异（`HUPCL`/`c_cc`）。
   3. 之后 Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程。
 
 ### L4.5 调研记录：布局“比例”的 Compose 语法（未落地，方向调整）
