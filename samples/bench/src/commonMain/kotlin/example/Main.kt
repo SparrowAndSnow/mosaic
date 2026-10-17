@@ -32,11 +32,24 @@ fun main(args: Array<String>) = runBlocking {
 	println("mosaic benchmark")
 	if (args.isNotEmpty() && args[0] == "drawidle") {
 		benchmarkRenderAndLayoutDrawIdleOnly()
+	} else if (args.isNotEmpty() && args[0] == "fullrebuild") {
+		benchmarkRenderAndLayoutFullRebuildOnly()
 	} else {
 		benchmarkRenderAndLayout()
 		benchmarkParser()
 	}
 	println("done")
+}
+
+private suspend fun benchmarkRenderAndLayoutFullRebuildOnly() {
+	val harness = benchHarness()
+	val status = mutableStateOf(0)
+	harness.seed { Dashboard(status.value, rebuild = true) }
+	benchmark("render-full-rebuild", iterations = 2_000, warmup = 300) {
+		status.value++
+		harness.driveFrame()
+	}
+	harness.mosaic.cancel()
 }
 
 private suspend fun benchmarkRenderAndLayoutDrawIdleOnly() {

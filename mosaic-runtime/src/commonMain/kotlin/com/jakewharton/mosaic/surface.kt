@@ -35,13 +35,44 @@ internal class TextSurface(
 	var translationY = 0
 
 	internal val cells = Array(width * height) { TextPixel() }
+	private var written = BooleanArray(width * height)
 
 	operator fun get(row: Int, column: Int): TextPixel {
 		val x = translationX + column
 		val y = row + translationY
 		check(x in 0 until width)
 		check(y in 0 until height)
-		return cells[y * width + x]
+		val index = y * width + x
+		written[index] = true
+		return cells[index]
+	}
+
+	/**
+	 * Clears the per-cell written flags at the start of a draw frame so [resetCellsNotWritten]
+	 * can tell which cells the coming draw leaves untouched.
+	 */
+	internal fun beginDraw() {
+		if (written.size != cells.size) {
+			written = BooleanArray(cells.size)
+		} else {
+			written.fill(false)
+		}
+	}
+
+	/**
+	 * Resets every cell that was not written during this frame back to blank. Cells the frame
+	 * drew are left alone; cells it did not (a row whose text shrank, a column scrolled out)
+	 * revert to blank, so residue is still impossible while the reset work scales with the
+	 * actually-blank area instead of a full pass over every cell's six fields.
+	 */
+	internal fun resetCellsNotWritten() {
+		val written = written
+		val cells = cells
+		for (i in written.indices) {
+			if (!written[i]) {
+				cells[i].reset()
+			}
+		}
 	}
 
 	/**
@@ -57,6 +88,7 @@ internal class TextSurface(
 		}
 		translationX = 0
 		translationY = 0
+		written.fill(false)
 	}
 
 	override fun appendRowTo(appendable: Appendable, row: Int, ansiLevel: AnsiLevel, supportsKittyUnderlines: Boolean) {

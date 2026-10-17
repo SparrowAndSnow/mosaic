@@ -327,11 +327,13 @@
   ⑤ **gprofng 采样定位**簇切分族占 draw-idle ~65% → `forEachGraphemeClusterRange` 加 printable-ASCII/tab 单码点快路径（跳过 `gcbClassOf`/`isExtendedPictographic`/`inCbClassOf`/`codepointAt`；排除 GB9b Prepend 例外）+ `GraphemeFastPathTest`（ref 对拍 6 条）。
   ⑥ `Text.drawBehind` 对齐列懒算（`alignedColumn` 改懒 lambda：Start/无界直接 0，不再每行白算 `graphemeWidth()`）+ 官方字素套件回归。
   ⑦ **布局/绘制共用一次簇测量**（方案 B）：`LineMeasure` 在 `measure()` 期对每行切分+测宽一次并缓存到 `lineMeasures`；`Text` 经 `TextCanvasDrawScope.drawMeasuredText` 复用（`as?` 安全下转，保底走原流式）；`alignedColumn` 直接用 `totalWidth`。**gprofng 验证**绘制侧 grapheme 测宽彻底移出绘制主路径。+ `TextMeasuredDrawTest`（两路径逐格/ANSI 对拍 5 条）。
-  **native `render-draw-idle` 510µs → ~65µs（-87%）；JVM ~209 → ~37µs（-82%）**；draw-idle 比值 2.4×→**~1.8×**。
-  **native draw-idle 仅为 Rust 系纯渲染参照（~224µs）的三分之一**；最坏全帧 60fps 预算余量 ~23×。
-  E/F（`9d6fdd4c` 已归档）；G（方案 B）待确认归档。
+  ⑧ **cell 级懒复位**：量化确认全量 `surface.reset()`（4800 格 × 6 字段写）占 draw-idle ~37% → `beginDraw` 清 per-cell written 位 + `resetCellsNotWritten` 只复位本帧未写格（遍历仅 1 布尔读/格）。**中途被 `MosaicTest` 移格回归抓到的正确性 bug**：行级粒度会残留"同行内本帧未写"的旧格，必须 cell 级才等价原全量语义。+ `SurfaceLazyResetTest`（5 条）。
+  ⑨ **native GC 调优实验（结论：无效，恢复默认）**：`render-full-rebuild` 是差距最大负载（native ~700µs vs JVM ~390–440µs）。gprofng 采样定位：GC Sweep ≈31% + Compose 重组 ≈10%，自家布局+绘制 <10%；JVM 快在 HotSpot 逃逸分析+标量替换+分代 GC 把重组分配压到近零，K/N 无逃逸分析+ARC+整堆 Mark&Sweep 让同样分配变真实 GC 压力。试过 `gc=ms`（~757µs，更差）、`gcSchedulerType=Aggressive`（运行挂死，病态），默认即 Adaptive；**GC 参数无收益，已重链回默认**。结论：差距是架构性的、不在库代码，无法用 `-Xbinary` 追平；后续收窄只剩降 Compose 重组分配（制约在外层）或 JVM 为主部署。
+  **native `render-draw-idle` 510µs → ~52µs（-90%）；JVM ~209 → ~31µs（-85%）**；draw-idle 比值 2.4×→**~1.7×**。
+  **native draw-idle 约为 Rust 系纯渲染参照（~224µs）的四分之一**；最坏全帧 60fps 预算余量 ~23×。
+  E/F（`9d6fdd4c`）、G（`9a066233`）已归档；H（懒复位）待确认归档。
   下一步候选（需确认后做）：
-  - 逐格开销：`surface.reset()` + `writeCluster` 仍占 draw-idle ~50%（每格写 11 字段 + 4800 格重置）——候选「lazy reset 脏标记」或「样式字段打包」。
+  - 逐格写入本体：`writeCluster`（每格 11 字段含 5 个样式对象写）+ `canvas[row,col]` bounds-check/translation 仍占 draw-idle 大头——候选「样式 Color/TextStyle 打包成 primitive」或「遍历收敛局部 cell 引用」。
   - 或转 L7 收尾（异常安全/帧节流/示例），性能已远超既定目标。
 - 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
 - 现状（2026-10-17 归档后）：HEAD `5f438a79`，JVM 与 linuxX64 四模块（runtime/terminal/tty/tty-terminal）全绿，全 samples 编译通过，rrtop kexe 已重链（工作树演示不含提交）。**L5 输入/事件已全部完成**：L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关 / L5.4 clipboard（OSC 52）/**L5.5 事件背压与 Motion 合并** / L5.6 特殊键核对与 repeat 投递。

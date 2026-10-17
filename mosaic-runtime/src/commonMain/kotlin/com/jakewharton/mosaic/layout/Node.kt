@@ -221,8 +221,9 @@ internal class MosaicNode(
 			surface = TextSurface(w, h)
 			cachedCanvas = surface
 		}
-		surface.reset()
+		surface.beginDraw()
 		topLayer.drawTo(surface)
+		surface.resetCellsNotWritten()
 		return surface
 	}
 
