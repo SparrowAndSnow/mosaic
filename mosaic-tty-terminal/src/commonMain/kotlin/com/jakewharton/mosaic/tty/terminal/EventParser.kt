@@ -2,6 +2,7 @@ package com.jakewharton.mosaic.tty.terminal
 
 import com.jakewharton.mosaic.terminal.BracketedPasteEvent
 import com.jakewharton.mosaic.terminal.CapabilityQueryEvent
+import com.jakewharton.mosaic.terminal.ClipboardEvent
 import com.jakewharton.mosaic.terminal.CursorPositionEvent
 import com.jakewharton.mosaic.terminal.DebugEvent
 import com.jakewharton.mosaic.terminal.DecModeReportEvent
@@ -758,6 +759,15 @@ public class EventParser(
 					val ptIndex = psDelimiter + 1
 					val ps = buffer.parseIntDigits(b3Index, psDelimiter, orElse = { break@error })
 					when (ps) {
+						52 -> {
+							val cDelimiter = buffer.indexOfOrElse(';'.code.toByte(), ptIndex, stIndex, orElse = { break@error })
+							val selection = ClipboardOsc.parseSelection(buffer.decodeToString(ptIndex, cDelimiter))
+							val payload = buffer.decodeToString(cDelimiter + 1, stIndex)
+							// "!" signals the terminal refused the request (or does not support it).
+							val text = if (payload == "!") null else ClipboardOsc.decode(payload)
+							return@parseUntilStringTerminator ClipboardEvent(selection, text)
+						}
+
 						4 -> {
 							val cDelimiter = buffer.indexOfOrElse(';'.code.toByte(), ptIndex, stIndex, orElse = { break@error })
 							val c = buffer.parseIntDigits(ptIndex, cDelimiter, orElse = { break@error })

@@ -3,6 +3,7 @@ package com.jakewharton.mosaic.tty.terminal
 import com.jakewharton.finalization.withFinalizationHook
 import com.jakewharton.mosaic.terminal.AnsiLevel
 import com.jakewharton.mosaic.terminal.CapabilityQueryEvent
+import com.jakewharton.mosaic.terminal.ClipboardEvent
 import com.jakewharton.mosaic.terminal.CursorPositionEvent
 import com.jakewharton.mosaic.terminal.DebugEvent
 import com.jakewharton.mosaic.terminal.DecModeReportEvent
@@ -37,17 +38,26 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-private class TtyTerminal(
-	override val name: String?,
-	override val state: Terminal.State,
-	override val capabilities: Terminal.Capabilities,
-	override val events: ReceiveChannel<Event>,
-	private val closeJob: Job,
-) : Terminal {
-	override val interactive get() = true
-	override fun close() = closeJob.cancel()
+	private class TtyTerminal(
+		override val name: String?,
+		override val state: Terminal.State,
+		override val capabilities: Terminal.Capabilities,
+		override val events: ReceiveChannel<Event>,
+		private val closeJob: Job,
+		private val tty: Tty,
+	) : Terminal {
+		override val interactive get() = true
+		override fun close() = closeJob.cancel()
 
-	class State(
+		override fun requestClipboardRead(selection: ClipboardEvent.Selection) {
+			tty.write("${OSC}52;${ClipboardOsc.requestSelection(selection)};?$ST")
+		}
+
+		override fun writeClipboard(text: String, selection: ClipboardEvent.Selection) {
+			tty.write("${OSC}52;${ClipboardOsc.requestSelection(selection)};${ClipboardOsc.encode(text)}$ST")
+		}
+
+		class State(
 		override val focused: StateFlow<Boolean>,
 		override val theme: StateFlow<Terminal.Theme>,
 		override val size: StateFlow<Terminal.Size>,
@@ -394,6 +404,7 @@ public suspend fun Tty.asTerminalIn(
 		),
 		events = events,
 		closeJob = interruptJob,
+		tty = this,
 	)
 }
 

@@ -1,6 +1,7 @@
 package com.jakewharton.mosaic.testing
 
 import com.jakewharton.mosaic.terminal.AnsiLevel
+import com.jakewharton.mosaic.terminal.ClipboardEvent
 import com.jakewharton.mosaic.terminal.Event
 import com.jakewharton.mosaic.terminal.Terminal
 import kotlinx.coroutines.channels.Channel
@@ -15,8 +16,23 @@ public class TestTerminal(
 	override val state: State = State()
 	override val events: Channel<Event> = Channel(UNLIMITED)
 
+	/** Text passed to [writeClipboard] and the selection it was written under, for assertions. */
+	public val clipboardWrites: MutableList<Pair<String, ClipboardEvent.Selection>> = mutableListOf()
+
+	/** The last selection a clipboard read was requested for, or null if none. */
+	public var clipboardReadRequested: ClipboardEvent.Selection? = null
+		private set
+
 	override fun close() {
 		events.close()
+	}
+
+	override fun requestClipboardRead(selection: ClipboardEvent.Selection) {
+		clipboardReadRequested = selection
+	}
+
+	override fun writeClipboard(text: String, selection: ClipboardEvent.Selection) {
+		clipboardWrites += text to selection
 	}
 
 	public class State : Terminal.State {

@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import com.jakewharton.mosaic.Mosaic
 import com.jakewharton.mosaic.terminal.AnsiLevel
 import com.jakewharton.mosaic.terminal.BracketedPasteEvent
+import com.jakewharton.mosaic.terminal.ClipboardEvent
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.terminal.Terminal
@@ -53,6 +54,8 @@ public interface TestMosaic<T> : Mosaic {
 	public fun sendMouseEvent(mouseEvent: MouseEvent)
 	/** Sends a bracketed paste (start marker, then one key event per code point, then end marker). */
 	public fun sendPaste(text: String)
+	/** Delivers an OSC 52 clipboard reply, which satisfies a pending [com.jakewharton.mosaic.ui.platform.Clipboard.getText]. */
+	public fun sendClipboardReply(text: String?, selection: ClipboardEvent.Selection = ClipboardEvent.Selection.Clipboard)
 	public val state: TestTerminal.State
 }
 
@@ -126,6 +129,10 @@ private class RealTestMosaic<T>(
 			)
 		}
 		testTerminal.events.trySend(BracketedPasteEvent(start = false))
+	}
+
+	override fun sendClipboardReply(text: String?, selection: ClipboardEvent.Selection) {
+		testTerminal.events.trySend(ClipboardEvent(selection, text))
 	}
 
 	/** Splits into UTF-16-safe code point strings so surrogate pairs survive as a single unit. */

@@ -31,6 +31,9 @@ abstract interface com.jakewharton.mosaic.terminal/Terminal : kotlin/AutoCloseab
     abstract val state // com.jakewharton.mosaic.terminal/Terminal.state|{}state[0]
         abstract fun <get-state>(): com.jakewharton.mosaic.terminal/Terminal.State // com.jakewharton.mosaic.terminal/Terminal.state.<get-state>|<get-state>(){}[0]
 
+    abstract fun requestClipboardRead(com.jakewharton.mosaic.terminal/ClipboardEvent.Selection = ...) // com.jakewharton.mosaic.terminal/Terminal.requestClipboardRead|requestClipboardRead(com.jakewharton.mosaic.terminal.ClipboardEvent.Selection){}[0]
+    abstract fun writeClipboard(kotlin/String, com.jakewharton.mosaic.terminal/ClipboardEvent.Selection = ...) // com.jakewharton.mosaic.terminal/Terminal.writeClipboard|writeClipboard(kotlin.String;com.jakewharton.mosaic.terminal.ClipboardEvent.Selection){}[0]
+
     final enum class Theme : kotlin/Enum<com.jakewharton.mosaic.terminal/Terminal.Theme> { // com.jakewharton.mosaic.terminal/Terminal.Theme|null[0]
         enum entry Dark // com.jakewharton.mosaic.terminal/Terminal.Theme.Dark|null[0]
         enum entry Light // com.jakewharton.mosaic.terminal/Terminal.Theme.Light|null[0]
@@ -130,6 +133,31 @@ final class com.jakewharton.mosaic.terminal/CapabilityQueryEvent : com.jakewhart
     final fun equals(kotlin/Any?): kotlin/Boolean // com.jakewharton.mosaic.terminal/CapabilityQueryEvent.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // com.jakewharton.mosaic.terminal/CapabilityQueryEvent.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // com.jakewharton.mosaic.terminal/CapabilityQueryEvent.toString|toString(){}[0]
+}
+
+final class com.jakewharton.mosaic.terminal/ClipboardEvent : com.jakewharton.mosaic.terminal/Event { // com.jakewharton.mosaic.terminal/ClipboardEvent|null[0]
+    constructor <init>(com.jakewharton.mosaic.terminal/ClipboardEvent.Selection, kotlin/String?) // com.jakewharton.mosaic.terminal/ClipboardEvent.<init>|<init>(com.jakewharton.mosaic.terminal.ClipboardEvent.Selection;kotlin.String?){}[0]
+
+    final val selection // com.jakewharton.mosaic.terminal/ClipboardEvent.selection|{}selection[0]
+        final fun <get-selection>(): com.jakewharton.mosaic.terminal/ClipboardEvent.Selection // com.jakewharton.mosaic.terminal/ClipboardEvent.selection.<get-selection>|<get-selection>(){}[0]
+    final val text // com.jakewharton.mosaic.terminal/ClipboardEvent.text|{}text[0]
+        final fun <get-text>(): kotlin/String? // com.jakewharton.mosaic.terminal/ClipboardEvent.text.<get-text>|<get-text>(){}[0]
+
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.jakewharton.mosaic.terminal/ClipboardEvent.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.jakewharton.mosaic.terminal/ClipboardEvent.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.jakewharton.mosaic.terminal/ClipboardEvent.toString|toString(){}[0]
+
+    final enum class Selection : kotlin/Enum<com.jakewharton.mosaic.terminal/ClipboardEvent.Selection> { // com.jakewharton.mosaic.terminal/ClipboardEvent.Selection|null[0]
+        enum entry Clipboard // com.jakewharton.mosaic.terminal/ClipboardEvent.Selection.Clipboard|null[0]
+        enum entry Primary // com.jakewharton.mosaic.terminal/ClipboardEvent.Selection.Primary|null[0]
+        enum entry Unknown // com.jakewharton.mosaic.terminal/ClipboardEvent.Selection.Unknown|null[0]
+
+        final val entries // com.jakewharton.mosaic.terminal/ClipboardEvent.Selection.entries|#static{}entries[0]
+            final fun <get-entries>(): kotlin.enums/EnumEntries<com.jakewharton.mosaic.terminal/ClipboardEvent.Selection> // com.jakewharton.mosaic.terminal/ClipboardEvent.Selection.entries.<get-entries>|<get-entries>#static(){}[0]
+
+        final fun valueOf(kotlin/String): com.jakewharton.mosaic.terminal/ClipboardEvent.Selection // com.jakewharton.mosaic.terminal/ClipboardEvent.Selection.valueOf|valueOf#static(kotlin.String){}[0]
+        final fun values(): kotlin/Array<com.jakewharton.mosaic.terminal/ClipboardEvent.Selection> // com.jakewharton.mosaic.terminal/ClipboardEvent.Selection.values|values#static(){}[0]
+    }
 }
 
 final class com.jakewharton.mosaic.terminal/CursorPositionEvent : com.jakewharton.mosaic.terminal/Event { // com.jakewharton.mosaic.terminal/CursorPositionEvent|null[0]

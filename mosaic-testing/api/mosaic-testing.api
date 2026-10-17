@@ -13,6 +13,8 @@ public abstract interface class com/jakewharton/mosaic/testing/TestMosaic : com/
 	public abstract fun awaitSnapshot-VtjQ1oo (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun awaitSnapshot-VtjQ1oo$default (Lcom/jakewharton/mosaic/testing/TestMosaic;JLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public abstract fun getState ()Lcom/jakewharton/mosaic/testing/TestTerminal$State;
+	public abstract fun sendClipboardReply (Ljava/lang/String;Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;)V
+	public static synthetic fun sendClipboardReply$default (Lcom/jakewharton/mosaic/testing/TestMosaic;Ljava/lang/String;Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;ILjava/lang/Object;)V
 	public abstract fun sendKeyEvent (Lcom/jakewharton/mosaic/terminal/KeyboardEvent;)V
 	public abstract fun sendMouseEvent (Lcom/jakewharton/mosaic/terminal/MouseEvent;)V
 	public abstract fun sendPaste (Ljava/lang/String;)V
@@ -33,12 +35,16 @@ public final class com/jakewharton/mosaic/testing/TestTerminal : com/jakewharton
 	public synthetic fun <init> (Ljava/lang/String;ZLcom/jakewharton/mosaic/terminal/Terminal$Capabilities;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public fun getCapabilities ()Lcom/jakewharton/mosaic/terminal/Terminal$Capabilities;
+	public final fun getClipboardReadRequested ()Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;
+	public final fun getClipboardWrites ()Ljava/util/List;
 	public fun getEvents ()Lkotlinx/coroutines/channels/Channel;
 	public synthetic fun getEvents ()Lkotlinx/coroutines/channels/ReceiveChannel;
 	public fun getInteractive ()Z
 	public fun getName ()Ljava/lang/String;
 	public synthetic fun getState ()Lcom/jakewharton/mosaic/terminal/Terminal$State;
 	public fun getState ()Lcom/jakewharton/mosaic/testing/TestTerminal$State;
+	public fun requestClipboardRead (Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;)V
+	public fun writeClipboard (Ljava/lang/String;Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;)V
 }
 
 public final class com/jakewharton/mosaic/testing/TestTerminal$Capabilities : com/jakewharton/mosaic/terminal/Terminal$Capabilities {

@@ -12,6 +12,18 @@ public interface Terminal : AutoCloseable {
 	public val capabilities: Capabilities
 	public val events: ReceiveChannel<Event>
 
+	/**
+	 * Requests the current clipboard contents via OSC 52. The terminal replies asynchronously
+	 * and the result arrives on [events] as a [ClipboardEvent].
+	 */
+	public fun requestClipboardRead(selection: ClipboardEvent.Selection = ClipboardEvent.Selection.Clipboard)
+
+	/**
+	 * Writes [text] to the clipboard via OSC 52. An empty [text] clears the clipboard. Terminals
+	 * that do not support OSC 52 silently ignore this.
+	 */
+	public fun writeClipboard(text: String, selection: ClipboardEvent.Selection = ClipboardEvent.Selection.Clipboard)
+
 	public interface State {
 		/**
 		 * True when this terminal surface has focus, false when it does not.

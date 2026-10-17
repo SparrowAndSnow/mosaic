@@ -102,6 +102,22 @@ public class BracketedPasteEvent(
 ) : Event
 
 @Poko
+public class ClipboardEvent(
+	public val selection: ClipboardEvent.Selection,
+	/**
+	 * The decoded clipboard text. `null` when the terminal denied the read (or the reply could
+	 * not be decoded), `""` when the clipboard is empty.
+	 */
+	public val text: String?,
+) : Event {
+	public enum class Selection {
+		Clipboard,
+		Primary,
+		Unknown,
+	}
+}
+
+@Poko
 public class PrimaryDeviceAttributesEvent(
 	public val id: Int,
 	public val data: String,

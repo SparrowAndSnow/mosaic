@@ -87,6 +87,9 @@ internal object NonInteractiveTerminal : Terminal, Terminal.State, Terminal.Capa
 	override val synchronizedOutput get() = false
 	override val themeEvents: Boolean get() = false
 
+	override fun requestClipboardRead(selection: com.jakewharton.mosaic.terminal.ClipboardEvent.Selection) {}
+	override fun writeClipboard(text: String, selection: com.jakewharton.mosaic.terminal.ClipboardEvent.Selection) {}
+
 	override fun close() {}
 }
 

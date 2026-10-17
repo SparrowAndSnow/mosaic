@@ -211,6 +211,11 @@ abstract interface com.jakewharton.mosaic.text.unicodewidth/UnicodeWidthStr { //
     abstract fun widthCjk(): kotlin/Int // com.jakewharton.mosaic.text.unicodewidth/UnicodeWidthStr.widthCjk|widthCjk(){}[0]
 }
 
+abstract interface com.jakewharton.mosaic.ui.platform/Clipboard { // com.jakewharton.mosaic.ui.platform/Clipboard|null[0]
+    abstract suspend fun getText(): kotlin/String? // com.jakewharton.mosaic.ui.platform/Clipboard.getText|getText(){}[0]
+    abstract suspend fun setText(kotlin/String) // com.jakewharton.mosaic.ui.platform/Clipboard.setText|setText(kotlin.String){}[0]
+}
+
 abstract interface com.jakewharton.mosaic.ui/BoxScope { // com.jakewharton.mosaic.ui/BoxScope|null[0]
     abstract fun (com.jakewharton.mosaic.modifier/Modifier).align(com.jakewharton.mosaic.ui/Alignment): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.ui/BoxScope.align|align@com.jakewharton.mosaic.modifier.Modifier(com.jakewharton.mosaic.ui.Alignment){}[0]
     abstract fun (com.jakewharton.mosaic.modifier/Modifier).matchParentSize(): com.jakewharton.mosaic.modifier/Modifier // com.jakewharton.mosaic.ui/BoxScope.matchParentSize|matchParentSize@com.jakewharton.mosaic.modifier.Modifier(){}[0]
@@ -791,6 +796,8 @@ final val com.jakewharton.mosaic.text/com_jakewharton_mosaic_text_AnnotatedStrin
 final val com.jakewharton.mosaic.text/com_jakewharton_mosaic_text_AnnotatedString_Builder$stableprop // com.jakewharton.mosaic.text/com_jakewharton_mosaic_text_AnnotatedString_Builder$stableprop|#static{}com_jakewharton_mosaic_text_AnnotatedString_Builder$stableprop[0]
 final val com.jakewharton.mosaic.text/com_jakewharton_mosaic_text_AnnotatedString_Range$stableprop // com.jakewharton.mosaic.text/com_jakewharton_mosaic_text_AnnotatedString_Range$stableprop|#static{}com_jakewharton_mosaic_text_AnnotatedString_Range$stableprop[0]
 final val com.jakewharton.mosaic.text/com_jakewharton_mosaic_text_SpanStyle$stableprop // com.jakewharton.mosaic.text/com_jakewharton_mosaic_text_SpanStyle$stableprop|#static{}com_jakewharton_mosaic_text_SpanStyle$stableprop[0]
+final val com.jakewharton.mosaic.ui.platform/LocalClipboard // com.jakewharton.mosaic.ui.platform/LocalClipboard|{}LocalClipboard[0]
+    final fun <get-LocalClipboard>(): androidx.compose.runtime/ProvidableCompositionLocal<com.jakewharton.mosaic.ui.platform/Clipboard> // com.jakewharton.mosaic.ui.platform/LocalClipboard.<get-LocalClipboard>|<get-LocalClipboard>(){}[0]
 final val com.jakewharton.mosaic.ui/com_jakewharton_mosaic_ui_Arrangement$stableprop // com.jakewharton.mosaic.ui/com_jakewharton_mosaic_ui_Arrangement$stableprop|#static{}com_jakewharton_mosaic_ui_Arrangement$stableprop[0]
 final val com.jakewharton.mosaic.ui/com_jakewharton_mosaic_ui_Arrangement_Absolute$stableprop // com.jakewharton.mosaic.ui/com_jakewharton_mosaic_ui_Arrangement_Absolute$stableprop|#static{}com_jakewharton_mosaic_ui_Arrangement_Absolute$stableprop[0]
 final val com.jakewharton.mosaic.ui/com_jakewharton_mosaic_ui_BiasAlignment$stableprop // com.jakewharton.mosaic.ui/com_jakewharton_mosaic_ui_BiasAlignment$stableprop|#static{}com_jakewharton_mosaic_ui_BiasAlignment$stableprop[0]

@@ -25,6 +25,24 @@ public final class com/jakewharton/mosaic/terminal/CapabilityQueryEvent : com/ja
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class com/jakewharton/mosaic/terminal/ClipboardEvent : com/jakewharton/mosaic/terminal/Event {
+	public fun <init> (Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;Ljava/lang/String;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSelection ()Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/jakewharton/mosaic/terminal/ClipboardEvent$Selection : java/lang/Enum {
+	public static final field Clipboard Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;
+	public static final field Primary Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;
+	public static final field Unknown Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;
+	public static fun values ()[Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;
+}
+
 public final class com/jakewharton/mosaic/terminal/CursorPositionEvent : com/jakewharton/mosaic/terminal/Event {
 	public fun <init> (II)V
 	public fun equals (Ljava/lang/Object;)Z
@@ -285,6 +303,10 @@ public abstract interface class com/jakewharton/mosaic/terminal/Terminal : java/
 	public abstract fun getInteractive ()Z
 	public abstract fun getName ()Ljava/lang/String;
 	public abstract fun getState ()Lcom/jakewharton/mosaic/terminal/Terminal$State;
+	public abstract fun requestClipboardRead (Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;)V
+	public static synthetic fun requestClipboardRead$default (Lcom/jakewharton/mosaic/terminal/Terminal;Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;ILjava/lang/Object;)V
+	public abstract fun writeClipboard (Ljava/lang/String;Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;)V
+	public static synthetic fun writeClipboard$default (Lcom/jakewharton/mosaic/terminal/Terminal;Ljava/lang/String;Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;ILjava/lang/Object;)V
 }
 
 public abstract interface class com/jakewharton/mosaic/terminal/Terminal$Capabilities {

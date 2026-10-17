@@ -802,6 +802,15 @@ public final class com/jakewharton/mosaic/ui/UnderlineStyleKt {
 	public static final fun takeOrElse-Eh-XDHA (ILkotlin/jvm/functions/Function0;)I
 }
 
+public abstract interface class com/jakewharton/mosaic/ui/platform/Clipboard {
+	public abstract fun getText (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setText (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class com/jakewharton/mosaic/ui/platform/ClipboardKt {
+	public static final fun getLocalClipboard ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+}
+
 public final class com/jakewharton/mosaic/ui/unit/Constraints {
 	public static final field Companion Lcom/jakewharton/mosaic/ui/unit/Constraints$Companion;
 	public static final field Infinity I

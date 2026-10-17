@@ -14,6 +14,7 @@ abstract interface <#A: kotlin/Any?> com.jakewharton.mosaic.testing/TestMosaic :
     abstract val state // com.jakewharton.mosaic.testing/TestMosaic.state|{}state[0]
         abstract fun <get-state>(): com.jakewharton.mosaic.testing/TestTerminal.State // com.jakewharton.mosaic.testing/TestMosaic.state.<get-state>|<get-state>(){}[0]
 
+    abstract fun sendClipboardReply(kotlin/String?, com.jakewharton.mosaic.terminal/ClipboardEvent.Selection = ...) // com.jakewharton.mosaic.testing/TestMosaic.sendClipboardReply|sendClipboardReply(kotlin.String?;com.jakewharton.mosaic.terminal.ClipboardEvent.Selection){}[0]
     abstract fun sendKeyEvent(com.jakewharton.mosaic.terminal/KeyboardEvent) // com.jakewharton.mosaic.testing/TestMosaic.sendKeyEvent|sendKeyEvent(com.jakewharton.mosaic.terminal.KeyboardEvent){}[0]
     abstract fun sendMouseEvent(com.jakewharton.mosaic.terminal/MouseEvent) // com.jakewharton.mosaic.testing/TestMosaic.sendMouseEvent|sendMouseEvent(com.jakewharton.mosaic.terminal.MouseEvent){}[0]
     abstract fun sendPaste(kotlin/String) // com.jakewharton.mosaic.testing/TestMosaic.sendPaste|sendPaste(kotlin.String){}[0]
@@ -26,6 +27,8 @@ final class com.jakewharton.mosaic.testing/TestTerminal : com.jakewharton.mosaic
 
     final val capabilities // com.jakewharton.mosaic.testing/TestTerminal.capabilities|{}capabilities[0]
         final fun <get-capabilities>(): com.jakewharton.mosaic.terminal/Terminal.Capabilities // com.jakewharton.mosaic.testing/TestTerminal.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
+    final val clipboardWrites // com.jakewharton.mosaic.testing/TestTerminal.clipboardWrites|{}clipboardWrites[0]
+        final fun <get-clipboardWrites>(): kotlin.collections/MutableList<kotlin/Pair<kotlin/String, com.jakewharton.mosaic.terminal/ClipboardEvent.Selection>> // com.jakewharton.mosaic.testing/TestTerminal.clipboardWrites.<get-clipboardWrites>|<get-clipboardWrites>(){}[0]
     final val events // com.jakewharton.mosaic.testing/TestTerminal.events|{}events[0]
         final fun <get-events>(): kotlinx.coroutines.channels/Channel<com.jakewharton.mosaic.terminal/Event> // com.jakewharton.mosaic.testing/TestTerminal.events.<get-events>|<get-events>(){}[0]
     final val interactive // com.jakewharton.mosaic.testing/TestTerminal.interactive|{}interactive[0]
@@ -35,7 +38,12 @@ final class com.jakewharton.mosaic.testing/TestTerminal : com.jakewharton.mosaic
     final val state // com.jakewharton.mosaic.testing/TestTerminal.state|{}state[0]
         final fun <get-state>(): com.jakewharton.mosaic.testing/TestTerminal.State // com.jakewharton.mosaic.testing/TestTerminal.state.<get-state>|<get-state>(){}[0]
 
+    final var clipboardReadRequested // com.jakewharton.mosaic.testing/TestTerminal.clipboardReadRequested|{}clipboardReadRequested[0]
+        final fun <get-clipboardReadRequested>(): com.jakewharton.mosaic.terminal/ClipboardEvent.Selection? // com.jakewharton.mosaic.testing/TestTerminal.clipboardReadRequested.<get-clipboardReadRequested>|<get-clipboardReadRequested>(){}[0]
+
     final fun close() // com.jakewharton.mosaic.testing/TestTerminal.close|close(){}[0]
+    final fun requestClipboardRead(com.jakewharton.mosaic.terminal/ClipboardEvent.Selection) // com.jakewharton.mosaic.testing/TestTerminal.requestClipboardRead|requestClipboardRead(com.jakewharton.mosaic.terminal.ClipboardEvent.Selection){}[0]
+    final fun writeClipboard(kotlin/String, com.jakewharton.mosaic.terminal/ClipboardEvent.Selection) // com.jakewharton.mosaic.testing/TestTerminal.writeClipboard|writeClipboard(kotlin.String;com.jakewharton.mosaic.terminal.ClipboardEvent.Selection){}[0]
 
     final class Capabilities : com.jakewharton.mosaic.terminal/Terminal.Capabilities { // com.jakewharton.mosaic.testing/TestTerminal.Capabilities|null[0]
         constructor <init>(com.jakewharton.mosaic.terminal/AnsiLevel = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.<init>|<init>(com.jakewharton.mosaic.terminal.AnsiLevel;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]

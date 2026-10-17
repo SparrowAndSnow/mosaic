@@ -20,9 +20,12 @@ import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.MosaicNode
 import com.jakewharton.mosaic.layout.toRuntimeMouseEvent
 import com.jakewharton.mosaic.terminal.BracketedPasteEvent
+import com.jakewharton.mosaic.terminal.ClipboardEvent
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.ui.BoxMeasurePolicy
+import com.jakewharton.mosaic.ui.platform.LocalClipboard
+import com.jakewharton.mosaic.ui.platform.TermClipboard
 import de.cketti.codepoints.appendCodePoint
 import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.AtomicBoolean
@@ -147,6 +150,7 @@ internal class MosaicComposition(
 
 	private val staticLogs = Channel<Any>(UNLIMITED)
 	private val staticLogger = StaticLogger(staticLogs) { needDraw = true }
+	private val clipboard = TermClipboard(terminal)
 
 	override val lifecycle = LifecycleRegistry.createUnsafe(this)
 
@@ -362,6 +366,9 @@ internal class MosaicComposition(
 									rootNode.sendPasteEvent(text)
 								}
 							}
+							is ClipboardEvent -> {
+								clipboard.onEvent(event)
+							}
 							else -> {}
 						}
 					}
@@ -384,6 +391,7 @@ internal class MosaicComposition(
 				LocalTerminalState provides terminalState.value,
 				LocalStaticLogger provides staticLogger,
 				LocalLifecycleOwner provides this,
+				LocalClipboard provides clipboard,
 				content = content,
 			)
 		}
