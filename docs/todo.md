@@ -133,7 +133,7 @@
 - [ ] **P3 focus 回调**：仅 Windows 提供 `onFocus`；跨平台对等（POSIX 走 DECRPM focus 事件）已在 `TtyTerminal` 层补齐——保持两个通路语义一致。
 
 ### 9.4 抽象 / API
-- [ ] **P1 `Callback.onKey/onMouse` 空挂**：接口注释 `Currently unused`；决定实现（事件直接平台回调）或移除，避免误导。
+- [x] **P1 `Callback.onKey/onMouse` 空挂** ✅（L6.1，`cd6ce408`）：判定为死回调并**移除**——C 头 `ONKey/ONMouse` 为 `// TODO params` 占位从未调用；Windows C 层将 `KEY/MOUSE_EVENT` 转 VT 字节流走共享 `EventParser`（回调仅用于 Focus/Resize）；实现类只有空实现。三套绑定（JNI/FFM/cinterop）+ `mosaic-tty.h` 结构同步删除，测试同步清理。
 - [ ] **P2 单例绑定约束**：`Tty.tryBind` 同时只能一个实例（文档已声明）；评估是否在错误路径上更友好。
 - [ ] **P2 读写缓冲**：`Tty.write` 循环写 + `reset`/`close` 幂等性；评估批量 flush 与 interrupt 语义。
 - [ ] **P3 测试桩对齐**：`mosaic-test-{posix,windows}.c`（800+ 行）真实度；`TerminalTester` 覆盖能力矩阵（见 §13）。
