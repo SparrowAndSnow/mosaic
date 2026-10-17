@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L6.5（`d469ad0a`）后 · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：L6.6（`4428a77b`）后 · 创建/更新：2026-10-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -67,6 +67,7 @@
 | L6 | L6.3 | POSIX raw mode 核对（审计）：与 `cfmakeraw(3)` 逐位一致，零代码差异 | —（审计无代码改动） | —（审计；基线全绿） | ✅ 已归档 |
 | L6 | L6.4 | native 信号兜底：`SIGSEGV/SIGILL/SIGPIPE` C 级 async-safe 恢复 termios + 保留终止语义重发；随 raw 生命周期装/卸 | `39db32b8` | `SignalGuardTest`（6，fork 真实信号）+ tty/tty-terminal 两平台全绿 + apiCheck 修复 | ✅ 已归档 |
 | L6 | L6.5 | resize 通路核对 + 加固：SIGWINCH 与 in-band 互斥（构造保证）；in-band 无初始报告时 `currentSize()` 播种 | `d469ad0a` | `TtyTerminalResizeTest` 增 2（互斥 + 播种），双平台 10 例全过 | ✅ 已归档 |
+| L6 | L6.6 | 读写缓冲核对（审计）+ 加固：控制序列写循环已正确；`reset()` 三平台补 `close()` 后指针守卫（closed 后幂等空操作） | `4428a77b` | `TestTtyTest` 增 2（close/reset-after-close 幂等），tty 两平台全绿 | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
 ### L5.4 clipboard（OSC 52）（`423f25b8`）
@@ -80,6 +81,15 @@
 - `mosaic.kt` 帧监听循环：批内 `pendingMotion` + 局部 `flushMotion()`——连续 `Motion/Drag` 只保留**最后坐标**；遇到离散事件先 flush 再处理；循环结束 flush。键盘/粘贴/剪贴板事件不受影响。
 - 测试：`TtyTerminalBackpressureTest.kt`（新）`largeBurstIsNotDropped`——写入 500 字符 → `events.receive()` 收到 500 条 `KeyboardEvent`（5s withTimeout，0 丢失；注意 `this@withTerminal.events.receive()`，block 接收者是 `Terminal`）。`MouseEventTest` 增 3 条：批内 3 motion+release → `["Motion@3,3","Release@3,3"]`；纯 motion 批 → 只投递单一最新 `["Motion@7,8"]`；双 Press 全部到达（离散事件绝不合并）。
 - 测试要点：`MouseEventTest` 中 `received` 状态必须被组合**读取**（Box 内 `Text(received.size.toString())`）才会触发重组 onDraw，`awaitSnapshot` 才能返回；否则分支压根不重组、1s 虚拟超时。
+
+### L6.6 读写缓冲核对 + reset 幂等加固（`4428a77b`）
+- **审计结论**：
+  - **控制序列写已正确**：`TtyTerminal.write(s: String)`（`TtyTerminal.kt`）自带完整写循环——partial write 前进 offset、`-1` 抛 `EofException`；C 层 `mosaic_utils_write` 单次 `write()` 返回部分计数原样回传，无需改动。
+  - **主渲染不经 Tty**：帧经 `FrameWriter` 按 8192 字节切块 → `writeScreenBytes` → `flushScreenBytes`。native 侧 `writeScreenBytes` 自带循环；jvm 侧 `System.out.write` 为 PrintStream 原子全量写，无 partial 问题。
+  - **幂等性唯一真实边界 bug**：`reset()` 在 `close()` 后无指针守卫——native/jvm/jvmJdk22 三处 close 后指针已置 null/0，但 reset 仍把空指针传给 C `mosaic_tty_reset`（内部直解 `tty->sigwinch`）→ 悬垂/SEGV。C 层 `mosaic_tty_reset`/`mosaic_tty_free` 各步已守卫、本身幂等。
+- **修复**：三平台 `reset()` 补 close 后指针守卫（jvm `ptr != 0L` / jvmJdk22 `ptr != NULL` / native `ptr?.let`），与 `close()` 既有守卫行为对齐——closed 后 `reset()` 为幂等空操作。
+- **测试**：`TestTtyTest` 增 `closeAfterCloseIsIdempotent`、`resetAfterCloseIsIdempotent` 2 条（commonTest，jvm + linuxX64 双平台全绿）。
+- **未改项（已评估）**：调用层循环、批量 flush 语义保持现状；native `writeScreenBytes` 遇错即抛、`EINTR` 不重试仅属边缘瑕疵不阻塞。Todo §9.4 P2 勾销。
 
 ### L6.5 resize 通路核对 + 加固（`d469ad0a`）
 - **审计结论**：
@@ -282,15 +292,14 @@
 
 - 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
 - 现状（2026-10-17 归档后）：HEAD `5f438a79`，JVM 与 linuxX64 四模块（runtime/terminal/tty/tty-terminal）全绿，全 samples 编译通过，rrtop kexe 已重链（工作树演示不含提交）。**L5 输入/事件已全部完成**：L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关 / L5.4 clipboard（OSC 52）/**L5.5 事件背压与 Motion 合并** / L5.6 特殊键核对与 repeat 投递。
-- 现状（2026-10-17 归档后）：**L6 tty 适配进行中**：L6.1 移除死回调、L6.2 DEC 2027、L6.3 raw mode 核对（审计）、**L6.4 native 信号兜底（`39db32b8`）**、**L6.5 resize 通路核对 + OS 播种（`d469ad0a`）**。HEAD `d469ad0a`，tty / tty-terminal 两平台测试全绿。
+- 现状（2026-10-17 归档后）：**L6 tty 适配进行中**：L6.1 移除死回调、L6.2 DEC 2027、L6.3 raw mode 核对（审计）、**L6.4 native 信号兜底（`39db32b8`）**、**L6.5 resize 通路核对 + OS 播种（`d469ad0a`）**、**L6.6 读写缓冲核对 + reset 幂等加固（`4428a77b`）**。HEAD `4428a77b`，tty / tty-terminal 两平台测试全绿。
 - 决策（2026-10-17，已归档）：**L6 按「可本机验证优先」推进**——已做 L6.2 DEC 2027（§10 P1）；剩余建议顺序：raw mode 核对（§9.2 P1）、信号处理（§9.2 P2）；Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程后做。
 - 决策（2026-10-17，已提交）：**外部组件待办整体推迟**——滚动容器 / 惰性列表 / 输入控件 / 鼠标交互 / 焦点 / 边框 / 定位回调 / 动画容器 / 第一方 widget 集属最外层组合组件，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；新增 `docs/todo.md` §15 仅登记不实现，优先级统一排在内部重构之后。
 - 决策（2026-10-17，已提交）：**布局缓存落地即完成 L4 布局层主干**——剩余可选优化（apply 失效查扫反向索引、未放置子树裁剪）留待后续需要时再做；L4 对外的下一候选是 intrinsic 复用（与布局缓存合并）或直接进入 **L5 输入**。
 - 决策（2026-10-17，已归档）：**L5 输入走"全量 opt-in + 能力探测后自动启用"**——鼠标/粘贴经 `runMosaic*` 参数显式开启；kitty 键盘协议在探测到支持后自动 push、退出 pop；repeat/release 事件解析后由 runtime 按 press-only 过滤，既有应用零行为变化。
 - 下一步候选（需用户确认后实施，建议一次一项）：
   1. **`§9.2 P2` macOS 特判**：`TIOCGWINSZ`/termios 的 macOS 差异（`HUPCL`/`c_cc`）——需 macOS 环境，暂不可本机验证。
-  2. **`§9.2 P2` 读写缓冲**：`Tty.write` 循环写 + `reset`/`close` 幂等性；评估批量 flush 与 interrupt 语义（本机可做）。
-  3. 之后 Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程。
+  2. 之后 Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程；本机可做候选见 todo §9.4/§9.5 剩余项。
 
 ### L4.5 调研记录：布局“比例”的 Compose 语法（未落地，方向调整）
 - 背景：原计划做“约束扩展”（Row/Column 补 `percentage`/`ratio` 弹性，参照线性布局 Constraint 优先级）。

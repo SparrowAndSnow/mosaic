@@ -135,7 +135,7 @@
 ### 9.4 抽象 / API
 - [x] **P1 `Callback.onKey/onMouse` 空挂** ✅（L6.1，`cd6ce408`）：判定为死回调并**移除**——C 头 `ONKey/ONMouse` 为 `// TODO params` 占位从未调用；Windows C 层将 `KEY/MOUSE_EVENT` 转 VT 字节流走共享 `EventParser`（回调仅用于 Focus/Resize）；实现类只有空实现。三套绑定（JNI/FFM/cinterop）+ `mosaic-tty.h` 结构同步删除，测试同步清理。
 - [ ] **P2 单例绑定约束**：`Tty.tryBind` 同时只能一个实例（文档已声明）；评估是否在错误路径上更友好。
-- [ ] **P2 读写缓冲**：`Tty.write` 循环写 + `reset`/`close` 幂等性；评估批量 flush 与 interrupt 语义。
+- [x] **P2 读写缓冲** ✅（L6.6，`4428a77b`）：审计结论——控制序列写层（`TtyTerminal.write(s)`）已有完整循环、主渲染走 `FrameWriter`/`writeScreenBytes`（native 循环、jvm PrintStream 原子全量）；唯一边界 bug 为 `reset()` 在 `close()` 后无指针守卫（三平台悬垂），已补守卫使其 closed 后幂等空操作，并增 close/reset-after-close 幂等测试 2 条。
 - [ ] **P3 测试桩对齐**：`mosaic-test-{posix,windows}.c`（800+ 行）真实度；`TerminalTester` 覆盖能力矩阵（见 §13）。
 
 ## 10. 能力探测（`TtyTerminal.kt`）
