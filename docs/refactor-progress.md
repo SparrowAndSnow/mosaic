@@ -73,7 +73,7 @@
 | L7 | L7.1 | 双平台微基准（`samples/bench`，commonMain 单一驱动）：render（单行 delta/全量重建/layout-pass）+ EventParser；JVM+native 对照；验证 native 达主流实时标准（见 §5 结论） | 待归档 | JVM `:samples:bench:runJvm` + native kexe 可运行；无传统单测（基准类负载，见 `docs/benchmarks.md`） | ⏳ 待确认 |
 | L7 | L7.2 | 绘制热路径低分配（surface 复用 / ASCII 测宽 / raw-Int 打包 / 源串-区间 cell / 簇切分 ASCII 快路径 / 对齐懒算 / 共用簇测量 / cell 级懒复位）+ native GC 调优实验（无效，恢复默认） | `c48a5d64` | `SurfaceReuseTest`/`StrWidthAsciiFastPathTest`/`PackedWidthEquivalenceTest`/`CellSliceTest`/`GraphemeFastPathTest`/`TextMeasuredDrawTest`/`SurfaceLazyResetTest` 等；双平台全绿 | ✅ 已归档 |
 | L7 | L7.3 | 帧节流：`runMosaicComposition` 帧循环按负载自适应（`hasPendingFrameWork` 判定，活跃 ~60fps / 空闲 ~20fps），替代 ~1000fps 恒空转 | `59c1df44` | `FrameThrottleTest`（3 条：闲判定 / 动画保帧率 / 静态不空转重绘）；双平台全绿 | ⏳ 待确认 |
-| L7 | L7.4 | 异常/panic 恢复：`runMosaicComposition` 捕获非取消异常→`frameWriter` 写纯文本错误帧（`Mosaic error`+堆栈+`NODES`）→`cancel()` 收队→rethrow；终端恢复由 `withTerminal` use 保证；`runMosaicComposition` 增可注入 `frameWriter` | `待填` | `FrameErrorVisibilityTest`（2 条：致命错误帧+传播 / 正常取消无错误帧）；双平台全绿 | ⏳ 待确认 |
+| L7 | L7.4 | 异常/panic 恢复：`runMosaicComposition` 捕获非取消异常→`frameWriter` 写纯文本错误帧（`Mosaic error`+堆栈+`NODES`）→`cancel()` 收队→rethrow；终端恢复由 `withTerminal` use 保证；`runMosaicComposition` 增可注入 `frameWriter` | `ddbaa911` | `FrameErrorVisibilityTest`（2 条：致命错误帧+传播 / 正常取消无错误帧）；双平台全绿 | ⏳ 待确认 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
 ### L7.1 双平台微基准：native 是否达主流实时标准（todo §13 P2）
