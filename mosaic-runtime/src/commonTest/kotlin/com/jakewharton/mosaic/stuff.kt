@@ -36,6 +36,10 @@ fun String.wrapWithAnsiSynchronizedUpdate(): String {
 	return "$synchronizedOutputEnable$this$synchronizedOutputDisable"
 }
 
+fun String.wrapWithAnsiCursorHideShow(): String {
+	return "$hideCursor$this$showCursor"
+}
+
 fun cursorUp(lines: Int): String = "${CSI}${lines}F"
 
 internal val MosaicNode.size: IntSize

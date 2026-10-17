@@ -10,6 +10,10 @@ internal const val synchronizedOutputMode = 2026
 internal const val synchronizedOutputEnable = "$CSI?${synchronizedOutputMode}h"
 internal const val synchronizedOutputDisable = "$CSI?${synchronizedOutputMode}l"
 
+internal const val cursorMode = 25
+internal const val hideCursor = "$CSI?${cursorMode}l"
+internal const val showCursor = "$CSI?${cursorMode}h"
+
 internal const val ansiReset = "${CSI}0"
 internal const val clearLine = "${CSI}K"
 internal const val clearDisplay = "${CSI}J"

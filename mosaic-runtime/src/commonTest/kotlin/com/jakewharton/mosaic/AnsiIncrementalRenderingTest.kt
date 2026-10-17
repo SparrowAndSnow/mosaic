@@ -474,4 +474,76 @@ class AnsiIncrementalRenderingTest {
 			)
 		}
 	}
+
+	@Test fun framesWithoutSynchronizedOutputAreWrappedInCursorHideShow() = runTest {
+		val noSyncRendering = AnsiIncrementalRendering(TestTerminal.Capabilities(synchronizedOutput = false))
+		runMosaicTest(RenderingSnapshots(noSyncRendering)) {
+			setContent {
+				Column {
+					Text("Hello")
+					Text("World!")
+				}
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|Hello
+				|World!
+				|
+				""".trimMargin().replaceLineEndingsWithCRLF().wrapWithAnsiCursorHideShow(),
+			)
+
+			// An unchanged frame draws nothing, so no hide/show is needed and none is emitted.
+			setContent {
+				Column {
+					Text("Hello")
+					Text("World!")
+				}
+			}
+			assertThat(awaitSnapshot()).isEqualTo("")
+		}
+	}
+
+	@Test fun incrementalChangeWithoutSynchronizedOutputWrapsThePatch() = runTest {
+		val noSyncRendering = AnsiIncrementalRendering(TestTerminal.Capabilities(synchronizedOutput = false))
+		runMosaicTest(RenderingSnapshots(noSyncRendering)) {
+			setContent {
+				Text("ABCDEFGHIJ")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|ABCDEFGHIJ
+				|
+				""".trimMargin().replaceLineEndingsWithCRLF().wrapWithAnsiCursorHideShow(),
+			)
+
+			setContent {
+				Text("ABCDEFXHIJ")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"${hideCursor}${goto(1, 7)}X${goto(2, 1)}${showCursor}",
+			)
+		}
+	}
+
+	@Test fun framesWithoutCursorTogglingAreNotWrapped() = runTest {
+		val noCursorRendering = AnsiIncrementalRendering(
+			TestTerminal.Capabilities(synchronizedOutput = false, cursorVisibility = false),
+		)
+		runMosaicTest(RenderingSnapshots(noCursorRendering)) {
+			setContent {
+				Text("Hi")
+			}
+			assertThat(awaitSnapshot()).isEqualTo(
+				"""
+				|Hi
+				|
+				""".trimMargin().replaceLineEndingsWithCRLF(),
+			)
+
+			setContent {
+				Text("Hi")
+			}
+			assertThat(awaitSnapshot()).isEqualTo("")
+		}
+	}
 }

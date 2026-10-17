@@ -80,6 +80,9 @@ internal class DebugRendering(
  * row is instead rewritten whole from the clear. Frames whose size differs, or whose static text
  * appears or changes, fall back to redrawing the whole previous area from its top so the screen
  * can never retain stale cells across a layout change.
+ * Each frame is bracketed by a synchronized-output update when the terminal supports it; otherwise
+ * it is bracketed by a cursor hide/show so the cursor's travel across rows during a live repaint
+ * does not add its own flicker.
  */
 internal class AnsiIncrementalRendering(
 	private val capabilities: Terminal.Capabilities,
@@ -105,8 +108,21 @@ internal class AnsiIncrementalRendering(
 		return stringBuilder.apply {
 			clear()
 
-			if (capabilities.synchronizedOutput) {
+			val sync = capabilities.synchronizedOutput
+			if (sync) {
 				append(synchronizedOutputEnable)
+			}
+
+			// When the terminal cannot synchronize output it repaints live as we draw, so the
+			// cursor's travel across rows adds its own flicker on top of the repaint. Wrapping
+			// the frame in a hide/show keeps the cursor invisible until the frame is complete.
+			val wrapCursor = !sync && capabilities.cursorVisibility
+			val frameStart = length
+			val contentStart = if (wrapCursor) {
+				append(hideCursor)
+				length
+			} else {
+				length
 			}
 
 			if (firstFrame) {
@@ -177,8 +193,16 @@ internal class AnsiIncrementalRendering(
 				}
 			}
 
-			if (capabilities.synchronizedOutput) {
+			if (sync) {
 				append(synchronizedOutputDisable)
+			} else if (wrapCursor) {
+				if (length > contentStart) {
+					append(showCursor)
+				} else {
+					// Nothing was drawn for this frame; drop the stray hide so an empty frame
+					// never makes the cursor blink.
+					setLength(frameStart)
+				}
 			}
 
 			ensurePrevBuffer(width, height)
