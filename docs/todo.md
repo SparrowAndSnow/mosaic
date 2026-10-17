@@ -102,7 +102,7 @@
 
 ## 8. 输入 / 事件（`mosaic-tty-terminal` + `mosaic-terminal`）
 - [x] **P1 鼠标消费** ✅（L5.1，`e7b9caaf`）：`Modifier.onMouseEvent`（返回 Boolean 消费）+ 绝对坐标命中测试（z 序在上先收，回退祖先）；终端 1006 + 1000/1003 opt-in（`runMosaic*` `mouse=true`）。注：BubbleTea 式「CellMotion/AllMotion 声明式分档」未做（现固定 all-motion 1003），需要时再接。
-- [x] **P1 粘贴通路** ✅（L5.2，`e7b9caaf`）：`Modifier.onPaste`（祖先先于子树）+ DECSET 2004 opt-in；帧循环将 paste 内容累积为单串，期间不触发按键。注：文本插入原语（光标/IME）归 §15 输入控件。
+- [x] **P1 粘贴通路** ✅（L5.2，`e7b9caaf`；+L7.5 未终止 paste 的 Ctrl-C 逃生口）：`Modifier.onPaste`（祖先先于子树）+ DECSET 2004 opt-in；帧循环将 paste 内容累积为单串，期间不触发按键。注：文本插入原语（光标/IME）归 §15 输入控件。
 - [x] **P2 kitty 键盘协议开关** ✅（L5.3，`e7b9caaf`）：探测 `kittyKeyboard` 后自动 push `CSI>23u`、退出 pop 恢复；`toKeyEventOrNull` 只放行 press，repeat/release 过滤。注：无 `KeyboardEnhancementsMsg` 二次确认（探测期 `CSI?u` 回复已确认支持）。
 - [x] **P2 clipboard（OSC 52）** ✅（L5.4，`423f25b8`）：`ClipboardEvent` 解析（base64/UTF-8；`!`→null）+ `Terminal.requestClipboardRead`/`writeClipboard` + runtime `LocalClipboard`（suspend `getText/setText`，读=请求→await 回复 2s 超时）。
 - [x] **P2 事件背压/策略** ✅（L5.5，`68ee4a1e`）：`events` channel 64 改 `SUSPEND` + 生产者 `send`（零丢弃）；帧循环批内 `Motion/Drag` 合并只留最新坐标；`TtyTerminalBackpressureTest`（500 字符 0 丢失）+ `MouseEventTest` 增 3 条。

@@ -415,14 +415,22 @@ internal class MosaicComposition(
 							is KeyboardEvent -> {
 								// While a bracketed paste is active, the terminal reports the pasted
 								// content as individual key events; accumulate them instead of
-								// dispatching them as key events.
-								if (pasteText != null) {
-									pasteText!!.append(event.text ?: run {
+								// dispatching them. Ctrl-C stays an escape hatch so a paste that never
+								// completes (the terminal sent the start marker but no end marker) can
+								// still be interrupted.
+								val paste = pasteText
+								if (paste != null) {
+									if (event.toKeyEventOrNull() == ctrlC) {
+										pasteText = null
+										job.cancel()
+										return@withFrameNanos
+									}
+									paste.append(event.text ?: run {
 										buildString { appendCodePoint(event.codepoint) }
 									})
 									continue
 								}
-								val keyEvent = event.toKeyEventOrNull() ?: continue
+									val keyEvent = event.toKeyEventOrNull() ?: continue
 								val keyHandled = rootNode.sendKeyEvent(keyEvent)
 								if (!keyHandled && keyEvent == ctrlC) {
 									job.cancel()
