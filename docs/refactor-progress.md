@@ -161,13 +161,25 @@
 - 边界：无界约束 → 按内容收敛（与 `Box` 一致）；`fillMaxSize`/`weight` 等外部 modifier 照常生效。
 - 可见性调整：`Box` 的 `BoxScopeInstance`/`AlignModifier`/`BoxParentData`/`boxParentData`/`matchesParentSize`/`placeInBox` 由 private 放开为 internal（无行为变化）。
 - 测试：`BoxWithConstraintsTest` 7 条（读 `maxWidth` 定宽、min/有界标志、2/3 比例、父尺寸变化重组合、matchParentSize+居中、无界收敛、状态驱动动态列数）。
+### L4.7 布局缓存（`9146adaa`）
+- 动机：任何重组/布局态变更都会置 `needLayout` → 每帧全树重跑 `measureAndPlace`；把「相同 `Constraints` + 未失效」的测量缓存下来，只重测受影响路径，缓解高频重排与同构重布局。
+- 实现：`MosaicNode.measure`（`layout/Node.kt`）以 `(Constraints, layoutVersion)` 为键缓存最近一次测量结果，命中时整子树跳过测量（place 每帧照常执行）；同版本/同约束下行程式测量 O(1)。`measureCount`/`cacheHitCount` 计数器供测试观测。
+- 失效（`invalidateLayoutVersion()` 对节点及其**祖先链**冒泡递增版本）：
+  1. **结构变化**：`setModifier`、`measurePolicy` setter、applier 增删移子节点（`MosaicNodeApplier` 开始维护 `MosaicNode.parent` 链）。
+  2. **状态依赖**：测量 miss 时用 `Snapshot.observe` 把子树测量期读到的 snapshot 状态收进 `measureDependencies`；`MosaicComposition` 的 apply 观察器执行 `invalidateLayoutCaches` 整树扫，命中节点的依赖即冒泡失效。
+- 保留整树 `readStatesOnLayout` 观察，专门覆盖 **placement 阶段**才读的状态（如 `offset {}` 的 changeable offset）：此类变化仍需触发 layout pass 以重算位置，但测量全部命中。
+- 与 Compose 对比：思想一致（constraints+脏标记 ≈ version、测量期收依赖、结构失效）；工程差异在失效定位——Compose 用 `SnapshotStateObserver` 的「状态→节点」反向索引近似 O(1) 唤醒，并裁剪「不影响父尺寸/未放置」子树；本项目当前为整树扫 + 祖先链全 bump。正确性等价，性能余量在 apply 查扫与子树裁剪（后续优化项，可参考反向索引方案）。
+- 测试：`LayoutCacheTest` 4 条（单子树测量态变化不重测兄弟、插入兄弟不重测既有子、placement-only 变化跳过测量、约束变化强制重测）。
+- 验证：JVM 520/0、linuxX64 519/0，`:samples:rrtop:compileKotlinLinuxX64` 通过。
+
 
 ## 6. 当前状态 / 下一步候选
 
-- 现状：`refactor` 分支，HEAD `8e16f309`，JVM + Native 全绿。上面功能步骤已归档。
+- 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
 - 决策（2026-10-17，已提交）：**外部组件待办整体推迟**——滚动容器 / 惰性列表 / 输入控件 / 鼠标交互 / 焦点 / 边框 / 定位回调 / 动画容器 / 第一方 widget 集属最外层组合组件，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；新增 `docs/todo.md` §15 仅登记不实现，优先级统一排在内部重构之后。
+- 决策（2026-10-17，已提交）：**布局缓存落地即完成 L4 布局层主干**——剩余可选优化（apply 失效查扫反向索引、未放置子树裁剪）留待后续需要时再做；L4 对外的下一候选是 intrinsic 复用（与布局缓存合并）或直接进入 **L5 输入**。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. L4 续项（布局缓存，或进入 L5 输入）。
+  1. **L5 输入**（鼠标/粘贴解析→平台回调消费，todo §8/§15）。
   2. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
 
 ### L4.5 调研记录：布局“比例”的 Compose 语法（未落地，方向调整）

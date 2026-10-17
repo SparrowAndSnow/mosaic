@@ -84,7 +84,7 @@
 - [x] **P1 Text 内建排版（簇级安全换行）** ✅（L4.1，`9c622d53`）：`Text` 参数化 `softWrap`（默认 false 不回归），开启时按入向 `maxWidth` 约束在**字素簇边界**软换行；ZWJ 家庭/组合字符/变体/旗帜永不拆开，超宽簇独占行，空段落保留；约束变化即时重排。测试：`TextLayoutWrapTest` + `TextWrapRenderingTest`。
 - [x] **P2 换行/截断/对齐/滚动参数** ✅（L4.2 `de3c9a1a` + L4.3 `271f53fa` + L4.4 `ac703463`）：`Text` 增加 `maxLines`/`overflow`（Clip/Ellipsis 簇安全截断）、`textAlign`（Start/Center/End，有界宽行偏移、Start/无界零回归）、`scroll`（垂直查看窗口，配合 `maxLines` 滚动切片，越界 clamp 不至于空窗）。
 - [x] **P2 约束扩展（比例布局）** ✅（方向见台账 L4.5 调研、实现 L4.6 `d2780c1a`）：比例/百分比**不新增自造 modifier**，遵循 Compose 语法——等分/占剩余用 `weight`（已有）、占父级可用比例用 `fillMaxWidth/H/S(fraction)`（已有）、精确混合比例走 `BoxWithConstraints`（单槽位子组合实现）。剩余可选：gap/overlap（间距/负重叠）。
-- [ ] **P2 布局缓存**：`needLayout` 时全树重跑 `measureAndPlace`；对相同 constraints+size 结果做 LRU（Ratatui `layout-cache` feature），缓解高频 resize 与同构重排。
+- [x] **P2 布局缓存** ✅（L4.7，`9146adaa`）：`needLayout` 时不再全树重跑测量——每个节点以（Constraints, layoutVersion）为键缓存最近一次测量，命中即整子树跳过；失效覆盖结构变化与测量期读取的 snapshot 状态。单槽位 memo（LRU-of-1）已够用，缓解高频重排与同构重布局。剩余优化：apply 失效查扫改反向索引、未放置子树裁剪（台账 L4.7）。
 - [ ] **P2 Modifier 缺口**：现有 `padding/offset/aspectRatio/size/weight/drawBehind/onKeyEvent`；评估 `margin`、`fillMaxSize/widthIn…` 类便捷约束、`onGloballyPositioned` 类回调。
 - [ ] **P2 intrinsic 复用**：`min/maxIntrinsicWidth/Height` 已透传，但测量重复计算；考虑缓存（与布局缓存合并）。
 - [ ] **P3 焦点/键盘导航**：无焦点管理/方向键导航原语（Ratatui 生态靠 widget 状态机、BubbleTea 靠应用层）。
