@@ -166,3 +166,20 @@
 - [ ] **P3 API 稳定性**：0.x 阶段明确 breaking 窗口；§4/§3 方案 A 涉及 `TextPixel`（internal）不破坏 public API，但 `Text`/`Modifier` 新增入口需同步 `CHANGELOG`。
 - [ ] **P3 示例补齐**：鼠标/粘贴/滚动/富文本/动画 样例与文档一一对应。
 - [ ] **P2 台账同步**：`docs/todo.md` 勾选/状态与 `docs/refactor-progress.md` 台账保持一致（每次归档步骤后同步 ✅ 与提交号）。
+
+---
+
+## 15. 外部组件待办（只在内部核心重构完成后实现）
+
+> 决策（2026-10-17，`refactor` 分支）：这些是**最外层的组合组件**，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；当前阶段**只登记不实现**。优先级统一排在内部重构之后，具体顺序待内部核心完成后重排。实现原则：先实现 + 单元测试 + 用户确认，再归档。
+
+- [ ] **滚动容器（最大布局缺口）**：`verticalScroll` / `horizontalScroll` + `rememberScrollState`，与 `Text.scroll`（L4.4）复用查看窗口/裁剪逻辑，但抽象为通用滚动容器供任意内容使用。
+- [ ] **惰性列表**：`LazyColumn` / `LazyRow`（仅组合可视区子项）；依赖滚动容器与稳定的 item key，作为滚动容器之后的自然延伸。
+- [ ] **输入控件**：可编辑单行输入（`BasicTextField` 等价物，含光标/IME），依赖 L5 输入（鼠标/粘贴/键盘编辑语义）落地。
+- [ ] **鼠标交互**：`clickable` / `hoverable`（鼠标事件当前**已解析但未消费**，见 todo §8），依赖 L5 把事件接到平台回调。
+- [ ] **焦点 / 键盘导航原语**：交叉引用 todo §5 已有 P3 条目。
+- [ ] **边框 / 分隔绘制**：`border` / 分隔线（在 DrawScope 之上，无核心依赖，可随时插入）。
+- [ ] **定位回调**：`onGloballyPositioned` 等价物（todo §5 已列出）。
+- [ ] **动画容器**：`Crossfade` / `AnimatedVisibility` 类容器（`mosaic-animation` 已有核心值动画，仅需容器装配）。
+- [ ] **第一方 widget 集**：charts / tables / tabs / scrollbars（todo §6 已有 P3 条目）。
+- [ ] 备注：`margin` **不是**缺口——Compose 没有 `margin`，间距用 `padding` 或外层间隔表达。
