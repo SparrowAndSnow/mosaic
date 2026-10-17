@@ -419,8 +419,6 @@ typedef struct MosaicJniTtyCallback {
 	JNIEnv *env;
 	jobject instance;
 	jmethodID onFocus;
-	jmethodID onKey;
-	jmethodID onMouse;
 	jmethodID onResize;
 } MosaicJniTtyCallback;
 
@@ -431,24 +429,6 @@ static void invokeOnFocusCallback(void *opaque, bool focused) {
 		callback->instance,
 		callback->onFocus,
 		focused
-	);
-}
-
-static void invokeOnKeyCallback(void *opaque) {
-	MosaicJniTtyCallback *callback = (MosaicJniTtyCallback *) opaque;
-	(*callback->env)->CallVoidMethod(
-		callback->env,
-		callback->instance,
-		callback->onKey
-	);
-}
-
-static void invokeOnMouseCallback(void *opaque) {
-	MosaicJniTtyCallback *callback = (MosaicJniTtyCallback *) opaque;
-	(*callback->env)->CallVoidMethod(
-		callback->env,
-		callback->instance,
-		callback->onMouse
 	);
 }
 
@@ -483,14 +463,6 @@ Java_com_jakewharton_mosaic_tty_Jni_ttyCallbackInit(
 	if (unlikely(onFocus == NULL)) {
 		return 0;
 	}
-	jmethodID onKey = (*env)->GetMethodID(env, clazz, "onKey", "()V");
-	if (unlikely(onKey == NULL)) {
-		return 0;
-	}
-	jmethodID onMouse = (*env)->GetMethodID(env, clazz, "onMouse", "()V");
-	if (unlikely(onMouse == NULL)) {
-		return 0;
-	}
 	jmethodID onResize = (*env)->GetMethodID(env, clazz, "onResize", "(IIII)V");
 	if (unlikely(onResize == NULL)) {
 		return 0;
@@ -503,8 +475,6 @@ Java_com_jakewharton_mosaic_tty_Jni_ttyCallbackInit(
 	jniCallback->env = env;
 	jniCallback->instance = globalInstance;
 	jniCallback->onFocus = onFocus;
-	jniCallback->onKey = onKey;
-	jniCallback->onMouse = onMouse;
 	jniCallback->onResize = onResize;
 
 	MosaicTtyCallback *callback = malloc(sizeof(MosaicTtyCallback));
@@ -513,8 +483,6 @@ Java_com_jakewharton_mosaic_tty_Jni_ttyCallbackInit(
 	}
 	callback->opaque = jniCallback;
 	callback->onFocus = invokeOnFocusCallback;
-	callback->onKey = invokeOnKeyCallback;
-	callback->onMouse = invokeOnMouseCallback;
 	callback->onResize = invokeOnResizeCallback;
 
 	return (jlong) callback;

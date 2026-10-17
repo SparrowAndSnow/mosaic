@@ -135,8 +135,6 @@ public actual class Tty internal constructor(
 
 	public actual interface Callback {
 		public actual fun onFocus(focused: Boolean)
-		public actual fun onKey()
-		public actual fun onMouse()
 		public actual fun onResize(columns: Int, rows: Int, width: Int, height: Int)
 	}
 }
@@ -149,8 +147,6 @@ internal fun StableRef<Tty.Callback>.toNativeAllocationIn(memory: NativePlacemen
 	return memory.alloc<MosaicTtyCallback> {
 		opaque = asCPointer()
 		onFocus = staticCFunction(::onFocusCallback)
-		onKey = staticCFunction(::onKeyCallback)
-		onMouse = staticCFunction(::onMouseCallback)
 		onResize = staticCFunction(::onResizeCallback)
 	}
 }
@@ -158,16 +154,6 @@ internal fun StableRef<Tty.Callback>.toNativeAllocationIn(memory: NativePlacemen
 private fun onFocusCallback(opaque: COpaquePointer?, focused: Boolean) {
 	val callback = opaque!!.asStableRef<Tty.Callback>().get()
 	callback.onFocus(focused)
-}
-
-private fun onKeyCallback(opaque: COpaquePointer?) {
-	val callback = opaque!!.asStableRef<Tty.Callback>().get()
-	callback.onKey()
-}
-
-private fun onMouseCallback(opaque: COpaquePointer?) {
-	val callback = opaque!!.asStableRef<Tty.Callback>().get()
-	callback.onMouse()
 }
 
 private fun onResizeCallback(opaque: COpaquePointer?, columns: Int, rows: Int, width: Int, height: Int) {

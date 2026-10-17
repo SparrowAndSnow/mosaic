@@ -109,12 +109,6 @@ public expect class Tty : AutoCloseable {
 		/** Called when the window gains or loses focus. Only invoked on Windows. */
 		public fun onFocus(focused: Boolean)
 
-		/** Currently unused. */
-		public fun onKey()
-
-		/** Currently unused. */
-		public fun onMouse()
-
 		/** If [Tty.enableWindowResizeEvents] was invoked, this is called when the window is resized. */
 		public fun onResize(columns: Int, rows: Int, width: Int, height: Int)
 	}

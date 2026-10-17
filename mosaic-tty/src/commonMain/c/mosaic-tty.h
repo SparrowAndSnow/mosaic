@@ -9,15 +9,11 @@
 typedef struct MosaicTtyImpl MosaicTty;
 
 typedef void MosaicTtyCallbackOnFocus(void *opaque, bool focused);
-typedef void MosaicTtyCallbackOnKey(void *opaque); // TODO params
-typedef void MosaicTtyCallbackOnMouse(void *opaque); // TODO params
 typedef void MosaicTtyCallbackOnResize(void *opaque, int columns, int rows, int width, int height);
 
 typedef struct MosaicTtyCallback {
 	void *opaque;
 	MosaicTtyCallbackOnFocus *onFocus;
-	MosaicTtyCallbackOnKey *onKey;
-	MosaicTtyCallbackOnMouse *onMouse;
 	MosaicTtyCallbackOnResize *onResize;
 } MosaicTtyCallback;
 

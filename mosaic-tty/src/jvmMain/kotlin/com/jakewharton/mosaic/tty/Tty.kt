@@ -101,8 +101,6 @@ public actual class Tty internal constructor(
 
 	public actual interface Callback {
 		public actual fun onFocus(focused: Boolean)
-		public actual fun onKey()
-		public actual fun onMouse()
 		public actual fun onResize(columns: Int, rows: Int, width: Int, height: Int)
 	}
 }

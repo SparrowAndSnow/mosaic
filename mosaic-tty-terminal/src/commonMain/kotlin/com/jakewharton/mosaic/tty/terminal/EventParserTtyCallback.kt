@@ -20,14 +20,6 @@ internal class EventParserTtyCallback(
 		sendEvent(FocusEvent(focused))
 	}
 
-	override fun onKey() {
-		return
-	}
-
-	override fun onMouse() {
-		return
-	}
-
 	override fun onResize(columns: Int, rows: Int, width: Int, height: Int) {
 		size.value = Terminal.Size(columns, rows, width, height)
 		sendEvent(ResizeEvent(columns, rows, width, height))

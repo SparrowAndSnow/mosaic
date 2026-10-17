@@ -72,18 +72,6 @@ public class Tty internal constructor(
 						callback.onFocus(focused)
 					}, arena),
 				)
-				MosaicTtyCallback.onKey(
-					ttyCallback,
-					MosaicTtyCallbackOnKey.allocate({
-						callback.onKey()
-					}, arena),
-				)
-				MosaicTtyCallback.onMouse(
-					ttyCallback,
-					MosaicTtyCallbackOnMouse.allocate({
-						callback.onMouse()
-					}, arena),
-				)
 				MosaicTtyCallback.onResize(
 					ttyCallback,
 					MosaicTtyCallbackOnResize.allocate({ _, columns, rows, width, height ->
@@ -202,8 +190,6 @@ public class Tty internal constructor(
 
 	public interface Callback {
 		public fun onFocus(focused: Boolean)
-		public fun onKey()
-		public fun onMouse()
 		public fun onResize(columns: Int, rows: Int, width: Int, height: Int)
 	}
 }

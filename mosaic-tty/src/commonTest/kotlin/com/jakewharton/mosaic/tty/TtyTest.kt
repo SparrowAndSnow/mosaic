@@ -5,7 +5,6 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -73,52 +72,8 @@ class TtyTest {
 		testTerminal.sendKeyEvent()
 	}
 
-	@Ignore // Event not delivered yet.
-	@Test fun keyEventCallback() = runTest {
-		if (!isWindows()) return@runTest
-
-		tty.setCallback(MyCallback())
-
-		testTerminal.sendKeyEvent()
-		doWriteReadRoundtrip()
-
-		assertThat(events.receive()).isEqualTo("hey! onKey")
-	}
-
-	@Test fun keyEventCallbackIgnoredOnNonWindows() = runTest {
-		if (isWindows()) return@runTest
-
-		tty.setCallback(MyCallback())
-
-		testTerminal.sendKeyEvent()
-
-		assertEventsEmpty()
-	}
-
 	@Test fun mouseEventNoCallback() {
 		testTerminal.sendMouseEvent()
-	}
-
-	@Ignore // Event not delivered yet.
-	@Test fun mouseEventCallback() = runTest {
-		if (!isWindows()) return@runTest
-
-		tty.setCallback(MyCallback())
-
-		testTerminal.sendMouseEvent()
-		doWriteReadRoundtrip()
-
-		assertThat(events.receive()).isEqualTo("hey! onMouse")
-	}
-
-	@Test fun mouseEventCallbackIgnoredOnNonWindows() = runTest {
-		if (isWindows()) return@runTest
-
-		tty.setCallback(MyCallback())
-
-		testTerminal.sendMouseEvent()
-
-		assertEventsEmpty()
 	}
 
 	@Test fun resizeNoCallback() {
@@ -212,12 +167,6 @@ class TtyTest {
 	) : Tty.Callback {
 		override fun onFocus(focused: Boolean) {
 			events.trySend("$prefix onFocus $focused")
-		}
-		override fun onKey() {
-			events.trySend("$prefix onKey")
-		}
-		override fun onMouse() {
-			events.trySend("$prefix onMouse")
 		}
 		private var lastSize: Size? = null
 		override fun onResize(columns: Int, rows: Int, width: Int, height: Int) {
