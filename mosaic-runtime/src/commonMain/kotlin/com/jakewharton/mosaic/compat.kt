@@ -5,7 +5,10 @@ import com.jakewharton.mosaic.terminal.KeyboardEvent
 import de.cketti.codepoints.appendCodePoint
 
 internal fun KeyboardEvent.toKeyEventOrNull(): KeyEvent? {
-	if (eventType != KeyboardEvent.EventTypePress) {
+	// Both press and repeat are delivered: repeat restores holding-a-key auto-repeat parity with
+	// terminals that stream repeated bytes in the legacy raw path. Release is dropped so the
+	// runtime stays press-only.
+	if (eventType != KeyboardEvent.EventTypePress && eventType != KeyboardEvent.EventTypeRepeat) {
 		return null
 	}
 
