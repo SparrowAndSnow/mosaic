@@ -37,17 +37,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 	private class TtyTerminal(
 		override val name: String?,
 		override val state: Terminal.State,
 		override val capabilities: Terminal.Capabilities,
 		override val events: ReceiveChannel<Event>,
+		private val teardown: () -> Unit,
 		private val closeJob: Job,
 		private val tty: Tty,
 	) : Terminal {
 		override val interactive get() = true
-		override fun close() = closeJob.cancel()
+		override fun close() {
+			teardown()
+			closeJob.cancel()
+		}
 
 		override fun requestClipboardRead(selection: ClipboardEvent.Selection) {
 			tty.write("${OSC}52;${ClipboardOsc.requestSelection(selection)};?$ST")
@@ -86,6 +92,7 @@ private const val StageCapabilityQueries = 2
 private const val StageDefaultQueries = 1
 private const val StageNormalOperation = 0
 
+@OptIn(ExperimentalAtomicApi::class)
 public suspend fun Tty.asTerminalIn(
 	scope: CoroutineScope,
 	/** When true, each terminal event will be immediately followed by a matching [DebugEvent]. */
@@ -121,21 +128,29 @@ public suspend fun Tty.asTerminalIn(
 	var toggleKittyKeyboard = false
 	var toggleGraphemeClustering = false
 
-	// TODO The design of finalization hook fights us here. We don't need suspension.
+	// Revert every setting we toggled and restore the terminal. Runs exactly once regardless of
+	// path: normal close() calls it synchronously so the restore is guaranteed to precede
+	// Tty.close(), while the finalization hook below re-invokes it on the signal/shutdown path
+	// where close() may never run. The guard keeps the two paths from double-firing.
+	val teardownRan = AtomicBoolean(false)
+	val teardown: () -> Unit = {
+		if (teardownRan.compareAndSet(expectedValue = false, newValue = true)) {
+			setCallback(null)
+			if (toggleSystemTheme) write(systemThemeDisable)
+			if (toggleInBandResize) write(inBandResizeDisable)
+			if (toggleFocus) write(focusDisable)
+			if (toggleCursor) write(cursorEnable)
+			if (toggleMouse) write(mouseDisable)
+			if (togglePaste) write(pasteDisable)
+			if (toggleKittyKeyboard) write(kittyKeyboardPop)
+			if (toggleGraphemeClustering) write(graphemeClusteringDisable)
+			reset()
+		}
+	}
+
 	val interruptJob = scope.launch(Unconfined, start = UNDISPATCHED) {
 		withFinalizationHook(
-			hook = {
-				setCallback(null)
-				if (toggleSystemTheme) write(systemThemeDisable)
-				if (toggleInBandResize) write(inBandResizeDisable)
-				if (toggleFocus) write(focusDisable)
-				if (toggleCursor) write(cursorEnable)
-				if (toggleMouse) write(mouseDisable)
-				if (togglePaste) write(pasteDisable)
-				if (toggleKittyKeyboard) write(kittyKeyboardPop)
-				if (toggleGraphemeClustering) write(graphemeClusteringDisable)
-				reset()
-			},
+			hook = teardown,
 			block = {
 				try {
 					awaitCancellation()
@@ -431,6 +446,7 @@ public suspend fun Tty.asTerminalIn(
 			themeEvents = themeEvents,
 		),
 		events = events,
+		teardown = teardown,
 		closeJob = interruptJob,
 		tty = this,
 	)
