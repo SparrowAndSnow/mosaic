@@ -105,7 +105,7 @@
 - [x] **P1 粘贴通路** ✅（L5.2，`e7b9caaf`）：`Modifier.onPaste`（祖先先于子树）+ DECSET 2004 opt-in；帧循环将 paste 内容累积为单串，期间不触发按键。注：文本插入原语（光标/IME）归 §15 输入控件。
 - [x] **P2 kitty 键盘协议开关** ✅（L5.3，`e7b9caaf`）：探测 `kittyKeyboard` 后自动 push `CSI>23u`、退出 pop 恢复；`toKeyEventOrNull` 只放行 press，repeat/release 过滤。注：无 `KeyboardEnhancementsMsg` 二次确认（探测期 `CSI?u` 回复已确认支持）。
 - [x] **P2 clipboard（OSC 52）** ✅（L5.4，`423f25b8`）：`ClipboardEvent` 解析（base64/UTF-8；`!`→null）+ `Terminal.requestClipboardRead`/`writeClipboard` + runtime `LocalClipboard`（suspend `getText/setText`，读=请求→await 回复 2s 超时）。
-- [ ] **P2 事件背压/策略**：`events` channel 固定 64、`DROP_OLDEST`；高频粘贴/鼠标风暴可能丢关键事件，评估批量合并或扩容。
+- [x] **P2 事件背压/策略** ✅（L5.5，`68ee4a1e`）：`events` channel 64 改 `SUSPEND` + 生产者 `send`（零丢弃）；帧循环批内 `Motion/Drag` 合并只留最新坐标；`TtyTerminalBackpressureTest`（500 字符 0 丢失）+ `MouseEventTest` 增 3 条。
 - [ ] **P3 特殊键/修饰**：kitty PUA 特殊键码已定义；核对 `EventTypeRepeat/Release` 与关联文本（`text`）的透传与文档。
 
 ## 9. tty 适配（大头：三套绑定 + C 双平台 + Zig）
