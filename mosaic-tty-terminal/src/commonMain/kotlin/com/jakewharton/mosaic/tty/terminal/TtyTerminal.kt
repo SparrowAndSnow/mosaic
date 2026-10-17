@@ -30,7 +30,7 @@ import kotlinx.coroutines.Dispatchers.Unconfined
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+import kotlinx.coroutines.channels.BufferOverflow.SUSPEND
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -102,7 +102,10 @@ public suspend fun Tty.asTerminalIn(
 	val theme = MutableStateFlow(Terminal.Theme.Unknown)
 	val size = MutableStateFlow(Terminal.Size.Default)
 
-	val events = Channel<Event>(64, onBufferOverflow = DROP_OLDEST)
+	// Bounded buffer with backpressure: the producer blocks when full instead of dropping events,
+	// so bursts (large pastes, mouse storms) can never lose discrete events. High-frequency mouse
+	// motion is coalesced downstream in the runtime frame listener.
+	val events = Channel<Event>(64, onBufferOverflow = SUSPEND)
 
 	setCallback(EventParserTtyCallback(focused, size, events, emitDebugEvents))
 
@@ -354,7 +357,7 @@ public suspend fun Tty.asTerminalIn(
 				else -> {}
 			}
 
-			events.trySend(event)
+			events.send(event)
 		}
 	}
 

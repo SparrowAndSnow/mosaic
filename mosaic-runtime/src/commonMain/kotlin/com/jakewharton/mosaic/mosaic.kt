@@ -334,8 +334,27 @@ internal class MosaicComposition(
 			do {
 				externalClock.withFrameNanos { nanos ->
 					// Drain any pending events before triggering the frame.
+					// Consecutive mouse motion/drag events are coalesced to their latest position:
+					// only the final coordinate matters to handlers, and all-motion tracking can
+					// otherwise flood the per-frame drain.
+					var pendingMotion: com.jakewharton.mosaic.terminal.MouseEvent? = null
+					fun flushMotion() {
+						val motion = pendingMotion ?: return
+						pendingMotion = null
+						rootNode.sendMouseEvent(motion.toRuntimeMouseEvent())
+					}
 					while (true) {
 						val event = terminal.events.tryReceive().getOrNull() ?: break
+						val terminalMouse = event as? com.jakewharton.mosaic.terminal.MouseEvent
+						if (terminalMouse != null &&
+							(terminalMouse.type == com.jakewharton.mosaic.terminal.MouseEvent.Type.Motion ||
+								terminalMouse.type == com.jakewharton.mosaic.terminal.MouseEvent.Type.Drag)
+						) {
+							pendingMotion = terminalMouse
+							continue
+						}
+						// A discrete event follows: deliver the final buffered position first.
+						flushMotion()
 						when (event) {
 							is KeyboardEvent -> {
 								// While a bracketed paste is active, the terminal reports the pasted
@@ -372,6 +391,7 @@ internal class MosaicComposition(
 							else -> {}
 						}
 					}
+					flushMotion()
 
 					internalClock.sendFrame(nanos)
 
