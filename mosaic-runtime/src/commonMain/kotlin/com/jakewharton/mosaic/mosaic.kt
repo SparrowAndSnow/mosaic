@@ -71,10 +71,11 @@ internal suspend fun runMosaicComposition(
 	content: @Composable () -> Unit,
 ) {
 	val clock = BroadcastFrameClock()
+	val frameWriter = FrameWriter()
 	val mosaicComposition = MosaicComposition(
 		coroutineContext = coroutineContext + clock,
 		onDraw = { rootNode ->
-			print(rendering.render(rootNode).toString())
+			frameWriter.write(rendering.render(rootNode))
 		},
 		terminal = terminal,
 	)

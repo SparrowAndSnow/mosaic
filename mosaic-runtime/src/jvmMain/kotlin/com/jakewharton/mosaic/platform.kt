@@ -16,3 +16,11 @@ internal actual fun nonInteractiveExit(): Nothing {
 	}
 	exitProcess(1)
 }
+
+internal actual fun writeScreenBytes(bytes: ByteArray, offset: Int, count: Int) {
+	System.out.write(bytes, offset, count)
+}
+
+internal actual fun flushScreenBytes() {
+	System.out.flush()
+}
