@@ -106,7 +106,7 @@
 - [x] **P2 kitty 键盘协议开关** ✅（L5.3，`e7b9caaf`）：探测 `kittyKeyboard` 后自动 push `CSI>23u`、退出 pop 恢复；`toKeyEventOrNull` 只放行 press，repeat/release 过滤。注：无 `KeyboardEnhancementsMsg` 二次确认（探测期 `CSI?u` 回复已确认支持）。
 - [x] **P2 clipboard（OSC 52）** ✅（L5.4，`423f25b8`）：`ClipboardEvent` 解析（base64/UTF-8；`!`→null）+ `Terminal.requestClipboardRead`/`writeClipboard` + runtime `LocalClipboard`（suspend `getText/setText`，读=请求→await 回复 2s 超时）。
 - [x] **P2 事件背压/策略** ✅（L5.5，`68ee4a1e`）：`events` channel 64 改 `SUSPEND` + 生产者 `send`（零丢弃）；帧循环批内 `Motion/Drag` 合并只留最新坐标；`TtyTerminalBackpressureTest`（500 字符 0 丢失）+ `MouseEventTest` 增 3 条。
-- [ ] **P3 特殊键/修饰**：kitty PUA 特殊键码已定义；核对 `EventTypeRepeat/Release` 与关联文本（`text`）的透传与文档。
+- [x] **P3 特殊键/修饰** ✅（L5.6，`5f438a79`）：PUA 特殊键映射验证（F1~F35 等）；`repeat` 并入 `press` 投递（恢复长按自动重复一致性）、`release` 丢弃；`text` 关联文本优先于码点（CSI u 无文本段时 null，无冲突）。`CompatTest` 8 条。
 
 ## 9. tty 适配（大头：三套绑定 + C 双平台 + Zig）
 > 现状：`mosaic-tty` = Kotlin `expect/actual` + 底层 C（`src/commonMain/c/mosaic-{tty,streams,utils,test}-{posix,windows}.c`，约 2.4k 行）+ 三套宿主绑定
