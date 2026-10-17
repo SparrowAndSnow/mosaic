@@ -83,7 +83,9 @@ public actual class Tty internal constructor(
 
 	@Throws(IOException::class)
 	public actual fun reset() {
-		Jni.ttyReset(ptr)
+		if (ptr != 0L) {
+			Jni.ttyReset(ptr)
+		}
 	}
 
 	@Throws(IOException::class)

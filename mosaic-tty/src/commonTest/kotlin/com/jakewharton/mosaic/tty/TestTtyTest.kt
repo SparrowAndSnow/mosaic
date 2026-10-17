@@ -47,6 +47,17 @@ class TestTtyTest {
 		}
 	}
 
+	@Test fun closeAfterCloseIsIdempotent() {
+		tty.close()
+		tty.close()
+	}
+
+	@Test fun resetAfterCloseIsIdempotent() {
+		tty.close()
+		tty.reset()
+		tty.reset()
+	}
+
 	@Test fun stdinIsTtySettingTrue() {
 		testTerminal = TestTerminal.bind(stdinIsTty = true)
 		assertThat(testTerminal.streams.isInputTty()).isTrue()

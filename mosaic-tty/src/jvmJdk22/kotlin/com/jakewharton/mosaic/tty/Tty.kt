@@ -168,9 +168,12 @@ public class Tty internal constructor(
 
 	@Throws(IOException::class)
 	public fun reset() {
-		val error = mosaic_tty_reset(ptr)
-		if (error == 0) return
-		throwIoe(error)
+		val ptr = this.ptr
+		if (ptr != MemorySegment.NULL) {
+			val error = mosaic_tty_reset(ptr)
+			if (error == 0) return
+			throwIoe(error)
+		}
 	}
 
 	@Throws(IOException::class)

@@ -116,7 +116,7 @@ public actual class Tty internal constructor(
 	}
 
 	public actual fun reset() {
-		mosaic_tty_reset(ptr)
+		ptr?.let { mosaic_tty_reset(it) }
 	}
 
 	actual override fun close() {
