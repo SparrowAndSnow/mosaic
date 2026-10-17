@@ -38,6 +38,28 @@ internal inline fun CharSequence.forEachGraphemeClusterRange(block: (start: Int,
 	var conjunctState = STATE_NONE
 
 	while (index < length) {
+		// Fast path: a printable-ASCII code point (GCB_OTHER) or tab (GCB_CONTROL) is a single
+		// code unit that normally starts a new cluster (GB4/GB5/GB999) and never participates in
+		// the RI-pair, extended-pictographic, or Indic-conjunct state machines. The one exception
+		// is GB9b, where a Prepend attaches to the following code point even if it is an ASCII
+		// space, so the fast path must not fire right after a Prepend. Emit directly without the
+		// look-ups below, mirroring the slow path's break-branch state updates.
+		val unit = this[index].code
+		if ((unit in 0x20..0x7E && previousClass != GCB_PREPEND) || unit == 0x09) {
+			if (!first) {
+				block(clusterStart, index)
+				clusterStart = index
+				conjunctState = STATE_NONE
+			}
+			previousClass = if (unit == 0x09) GCB_CONTROL else GCB_OTHER
+			regionalIndicatorsOdd = false
+			extendedPictographicRun = false
+			runEndsWithZwj = false
+			index++
+			first = false
+			continue
+		}
+
 		val codepoint = codepointAt(index)
 		val charCount = if (codepoint >= 0x10000) 2 else 1
 		val currentClass = gcbClassOf(codepoint)
@@ -97,9 +119,9 @@ internal inline fun CharSequence.forEachGraphemeClusterRange(block: (start: Int,
 
 // Projection states for the GB9c pattern, tracked separately from each code point's own
 // Indic_Conjunct_Break class so the rule can be evaluated without lookahead.
-private const val STATE_NONE = 0
-private const val STATE_CONS = 1
-private const val STATE_CONJUNCT = 2
+internal const val STATE_NONE = 0
+internal const val STATE_CONS = 1
+internal const val STATE_CONJUNCT = 2
 
 /**
  * Implements the UAX #29 extended-grapheme-cluster boundary rules GB3-GB999. Returns `true` when

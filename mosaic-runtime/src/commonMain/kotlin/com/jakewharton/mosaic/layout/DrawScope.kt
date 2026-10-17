@@ -279,12 +279,11 @@ internal open class TextCanvasDrawScope(
 			// head cell, with only its continuation cells reserved. This mirrors measurement, so
 			// layout and drawing can never disagree about where a cluster starts or how wide it is.
 			val w = text.graphemeClusterWidth(clusterStart, clusterEnd)
-			val cluster = text.substring(clusterStart, clusterEnd)
 
 			val character = canvas[row, characterColumn]
-			character.updateTextPixel(cluster, w, foreground, background, textStyle, underlineStyle, underlineColor)
+			character.updateTextPixel(text, clusterStart, clusterEnd, w, foreground, background, textStyle, underlineStyle, underlineColor)
 			spanStylesProvider?.invoke(clusterStart, clusterEnd)?.forEach {
-				character.updateTextPixel(character.text, character.width, it.color, it.background, it.textStyle, it.underlineStyle, it.underlineColor)
+				character.updateTextPixel(character.textSource, character.textStart, character.textEnd, character.width, it.color, it.background, it.textStyle, it.underlineStyle, it.underlineColor)
 			}
 
 			// Mark continuation cells for wide clusters (e.g. CJK, fullwidth emoji)
@@ -311,11 +310,13 @@ internal open class TextCanvasDrawScope(
 		underlineStyle: UnderlineStyle = UnderlineStyle.Unspecified,
 		underlineColor: Color = Color.Unspecified,
 	) {
-		canvas[y, x].updateTextPixel(text, 1, foreground, background, textStyle, underlineStyle, underlineColor)
+		canvas[y, x].updateTextPixel(text, 0, text.length, 1, foreground, background, textStyle, underlineStyle, underlineColor)
 	}
 
 	private inline fun TextPixel.updateTextPixel(
-		text: String,
+		textSource: String,
+		textStart: Int,
+		textEnd: Int,
 		width: Int,
 		foreground: Color,
 		background: Color,
@@ -323,7 +324,9 @@ internal open class TextCanvasDrawScope(
 		underlineStyle: UnderlineStyle,
 		underlineColor: Color,
 	) {
-		this.text = text
+		this.textSource = textSource
+		this.textStart = textStart
+		this.textEnd = textEnd
 		this.width = width
 		isPlaceholder = false
 		if (foreground.isSpecifiedColor) {

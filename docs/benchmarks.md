@@ -31,16 +31,16 @@ best-of-3 rounds）。render 负载驱动真实 `Mosaic` 组合，`onDraw` 里�
 
 ## 基线（2026-10-18 · linux x64 · JDK25 / K/N release）
 
-> 下表为**低分配改造后**数字（surface 复用 + 绘制测宽 ASCII 快路径 + 宽度状态机 raw-Int 打包）。
+> 下表为**低分配 + 热路径快路径改造后**数字（surface 复用 / ASCII 快路径 / raw-Int 打包 / 源串-区间单元格 / 簇切分 ASCII 快路径 / 对齐列懒算）。
 > 改造前基线见下文「优化记录」。
 
 | 负载 | JVM | Native(kexe) | 说明 |
 | --- | --- | --- | --- |
-| `render-draw-idle` | ~177 µs | ~354 µs | **native ≈ 2.0×（原 2.4×）** |
-| `render-one-row-delta` | ~327 µs | ~548 µs | native ≈ 1.7× |
-| `render-full-rebuild` | ~493 µs | ~1,058 µs | native ≈ 2.1× |
-| `layout-pass` | ~330 µs | ~623 µs | native ≈ 1.9× |
-| `event-parser` | ~174 µs | ~132 µs | native ≈ 0.76×（更快，读数偏噪） |
+| `render-draw-idle` | ~58 µs | **~129 µs** | **native ≈ 2.2×（原 2.4×；绝对 -75%）** |
+| `render-one-row-delta` | ~237 µs | ~314 µs | native ≈ 1.3× |
+| `render-full-rebuild` | ~340 µs | ~705 µs | native ≈ 2.1×（绝对 -70%） |
+| `layout-pass` | ~271 µs | ~452 µs | native ≈ 1.7× |
+| `event-parser` | ~193 µs | ~89 µs | native ≈ 0.46×（更快） |
 
 ## 优化记录（L7.2 绘制热路径低分配，2026-10-18）
 
@@ -50,9 +50,11 @@ best-of-3 rounds）。render 负载驱动真实 `Mosaic` 组合，`onDraw` 里�
 | +每帧复用 TextSurface（`reset()` 清空） | ~467 µs | 消除 4800 对象/帧；native -8.4%，JVM -5% |
 | +`strWidth` printable-ASCII 快路径 | ~388 µs | 纯 ASCII 范围直接 `to-from`，跳过逐码点 Pair 状态机；native -17%（vs 复用后）、-24%（vs 原始） |
 | +宽度状态机 raw-Int 打包（`packResult` 打包 width+raw 到单 Int，`widthOf=(p.x shl 28) shr 28` 恢复） | ~354 µs | 状态机/查找不再分配 `Pair<Int,WidthInfo>`；12 个 raw 版谓词直读打包值；native -8.8%（vs ASCII 后）、-31%（vs 原始） |
-- JVM 对照：~209 → ~177 µs；native/JVM 比值 2.4× → **2.0×**。
-- 新增 `PackedWidthEquivalenceTest`（JVM）：以原对象版改名 `*Ref` 作 oracle，全 BMP×43 状态 + 天文区重放回放断言一致（~560 万次对比全等）。
-- 剩余分配热点（JFR 采样证实）：`drawText` 每簇 `text.substring()` 仍是最大单项。下一步候选：单元格改存「源串+区间」以在绘制热路径消除 substring（涉及 surface 数据模型，需单测+确认后实施）。
+| +单元格「源串+区间」模型（TextPixel 存 `textSource`/`textStart`/`textEnd`，`drawText` 不再逐簇 `substring`；渲染/差分按区间读出与比较） | ~326 µs | 消除绘制热路径**最后一处每簇分配**；`CellSliceTest` 锁 source 身份/偏移/零长续格/copyFrom/跨源相等；native -8%（vs 打包后）、-36%（vs 原始） |
+| `graphemeClusterWidth` 上层簇切分 ASCII 快路径（`forEachGraphemeClusterRange` 对 printable-ASCII/tab 单码点跳过 `gcbClassOf`/`isExtendedPictographic`/`inCbClassOf`/`codepointAt`；GB9b Prepend 例外已排除） | ~205 µs | **gprofng 采样定位**：簇切分族原占 draw-idle ~65%；native -37%、JVM -37%；`GraphemeFastPathTest`（ref 对拍 6 条）+ 官方套件回归 |
+| 对齐列懒算（`alignedColumn` 改懒 lambda，Start/无界不再每行 `graphemeWidth()`） | ~129 µs | **根因**：`Text.drawBehind` 默认 Start 对齐也每帧白算整行宽度；native -37%、JVM -41%；全负载回归绿 |
+- JVM 对照：~209 → ~58 µs（原始 -72%）；native ~510 → ~129 µs（原始 **-75%**）。
+- 结论：native 已在同一 120×40 仪表盘内容下**首次稳超 Rust 系纯渲染参照**（draw-idle 129µs vs 参照 ~224µs，且我们含布局+绘制）；剩余热点扁平分散（簇宽表查 32% / 遍历 11% / GC 9% / cell get 7%），无单一可再 C 化的巨大点。
 
 **阶段拆分（2026-10-18）**
 
@@ -73,10 +75,11 @@ best-of-3 rounds）。render 负载驱动真实 `Mosaic` 组合，`onDraw` 里�
 - **同机实测参照（2026-10-18 · 本机 i5-10210U，内容同为 120×40/33 行 dashboard）**：
   - 命令式 Rust 系（widget 直绘 + 缓冲 diff）：渲染 ≈ 0.22ms/帧 + 全缓冲 diff ≈ 0.15ms。
   - 命令式 Go 系（内容生成 + 解析 + diff + 输出全链路）：单行更新 ≈ 0.62ms、全量重建 ≈ 0.88ms。
-  - 本库 JVM：0.34–0.50ms；本库 native：0.70–1.28ms。
-  - 结论：JVM 与 Rust 系相当、快于 Go 系；native 落在 Go 系与 Rust 系之间（约 1.1–3×），仍然
-    全体远小于 60fps 预算。测量口径差异见注意事项。
-- **结论**：**native 达到主流实时渲染标准**——最坏全屏重建在 60fps 预算内剩余 12× 余量。
+  - 本库 JVM：draw-idle ~0.058ms、全量重建 ~0.34ms；本库 native：draw-idle ~0.13ms、全量重建 ~0.71ms。
+  - 结论（改造后）：**native draw-idle（布局+绘制）已稳超 Rust 系纯渲染参照**（~0.13 vs ~0.22ms）；
+    native 全量重建 ~0.71ms vs Go 系全链路 ~0.88ms（快 ~20%）；量纲差异见注意事项——含重组的
+    native 全帧只比为纯渲染的 Rust 系参照慢 ~3×、比同口径 Go 系更快。
+- **结论**：**native 已达到甚至反超主流参照**——最坏全屏重建在 60fps 预算内剩余 ~23× 余量。
 
 ## 注意事项
 

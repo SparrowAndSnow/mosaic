@@ -51,7 +51,7 @@ public fun Text(
 		},
 		modifier = modifier.drawBehind {
 			layout.lines.forEachIndexed { row, line ->
-				val column = layout.alignedColumn(textAlign, line.graphemeWidth())
+				val column = layout.alignedColumn(textAlign) { line.graphemeWidth() }
 				drawText(row, column, line, color, background, textStyle, underlineStyle, underlineColor)
 			}
 		},
@@ -94,7 +94,7 @@ public fun Text(
 		},
 		modifier = modifier.drawBehind {
 			layout.lines.forEachIndexed { row, line ->
-				val column = layout.alignedColumn(textAlign, line.text.graphemeWidth())
+				val column = layout.alignedColumn(textAlign) { line.text.graphemeWidth() }
 				drawText(row, column, line, color, background, textStyle, underlineStyle, underlineColor)
 			}
 		},
@@ -117,9 +117,9 @@ private fun TextLayout<*>.alignedBoxWidth(textAlign: Alignment.Horizontal): Int 
 }
 
 /** The column at which to draw a line of [lineWidth] columns within this text's box. */
-private fun TextLayout<*>.alignedColumn(textAlign: Alignment.Horizontal, lineWidth: Int): Int {
+private fun TextLayout<*>.alignedColumn(textAlign: Alignment.Horizontal, lineWidth: () -> Int): Int {
 	if (textAlign == Alignment.Start || alignmentWidth == Constraints.Infinity) {
 		return 0
 	}
-	return textAlign.align(lineWidth, alignedBoxWidth(textAlign)).coerceAtLeast(0)
+	return textAlign.align(lineWidth(), alignedBoxWidth(textAlign)).coerceAtLeast(0)
 }

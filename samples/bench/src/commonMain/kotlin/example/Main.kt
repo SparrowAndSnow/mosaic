@@ -28,11 +28,26 @@ import kotlinx.coroutines.yield
  * Render workloads drive a live [Mosaic] composition and time the full recompose + layout + draw
  * pipeline (mirroring production where the renderer first composes the surface and then diffs it).
  */
-fun main() = runBlocking {
+fun main(args: Array<String>) = runBlocking {
 	println("mosaic benchmark")
-	benchmarkRenderAndLayout()
-	benchmarkParser()
+	if (args.isNotEmpty() && args[0] == "drawidle") {
+		benchmarkRenderAndLayoutDrawIdleOnly()
+	} else {
+		benchmarkRenderAndLayout()
+		benchmarkParser()
+	}
 	println("done")
+}
+
+private suspend fun benchmarkRenderAndLayoutDrawIdleOnly() {
+	val harness = benchHarness()
+	val status = mutableStateOf(0)
+	harness.seed { Dashboard(status.value) }
+	benchmark("render-draw-idle", iterations = 10_000, warmup = 1_000) {
+		harness.mosaic.draw()
+		harness.mosaic.static()
+	}
+	harness.mosaic.cancel()
 }
 
 /** Fake terminal with realistic capabilities so rendering behaves like production. */

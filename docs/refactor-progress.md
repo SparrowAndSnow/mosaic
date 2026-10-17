@@ -319,12 +319,19 @@
 
 ## 6. 当前状态 / 下一步候选
 
-- 进行中（2026-10-18）：**L7 性能「绘制热路径低分配」**。已落地三项（未归档，等确认）：
+- 进行中（2026-10-18）：**L7 性能「绘制热路径低分配」**。已落地六项（D/E/F 未归档，等确认）：
   ① surface 复用（每帧不再 `new TextSurface`=4800 对象，`reset()` 复用）+ `SurfaceReuseTest`（2 条）；
   ② `strWidth` printable-ASCII 快路径（纯 ASCII 范围直接 `to-from`，跳过逐码点 Pair 分配）+ `StrWidthAsciiFastPathTest`（5 条）；
   ③ 宽度状态机 raw-Int 打包（`packResult` 打包 width+raw 单 Int，12 个 raw 版谓词直读；消除 `Pair<Int,WidthInfo>` 分配）+ `PackedWidthEquivalenceTest`（JVM，oracle 重放全等 ~560 万次）。
-  native `render-draw-idle` 510→354µs（-31%），native/JVM 2.4×→**2.0×**；JVM / linuxX64 全绿（含等价性 oracle）。
-  剩余分配热点（JFR）：`drawText` 每簇 `text.substring`；候选=单元格改存「源串+区间」在绘制热路径消除 substring（涉及 surface 数据模型，风险大，等确认）。
+  ④ 单元格「源串+区间」模型（TextPixel 存 `textSource`/`textStart`/`textEnd`，`drawText` 不再逐簇 `substring`；渲染/差分按区间读出与比较）+ `CellSliceTest`（6 条：source 身份/偏移/多字符簇/span 覆盖/跨源相等/copyFrom/reset）。
+  ⑤ **gprofng 采样定位**簇切分族占 draw-idle ~65% → `forEachGraphemeClusterRange` 加 printable-ASCII/tab 单码点快路径（跳过 `gcbClassOf`/`isExtendedPictographic`/`inCbClassOf`/`codepointAt`；排除 GB9b Prepend 例外）+ `GraphemeFastPathTest`（ref 对拍 6 条）。
+  ⑥ `Text.drawBehind` 对齐列懒算（`alignedColumn` 改懒 lambda：Start/无界直接 0，不再每行白算 `graphemeWidth()`）+ 官方字素套件回归。
+  **native `render-draw-idle` 510→~129µs（-75%），JVM ~209→~58µs（-72%）**；全部负载 native -60%~-75%、JVM -35%~-72%。
+  **native 首次稳超 Rust 系纯渲染参照**（~129µs vs ~224µs，且含布局+绘制）；最坏全帧 60fps 预算余量 ~23×。
+  D/E/F 待确认归档（D 对应 `fbb8ff9d` 前三步后的第四步，尚未提交）。
+  下一步候选（需确认后做）：
+  - 方案 B：布局/绘制共用一次簇宽测量（`drawText` 复用布局期算好的簇宽度，避免每簇算两遍；当前 `graphemeClusterWidth` incl 仍 ~32%）。
+  - 或转 L7 收尾（异常安全/帧节流/示例），性能已远超既定目标。
 - 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
 - 现状（2026-10-17 归档后）：HEAD `5f438a79`，JVM 与 linuxX64 四模块（runtime/terminal/tty/tty-terminal）全绿，全 samples 编译通过，rrtop kexe 已重链（工作树演示不含提交）。**L5 输入/事件已全部完成**：L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关 / L5.4 clipboard（OSC 52）/**L5.5 事件背压与 Motion 合并** / L5.6 特殊键核对与 repeat 投递。
 - 现状（2026-10-17 归档后）：**L6 tty 适配已收官（L6.1~L6.8 全归档，HEAD `53ba2ea2`）**：死回调移除 / DEC 2027 / raw 核对 / native 信号兜底 / resize 通路 / 读写缓冲 / 生命周期异常安全 / 探测清单完备性。tty / tty-terminal 两平台测试全绿。L6 余项（macOS/Windows/三套绑定一致性/`linuxArm64` cinterop）需远程环境，登记不改码。

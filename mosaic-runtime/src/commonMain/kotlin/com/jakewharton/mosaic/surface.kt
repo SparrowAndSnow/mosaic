@@ -178,7 +178,12 @@ internal class TextSurface(
 				continue
 			}
 
-			appendable.append(pixel.text)
+			// Emit the cell's text from its source-slice (no per-cluster substring allocation).
+			if (pixel.textEnd - pixel.textStart == 1) {
+				appendable.append(pixel.textSource[pixel.textStart])
+			} else {
+				appendable.append(pixel.textSource, pixel.textStart, pixel.textEnd)
+			}
 			lastPixel = pixel
 			columnIndex++
 		}
@@ -263,13 +268,27 @@ internal class TextSurface(
 internal class TextPixel(
 	initialText: String = " ",
 ) {
+	internal var textSource: String = initialText
+	internal var textStart: Int = 0
+	internal var textEnd: Int = initialText.length
+
 	/**
 	 * The extended grapheme cluster occupying this cell's column: everything rendered at this
 	 * cell's horizontal position (a base character with its combining marks, a ZWJ emoji family,
 	 * a flag, a keycap, ...). A single cell therefore holds an entire cluster rather than one
 	 * code point. Empty/duplicate clusters use the lone space so renderers emit something.
+	 *
+	 * The cluster is stored as a `[textStart, textEnd)` slice into [textSource] so the draw hot
+	 * path can record it without materializing a substring per cluster. This property writes the
+	 * whole value as a slice and reads it back materialized (for tests and non-hot consumers).
 	 */
-	var text: String = initialText
+	var text: String
+		get() = textSource.substring(textStart, textEnd)
+		set(value) {
+			textSource = value
+			textStart = 0
+			textEnd = value.length
+		}
 
 	/**
 	 * The number of terminal columns this cluster occupies: `1` for ordinary cells, `2` or more
@@ -288,14 +307,18 @@ internal class TextPixel(
 
 	/** Marks this cell as covered by the continuation of a wider cluster drawn to its left. */
 	fun markAsContinuation() {
-		text = ""
+		textSource = ""
+		textStart = 0
+		textEnd = 0
 		width = 0
 		isPlaceholder = true
 	}
 
 	/** Resets this cell back to its default blank state so it can be reused by the next frame. */
 	internal fun reset() {
-		text = " "
+		textSource = " "
+		textStart = 0
+		textEnd = 1
 		width = 1
 		isPlaceholder = false
 		background = Color.Unspecified
@@ -310,7 +333,9 @@ internal class TextPixel(
 	 * cell in place so retained buffers can be updated without allocating new objects.
 	 */
 	internal fun copyFrom(other: TextPixel) {
-		text = other.text
+		textSource = other.textSource
+		textStart = other.textStart
+		textEnd = other.textEnd
 		width = other.width
 		isPlaceholder = other.isPlaceholder
 		background = other.background
@@ -321,7 +346,8 @@ internal class TextPixel(
 	}
 
 	fun isEmpty(): Boolean {
-		return (text.isEmpty() || text == " ") &&
+		val length = textEnd - textStart
+		return (length == 0 || (length == 1 && textSource[textStart] == ' ')) &&
 			background.isUnspecifiedColor &&
 			foreground.isUnspecifiedColor &&
 			textStyle.isEmptyTextStyle &&

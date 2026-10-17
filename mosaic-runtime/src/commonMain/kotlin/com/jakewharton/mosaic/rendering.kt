@@ -345,7 +345,7 @@ internal class AnsiIncrementalRendering(
 	}
 
 	private fun cellsEqual(a: TextPixel, b: TextPixel): Boolean {
-		return a.text == b.text &&
+		return sliceEquals(a, b) &&
 			a.width == b.width &&
 			a.isPlaceholder == b.isPlaceholder &&
 			a.foreground == b.foreground &&
@@ -353,6 +353,21 @@ internal class AnsiIncrementalRendering(
 			a.textStyle == b.textStyle &&
 			a.underlineStyle == b.underlineStyle &&
 			a.underlineColor == b.underlineColor
+	}
+
+	private fun sliceEquals(a: TextPixel, b: TextPixel): Boolean {
+		val aLength = a.textEnd - a.textStart
+		if (aLength != b.textEnd - b.textStart) {
+			return false
+		}
+		var i = 0
+		while (i < aLength) {
+			if (a.textSource[a.textStart + i] != b.textSource[b.textStart + i]) {
+				return false
+			}
+			i++
+		}
+		return true
 	}
 
 	private fun ensurePrevBuffer(width: Int, height: Int) {
