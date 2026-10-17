@@ -29,7 +29,7 @@
 | L2 缓冲/cell 模型 | `TextPixel` 升级为「簇字符串 + 显式列宽」 | §4 | 完成 |
 | L3 渲染管线 | 按簇绘制 → 增量输出 → 差分/缓冲/静态/闪烁 | §2 | 完成（L3.1~L3.8） |
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
-| L5 输入/事件 | 鼠标/粘贴/剪贴板/背压 | §8 | 进行中（L5.1~L5.3 已归档；余 L5.4/L5.5） |
+| L5 输入/事件 | 鼠标/粘贴/剪贴板/背压 | §8 | 进行中（L5.1~L5.4 已归档；余 L5.5） |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 未开始（大头） |
 | L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 未开始 |
 
@@ -59,7 +59,14 @@
 | L5 | L5.1 | 鼠标消费：`Modifier.onMouseEvent` + 命中测试分发 + 终端 1006/1000/1003 opt-in | `e7b9caaf` | `MouseEventTest`（8 条）+ `TtyTerminalMouseTest`（2 条） | ✅ 已归档 |
 | L5 | L5.2 | 粘贴通路：`Modifier.onPaste` + bracketed paste 累积为单串分发（粘贴内容不触发按键） | `e7b9caaf` | `PasteEventTest`（6 条）+ `TtyTerminalPasteTest`（2 条） | ✅ 已归档 |
 | L5 | L5.3 | kitty 键盘协议开关：探测 `kittyKeyboard` 后 push `CSI>23u`、退出 pop 恢复 | `e7b9caaf` | `TtyTerminalKittyKeyboardTest`（2 条） | ✅ 已归档 |
+| L5 | L5.4 | clipboard（OSC 52）：`ClipboardEvent` 解析 + `Terminal` 读写命令 + `LocalClipboard`（suspend 读等待异步回复） | `423f25b8` | `EventParserOscClipboardEventTest`（7 条）+ `TtyTerminalClipboardTest` + `ClipboardTest`（3 条） | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
+
+### L5.4 clipboard（OSC 52）（`423f25b8`）
+- `mosaic-terminal`：`ClipboardEvent(selection: Clipboard/Primary/Unknown, text: String?)`——`null`=终端拒绝/解码失败，`""`=空剪贴板；`Terminal` 接口新增 `requestClipboardRead(selection)` / `writeClipboard(text, selection)`。
+- `mosaic-tty-terminal`：`EventParser` `parseOsc` 加 `52` 分支（`ClipboardOsc` 工具负责 base64 编解码 + selection 映射，`!`→null）；`TtyTerminal` 实现→写 `OSC 52;sel;?`(读) / `OSC 52;sel;<base64>`(写，空串清空)。
+- `mosaic-runtime`：`ui/platform/Clipboard.kt` 镜像 Compose 新版 `LocalClipboard` 语义——`Clipboard`（`suspend getText()/setText()`）+ `LocalClipboard` + `TermClipboard`（读=发读请求后 await `ClipboardEvent` 回复，2s 超时）。`MosaicComposition` 提供 `LocalClipboard`，帧监听把 `ClipboardEvent` 喂给 `TermClipboard`；`NonInteractiveTerminal`/`TestTerminal` 补齐实现（捕获写/记录读请求）。
+- `TestMosaic` 增 `sendClipboardReply(text, selection)` 注入回复。
 
 ### L5.1 鼠标消费（`e7b9caaf`）
 - `layout/MouseEvent.kt`：runtime `MouseEvent`（Type/Button 枚举 + 修饰键）+ `Modifier.onMouseEvent`（返回 Boolean 消费）；`toRuntimeMouseEvent()` 把 terminal `MouseEvent` 转型。
@@ -199,12 +206,12 @@
 ## 6. 当前状态 / 下一步候选
 
 - 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
-- 现状（2026-10-17 归档后）：HEAD `e7b9caaf`，JVM 与 linuxX64 三模块（runtime/tty-terminal/testing）全绿，全 samples 编译通过。**L5 输入**已落地 L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关。
+- 现状（2026-10-17 归档后）：HEAD `423f25b8`，JVM 与 linuxX64 四模块（runtime/tty-terminal/testing/terminal）全绿，全 samples 编译通过。**L5 输入**已落地 L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关 / L5.4 clipboard（OSC 52）。
 - 决策（2026-10-17，已提交）：**外部组件待办整体推迟**——滚动容器 / 惰性列表 / 输入控件 / 鼠标交互 / 焦点 / 边框 / 定位回调 / 动画容器 / 第一方 widget 集属最外层组合组件，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；新增 `docs/todo.md` §15 仅登记不实现，优先级统一排在内部重构之后。
 - 决策（2026-10-17，已提交）：**布局缓存落地即完成 L4 布局层主干**——剩余可选优化（apply 失效查扫反向索引、未放置子树裁剪）留待后续需要时再做；L4 对外的下一候选是 intrinsic 复用（与布局缓存合并）或直接进入 **L5 输入**。
 - 决策（2026-10-17，已归档）：**L5 输入走"全量 opt-in + 能力探测后自动启用"**——鼠标/粘贴经 `runMosaic*` 参数显式开启；kitty 键盘协议在探测到支持后自动 push、退出 pop；repeat/release 事件解析后由 runtime 按 press-only 过滤，既有应用零行为变化。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. `docs/todo.md` §8 余项：**L5.4 clipboard（OSC 52 读/写）**、**L5.5 事件背压/风暴合并**。
+  1. `docs/todo.md` §8 余项：**L5.5 事件背压/风暴合并**（`events` channel 64/DROP_OLDEST 在鼠标风暴、大粘贴下可能丢事件）。
   2. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
 
 ### L4.5 调研记录：布局“比例”的 Compose 语法（未落地，方向调整）
