@@ -29,7 +29,7 @@
 | L2 缓冲/cell 模型 | `TextPixel` 升级为「簇字符串 + 显式列宽」 | §4 | 完成 |
 | L3 渲染管线 | 按簇绘制 → 增量输出 → 差分/缓冲/静态/闪烁 | §2 | 完成（L3.1~L3.8） |
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
-| L5 输入/事件 | 鼠标/粘贴/剪贴板/背压 | §8 | 进行中（L5.1 鼠标消费） |
+| L5 输入/事件 | 鼠标/粘贴/剪贴板/背压 | §8 | 进行中（L5.1~L5.3 已归档；余 L5.4/L5.5） |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 未开始（大头） |
 | L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 未开始 |
 
@@ -56,7 +56,29 @@
 | L3 | L3.6 | 无同步渲染时的闪烁防护（光标包裹） | `e15497c4` | `AnsiIncrementalRenderingTest`（19 条，新增 3） | ✅ 已归档 |
 | L3 | L3.7 | 输出批量/分片写，避免大字符串抖动 | `8a0d3e7c` | `FrameWriterTest`（9 条） | ✅ 已归档 |
 | L4 | L4.7 | 布局缓存（按 constraints+version 记忆测量，失效覆盖结构与测量期状态依赖） | `9146adaa` | `LayoutCacheTest`（4 条，新增） | ✅ 已归档 |
+| L5 | L5.1 | 鼠标消费：`Modifier.onMouseEvent` + 命中测试分发 + 终端 1006/1000/1003 opt-in | `e7b9caaf` | `MouseEventTest`（8 条）+ `TtyTerminalMouseTest`（2 条） | ✅ 已归档 |
+| L5 | L5.2 | 粘贴通路：`Modifier.onPaste` + bracketed paste 累积为单串分发（粘贴内容不触发按键） | `e7b9caaf` | `PasteEventTest`（6 条）+ `TtyTerminalPasteTest`（2 条） | ✅ 已归档 |
+| L5 | L5.3 | kitty 键盘协议开关：探测 `kittyKeyboard` 后 push `CSI>23u`、退出 pop 恢复 | `e7b9caaf` | `TtyTerminalKittyKeyboardTest`（2 条） | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
+
+### L5.1 鼠标消费（`e7b9caaf`）
+- `layout/MouseEvent.kt`：runtime `MouseEvent`（Type/Button 枚举 + 修饰键）+ `Modifier.onMouseEvent`（返回 Boolean 消费）；`toRuntimeMouseEvent()` 把 terminal `MouseEvent` 转型。
+- `layout/Node.kt`：`MouseLayer` 进层链；`MosaicNode.sendMouseEvent` 做**绝对坐标命中测试**（越过界直接 false；子节点**逆序**优先 = z 序在上先收，再回退自身 modifier）；`BottomLayer` 终结。
+- `mosaic.kt`：`runMosaic*` 增 `mouse: Boolean = false`；帧监听循环分发 terminal `MouseEvent→runtime`。顺带把 `BottomLayer.sendKeyEvent` 挪到 doMeasure 前。
+- `mosaic-tty-terminal`：`mouse` opt-in → 同步写 `mouseEnable`（SGR 1006 + press/release 1000 + **all-motion 1003**），teardown 写 `mouseDisable`；无回复不干扰能力探测。
+- 修复：`runMosaicMain(content, mouse)` 曾把 content 放前导致尾随 lambda 绑定到 Boolean（demo/robot 编译失败）→ 改为 `(mouse, paste, content)`，content 恒在最后。
+
+### L5.2 粘贴通路（`e7b9caaf`）
+- `layout/PasteEvent.kt`：`Modifier.onPaste { text -> Boolean }`，**树序向下分发**（祖先先于子，首个消费即止）。
+- `mosaic.kt` 帧监听循环：`BracketedPasteEvent(start=true)` 起缓冲 StringBuilder，期间 `KeyboardEvent` 只累积 `text`（**不当作按键分发**、不判 Ctrl-C），`start=false` 时把整串经 `rootNode.sendPasteEvent` 分发。
+- 终端：`paste: Boolean = false` opt-in → DECSET 2004；`TtyTerminal` 引导期同步写、teardown 写 disable。
+- 修 bug：`PasteModifierElement` 属性与成员同名 `onPaste`，函数名优先解析 → 自递归栈溢出；改字段为 `handler`。
+- `TestMosaic` 增 `sendPaste(text)`：发 start 标记 + 逐码点 KeyboardEvent（UTF-16 安全拆代理对）+ end 标记。
+
+### L5.3 kitty 键盘协议开关（`e7b9caaf`）
+- `ansi.kt`：`kittyKeyboardFlags = 23`（消歧义转义 1 | 事件类型 2 | 备用键 4 | 关联文本 16，**不含**「所有键转义」bit8 → 普通字符仍原始字节上报）；`kittyKeyboardPush = "CSI>23u"`、`kittyKeyboardPop = "CSI<23u"`。
+- `TtyTerminal.kt`：能力探测阶段收到 `KittyKeyboardQueryEvent`（`CSI?u` 回复）即置 `kittyKeyboard` 并**同步 push** + `toggleKittyKeyboard`；teardown 一律 pop 恢复终端原状态（push/pop 栈语义，不泄漏到 shell）。
+- 运行时无改动：`toKeyEventOrNull` 只放行 press，repeat/release 解析后自然过滤，既有应用行为不变。
 
 ### L3.8 删除旧全量渲染器（`72e359af`）
 - `rendering.kt` 删除 `AnsiRendering` 类（全量 `cursorUp` + 逐行重写协议），`AnsiIncrementalRendering` 为唯一增量渲染器。
@@ -177,10 +199,12 @@
 ## 6. 当前状态 / 下一步候选
 
 - 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
+- 现状（2026-10-17 归档后）：HEAD `e7b9caaf`，JVM 与 linuxX64 三模块（runtime/tty-terminal/testing）全绿，全 samples 编译通过。**L5 输入**已落地 L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关。
 - 决策（2026-10-17，已提交）：**外部组件待办整体推迟**——滚动容器 / 惰性列表 / 输入控件 / 鼠标交互 / 焦点 / 边框 / 定位回调 / 动画容器 / 第一方 widget 集属最外层组合组件，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；新增 `docs/todo.md` §15 仅登记不实现，优先级统一排在内部重构之后。
 - 决策（2026-10-17，已提交）：**布局缓存落地即完成 L4 布局层主干**——剩余可选优化（apply 失效查扫反向索引、未放置子树裁剪）留待后续需要时再做；L4 对外的下一候选是 intrinsic 复用（与布局缓存合并）或直接进入 **L5 输入**。
+- 决策（2026-10-17，已归档）：**L5 输入走"全量 opt-in + 能力探测后自动启用"**——鼠标/粘贴经 `runMosaic*` 参数显式开启；kitty 键盘协议在探测到支持后自动 push、退出 pop；repeat/release 事件解析后由 runtime 按 press-only 过滤，既有应用零行为变化。
 - 下一步候选（需用户确认后实施，建议一次一项）：
-  1. **L5 输入**（鼠标/粘贴解析→平台回调消费，todo §8/§15）。
+  1. `docs/todo.md` §8 余项：**L5.4 clipboard（OSC 52 读/写）**、**L5.5 事件背压/风暴合并**。
   2. L6 tty 适配 / 能力探测（大头，见 todo §9/§10）。
 
 ### L4.5 调研记录：布局“比例”的 Compose 语法（未落地，方向调整）
