@@ -53,6 +53,8 @@ abstract interface com.jakewharton.mosaic.terminal/Terminal : kotlin/AutoCloseab
             abstract fun <get-cursorVisibility>(): kotlin/Boolean // com.jakewharton.mosaic.terminal/Terminal.Capabilities.cursorVisibility.<get-cursorVisibility>|<get-cursorVisibility>(){}[0]
         abstract val focusEvents // com.jakewharton.mosaic.terminal/Terminal.Capabilities.focusEvents|{}focusEvents[0]
             abstract fun <get-focusEvents>(): kotlin/Boolean // com.jakewharton.mosaic.terminal/Terminal.Capabilities.focusEvents.<get-focusEvents>|<get-focusEvents>(){}[0]
+        abstract val graphemeClustering // com.jakewharton.mosaic.terminal/Terminal.Capabilities.graphemeClustering|{}graphemeClustering[0]
+            abstract fun <get-graphemeClustering>(): kotlin/Boolean // com.jakewharton.mosaic.terminal/Terminal.Capabilities.graphemeClustering.<get-graphemeClustering>|<get-graphemeClustering>(){}[0]
         abstract val inBandResizeEvents // com.jakewharton.mosaic.terminal/Terminal.Capabilities.inBandResizeEvents|{}inBandResizeEvents[0]
             abstract fun <get-inBandResizeEvents>(): kotlin/Boolean // com.jakewharton.mosaic.terminal/Terminal.Capabilities.inBandResizeEvents.<get-inBandResizeEvents>|<get-inBandResizeEvents>(){}[0]
         abstract val kittyGraphics // com.jakewharton.mosaic.terminal/Terminal.Capabilities.kittyGraphics|{}kittyGraphics[0]

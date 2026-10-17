@@ -54,6 +54,16 @@ class EventParserCsiDecModeReportEventTest : BaseEventParserTest() {
 		)
 	}
 
+	@Test fun graphemeClusteringMode() {
+		testTerminal.write("$CSI?2027;2\$y")
+		assertThat(parser.next()).isEqualTo(
+			DecModeReportEvent(
+				mode = 2027,
+				setting = Reset,
+			),
+		)
+	}
+
 	@Test fun minimal() {
 		testTerminal.write("$CSI?1;0\$y")
 		assertThat(parser.next()).isEqualTo(

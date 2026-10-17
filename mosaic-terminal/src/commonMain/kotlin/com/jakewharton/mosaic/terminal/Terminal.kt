@@ -133,6 +133,17 @@ public interface Terminal : AutoCloseable {
 		public val kittyUnderline: Boolean
 
 		/**
+		 * True when DEC 2027 (grapheme clustering) is supported by this terminal. When enabled the
+		 * terminal itself treats extended grapheme clusters (ZWJ families, combining characters,
+		 * emoji variation/keycap sequences) as atomic cursor-movement units, so clusters this
+		 * library emits as a single cell are kept whole instead of being split by codepoint. The
+		 * mode is enabled automatically when supported (and restored on exit).
+		 *
+		 * See: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Grapheme-Clustering
+		 */
+		public val graphemeClustering: Boolean
+
+		/**
 		 * True when synchronized output (mode 2026) is supported by this terminal. This ensures a set
 		 * of commands (usually output-related) are atomically reflected in the rendering. Without this,
 		 * updates may be partially rendered and cause a tearing effect.

@@ -27,6 +27,10 @@ internal const val inBandResizeMode = 2048
 internal const val inBandResizeEnable = "$CSI?${inBandResizeMode}h"
 internal const val inBandResizeDisable = "$CSI?${inBandResizeMode}l"
 
+internal const val graphemeClusteringMode = 2027
+internal const val graphemeClusteringEnable = "$CSI?${graphemeClusteringMode}h"
+internal const val graphemeClusteringDisable = "$CSI?${graphemeClusteringMode}l"
+
 internal const val mouseSgrMode = 1006
 internal const val mouseMode = 1000
 internal const val mouseMotionMode = 1003

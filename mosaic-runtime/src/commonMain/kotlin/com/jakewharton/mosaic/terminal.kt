@@ -84,6 +84,7 @@ internal object NonInteractiveTerminal : Terminal, Terminal.State, Terminal.Capa
 	override val kittyTextSizingScale get() = false
 	override val kittyTextSizingWidth get() = false
 	override val kittyUnderline get() = false
+	override val graphemeClustering get() = false
 	override val synchronizedOutput get() = false
 	override val themeEvents: Boolean get() = false
 

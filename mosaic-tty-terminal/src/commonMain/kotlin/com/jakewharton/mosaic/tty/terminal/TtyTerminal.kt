@@ -75,6 +75,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 		override val kittyTextSizingScale: Boolean,
 		override val kittyTextSizingWidth: Boolean,
 		override val kittyUnderline: Boolean,
+		override val graphemeClustering: Boolean,
 		override val synchronizedOutput: Boolean,
 		override val themeEvents: Boolean,
 	) : Terminal.Capabilities
@@ -118,6 +119,7 @@ public suspend fun Tty.asTerminalIn(
 	var toggleMouse = mouse
 	var togglePaste = paste
 	var toggleKittyKeyboard = false
+	var toggleGraphemeClustering = false
 
 	// TODO The design of finalization hook fights us here. We don't need suspension.
 	val interruptJob = scope.launch(Unconfined, start = UNDISPATCHED) {
@@ -131,6 +133,7 @@ public suspend fun Tty.asTerminalIn(
 				if (toggleMouse) write(mouseDisable)
 				if (togglePaste) write(pasteDisable)
 				if (toggleKittyKeyboard) write(kittyKeyboardPop)
+				if (toggleGraphemeClustering) write(graphemeClusteringDisable)
 				reset()
 			},
 			block = {
@@ -163,6 +166,7 @@ public suspend fun Tty.asTerminalIn(
 	var kittyGraphics = false
 	var kittyKeyboard = false
 	var kittyNotifications = false
+	var graphemeClustering = false
 	var kittyPointerShape = false
 	var kittyTextSizingScale = false
 	var kittyTextSizingWidth = false
@@ -199,6 +203,7 @@ public suspend fun Tty.asTerminalIn(
 							"$CSI?$synchronizedOutputMode\$p" +
 							"$CSI?$systemThemeMode\$p" +
 							"$CSI?$inBandResizeMode\$p" +
+							"$CSI?$graphemeClusteringMode\$p" +
 							"$CSI?996n" + // Theme query
 							"${APC}Gi=31,s=1,v=1,a=q,t=d,f=24;AAAA$ST" + // Kitty graphics
 							"$CSI?u" + // Kitty keyboard
@@ -251,6 +256,16 @@ public suspend fun Tty.asTerminalIn(
 								toggleInBandResize = event.setting == Setting.Reset
 								// Enabling in-band resize (even if already set) should trigger an initial event.
 								write(inBandResizeEnable)
+							}
+						}
+
+						graphemeClusteringMode -> {
+							if (event.setting.isSupported) {
+								graphemeClustering = true
+								toggleGraphemeClustering = event.setting == Setting.Reset
+								// Enable grapheme clustering so multi-codepoint clusters we emit as a
+								// single cell are kept whole (already-active terminals need no change).
+								if (event.setting == Setting.Reset) write(graphemeClusteringEnable)
 							}
 						}
 					}
@@ -402,6 +417,7 @@ public suspend fun Tty.asTerminalIn(
 			kittyTextSizingScale = kittyTextSizingScale,
 			kittyTextSizingWidth = kittyTextSizingWidth,
 			kittyUnderline = kittyUnderlines,
+			graphemeClustering = graphemeClustering,
 			synchronizedOutput = synchronizedOutput,
 			themeEvents = themeEvents,
 		),
