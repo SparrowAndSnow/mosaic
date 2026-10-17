@@ -173,6 +173,10 @@ public actual class TestTerminal private constructor(
 		}
 	}
 
+	internal fun ttyTermiosCookedBits(): UInt {
+		return ptr?.let { mosaic_test_tty_termios_cooked(it) } ?: UInt.MAX_VALUE
+	}
+
 	actual override fun close() {
 		ptr?.let { ref ->
 			this.ptr = null

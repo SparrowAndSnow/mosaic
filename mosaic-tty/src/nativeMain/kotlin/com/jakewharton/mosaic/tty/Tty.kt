@@ -93,8 +93,11 @@ public actual class Tty internal constructor(
 
 	public actual fun enableRawMode() {
 		val error = mosaic_tty_enable_raw_mode(ptr)
-		if (error == 0U) return
-		throwIoe(error)
+		if (error != 0U) throwIoe(error)
+		// With the terminal in raw mode, install the crash/termination safety net which restores
+		// the original settings if the process is killed by an unhandled signal. Failure to
+		// install the guard is not fatal: raw mode is still active, just without the fallback.
+		mosaic_tty_enable_signal_guard(ptr)
 	}
 
 	public actual fun enableWindowResizeEvents() {

@@ -37,6 +37,9 @@ MOSAIC_EXPORT uint32_t mosaic_test_interrupt_error_read(MosaicTestTty *testTty);
 
 MOSAIC_EXPORT uint32_t mosaic_test_resize(MosaicTestTty *testTty, int columns, int rows, int width, int height);
 
+/** @return The `ECHO | ICANON` bits currently in the TTY's termios `c_lflag`, or `UINT32_MAX` on error. */
+MOSAIC_EXPORT uint32_t mosaic_test_tty_termios_cooked(MosaicTestTty *testTty);
+
 MOSAIC_EXPORT uint32_t mosaic_test_send_focus_event(MosaicTestTty *testTty, bool focused);
 MOSAIC_EXPORT uint32_t mosaic_test_send_key_event(MosaicTestTty *testTty);
 MOSAIC_EXPORT uint32_t mosaic_test_send_mouse_event(MosaicTestTty *testTty);

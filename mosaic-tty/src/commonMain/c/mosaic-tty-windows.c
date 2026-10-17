@@ -289,6 +289,17 @@ MOSAIC_EXPORT MosaicTtyTerminalSizeResult mosaic_tty_current_terminal_size(Mosai
 	return result;
 }
 
+MOSAIC_EXPORT uint32_t mosaic_tty_enable_signal_guard(MosaicTty *tty) {
+	// No POSIX signals on Windows; the console is restored through the JVM shutdown hooks.
+	(void)tty;
+	return 0;
+}
+
+MOSAIC_EXPORT uint32_t mosaic_tty_disable_signal_guard(MosaicTty *tty) {
+	(void)tty;
+	return 0;
+}
+
 MOSAIC_EXPORT uint32_t mosaic_tty_reset(MosaicTty *tty) {
 	uint32_t result = 0;
 

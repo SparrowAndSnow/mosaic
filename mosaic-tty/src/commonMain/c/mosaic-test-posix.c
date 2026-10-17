@@ -302,6 +302,17 @@ uint32_t mosaic_test_resize(MosaicTestTty *testTty, int columns, int rows, int w
 	return 0;
 }
 
+uint32_t mosaic_test_tty_termios_cooked(MosaicTestTty *testTty) {
+	if (unlikely(testTty == NULL || testTty->tty == NULL)) {
+		return UINT32_MAX;
+	}
+	struct termios settings;
+	if (unlikely(tcgetattr(testTty->tty->fd, &settings) != 0)) {
+		return UINT32_MAX;
+	}
+	return (uint32_t)(settings.c_lflag & (ECHO | ICANON));
+}
+
 uint32_t mosaic_test_send_focus_event(MosaicTestTty *testTty UNUSED, bool focused UNUSED) {
 	// Focus events are delivered through VT sequences.
 	return 0;

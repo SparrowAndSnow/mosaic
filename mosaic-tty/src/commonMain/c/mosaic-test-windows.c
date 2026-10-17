@@ -361,6 +361,11 @@ MOSAIC_EXPORT uint32_t mosaic_test_resize(MosaicTestTty *testTty, int columns, i
 	return mosaic_test_write_tty_record(testTty->conin, &record);
 }
 
+MOSAIC_EXPORT uint32_t mosaic_test_tty_termios_cooked(MosaicTestTty *testTty UNUSED) {
+	// No termios on Windows; this helper only exists for the POSIX signal guard tests.
+	return UINT32_MAX;
+}
+
 MOSAIC_EXPORT uint32_t mosaic_test_send_focus_event(MosaicTestTty *testTty, bool focused) {
 	INPUT_RECORD record;
 	record.EventType = FOCUS_EVENT;

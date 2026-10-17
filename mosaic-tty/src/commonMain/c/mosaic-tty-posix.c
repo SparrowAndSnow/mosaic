@@ -195,6 +195,103 @@ MosaicTtyTerminalSizeResult mosaic_tty_current_terminal_size(MosaicTty *tty) {
 	return result;
 }
 
+static const int mosaic_tty_signal_guard_signals[] = { SIGSEGV, SIGILL, SIGPIPE };
+#define MOSAIC_TTY_SIGNAL_GUARD_COUNT 3
+
+static void mosaic_tty_signal_guard_handler(int value) {
+	MosaicTty *tty = atomic_load(&globalTty);
+	if (likely(tty)) {
+		if (tty->saved) {
+			// Best-effort restore of the original terminal settings. tcsetattr is not in the
+			// async-signal-safe set, but on Linux/BSD it is a direct ioctl with no user-space
+			// locking, which is the standard approach interactive terminal programs use so that
+			// a crash never leaves the terminal in raw mode.
+			tcsetattr(tty->fd, TCSAFLUSH, tty->saved);
+		}
+		// Wake any reader blocked in mosaic_tty_read so the application observes the interruption.
+		uint8_t space = ' ';
+		ssize_t ignored = write(tty->interrupt_fd_writer, &space, 1);
+		(void)ignored;
+	}
+
+	// Preserve the process-terminating semantics of the signal: restore the default disposition
+	// and re-raise so the process dies exactly as it would have without the guard (core dumps,
+	// waitpid status, and exit codes are unchanged). Unblock first so termination is not deferred
+	// if this thread happened to have the signal blocked.
+	sigset_t set;
+	sigemptyset(&set);
+	sigaddset(&set, value);
+	sigprocmask(SIG_UNBLOCK, &set, NULL);
+
+	struct sigaction action;
+	action.sa_handler = SIG_DFL;
+	sigemptyset(&action.sa_mask);
+	action.sa_flags = 0;
+	if (sigaction(value, &action, NULL) == 0) {
+		raise(value);
+	}
+	// Only reached if the re-raise unexpectedly failed to terminate the process.
+	_exit(128 + value);
+}
+
+uint32_t mosaic_tty_enable_signal_guard(MosaicTty *tty) {
+	if (tty->signal_guard_active) {
+		return 0; // Already installed.
+	}
+
+	uint32_t result = 0;
+
+	struct sigaction action;
+	action.sa_handler = mosaic_tty_signal_guard_handler;
+	sigemptyset(&action.sa_mask);
+	action.sa_flags = 0;
+
+	for (int i = 0; i < MOSAIC_TTY_SIGNAL_GUARD_COUNT; i++) {
+		int signal_i = mosaic_tty_signal_guard_signals[i];
+		struct sigaction previous;
+		if (unlikely(sigaction(signal_i, NULL, &previous) != 0)) {
+			result = errno;
+			continue;
+		}
+		if (previous.sa_handler != SIG_DFL) {
+			// Respect an existing custom or ignored disposition rather than hijacking deliberate
+			// handling (for example a runtime which ignores SIGPIPE, or its own crash reporting).
+			continue;
+		}
+		if (unlikely(sigaction(signal_i, &action, &tty->signal_guard_previous[i]) != 0)) {
+			result = errno;
+			continue;
+		}
+		tty->signal_guard_installed[i] = true;
+	}
+
+	tty->signal_guard_active = true;
+	return result;
+}
+
+uint32_t mosaic_tty_disable_signal_guard(MosaicTty *tty) {
+	uint32_t result = 0;
+
+	for (int i = 0; i < MOSAIC_TTY_SIGNAL_GUARD_COUNT; i++) {
+		if (!tty->signal_guard_installed[i]) {
+			continue;
+		}
+		// Only restore the previous disposition if it is still our handler; the application may
+		// have changed the disposition after we installed ours, and we must not clobber that.
+		struct sigaction current;
+		if (likely(sigaction(mosaic_tty_signal_guard_signals[i], NULL, &current) == 0) &&
+				current.sa_handler == mosaic_tty_signal_guard_handler) {
+			if (unlikely(sigaction(mosaic_tty_signal_guard_signals[i], &tty->signal_guard_previous[i], NULL) != 0)) {
+				result = errno;
+			}
+		}
+		tty->signal_guard_installed[i] = false;
+	}
+
+	tty->signal_guard_active = false;
+	return result;
+}
+
 uint32_t mosaic_tty_reset(MosaicTty *tty) {
 	uint32_t result = 0;
 
@@ -211,6 +308,11 @@ uint32_t mosaic_tty_reset(MosaicTty *tty) {
 		}
 		free(tty->saved);
 		tty->saved = NULL;
+	}
+
+	uint32_t guardResult = mosaic_tty_disable_signal_guard(tty);
+	if (guardResult != 0 && result == 0) {
+		result = guardResult;
 	}
 
 	return result;
