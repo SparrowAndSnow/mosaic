@@ -24,6 +24,7 @@ public fun Text(
 	maxLines: Int = Int.MAX_VALUE,
 	overflow: TextOverflow = TextOverflow.Clip,
 	textAlign: Alignment.Horizontal = Alignment.Start,
+	scroll: Int = 0,
 	color: Color = Color.Unspecified,
 	background: Color = Color.Unspecified,
 	textStyle: TextStyle = TextStyle.Unspecified,
@@ -44,6 +45,7 @@ public fun Text(
 				maxLines = maxLines,
 				overflow = overflow,
 				alignmentWidth = alignmentWidth,
+				scroll = scroll,
 			)
 			layout(layout.alignedBoxWidth(textAlign), layout.height)
 		},
@@ -65,6 +67,7 @@ public fun Text(
 	maxLines: Int = Int.MAX_VALUE,
 	overflow: TextOverflow = TextOverflow.Clip,
 	textAlign: Alignment.Horizontal = Alignment.Start,
+	scroll: Int = 0,
 	color: Color = Color.Unspecified,
 	background: Color = Color.Unspecified,
 	textStyle: TextStyle = TextStyle.Unspecified,
@@ -85,6 +88,7 @@ public fun Text(
 				maxLines = maxLines,
 				overflow = overflow,
 				alignmentWidth = alignmentWidth,
+				scroll = scroll,
 			)
 			layout(layout.alignedBoxWidth(textAlign), layout.height)
 		},

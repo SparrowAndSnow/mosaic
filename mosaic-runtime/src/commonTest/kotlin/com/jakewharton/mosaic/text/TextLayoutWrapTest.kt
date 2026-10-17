@@ -133,4 +133,57 @@ class TextLayoutWrapTest {
 		assertEquals(listOf("a", "b"), layout.lines)
 		assertEquals(2, layout.height)
 	}
+
+	@Test fun scrollShiftsViewWindow() {
+		val layout = StringTextLayout()
+		layout.value = "a\nb\nc\nd\ne"
+		layout.measure(maxLines = 2, scroll = 2)
+
+		assertEquals(listOf("c", "d"), layout.lines)
+		assertEquals(2, layout.height)
+	}
+
+	@Test fun scrollBeyondContentShowsRemainder() {
+		val layout = StringTextLayout()
+		layout.value = "a\nb\nc"
+		layout.measure(maxLines = 2, scroll = 4)
+
+		assertEquals(listOf("c"), layout.lines)
+		assertEquals(1, layout.height)
+	}
+
+	@Test fun scrollWithUnboundedMaxLinesShowsRemainder() {
+		val layout = StringTextLayout()
+		layout.value = "a\nb\nc\nd"
+		layout.measure(scroll = 2)
+
+		assertEquals(listOf("c", "d"), layout.lines)
+		assertEquals(2, layout.height)
+	}
+
+	@Test fun scrollWithEllipsisMarksFollowingContent() {
+		val layout = StringTextLayout()
+		layout.value = "a\nb\nc\nd\ne"
+		layout.measure(maxWidth = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, scroll = 2)
+
+		assertEquals(listOf("c", "d\u2026"), layout.lines)
+		assertEquals(2, layout.height)
+	}
+
+	@Test fun scrollCombinedWithWrapAndAlignmentData() {
+		val layout = StringTextLayout()
+		layout.value = "abcdef\nghijkl\nmnopqr\nstuvwx"
+		layout.measure(maxWidth = 3, alignmentWidth = 6, maxLines = 2, scroll = 1)
+
+		assertEquals(listOf("def", "ghi"), layout.lines)
+		assertEquals(6, layout.alignmentWidth)
+	}
+
+	@Test fun negativeScrollClampsToZero() {
+		val layout = StringTextLayout()
+		layout.value = "a\nb\nc"
+		layout.measure(maxLines = 2, scroll = -1)
+
+		assertEquals(listOf("a", "b"), layout.lines)
+	}
 }

@@ -51,6 +51,7 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 	private var lastMaxLines = Int.MAX_VALUE
 	private var lastOverflow = TextOverflow.Clip
 	private var lastAlignmentWidth = Int.MAX_VALUE
+	private var lastScroll = 0
 
 	/**
 	 * Recomputes the laid-out [lines] using at most [maxWidth] display columns per line. Clusters
@@ -65,21 +66,28 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 	 * truncates the last visible line in clusters and appends an ellipsis. Truncation never splits
 	 * a cluster. With an unbounded [maxWidth] there is no column budget to ellipsize into, so the
 	 * behavior degrades to clipping.
+	 *
+	 * [scroll] selects the first visible line of the laid-out content, shifting the view window
+	 * down by that many lines. At most [maxLines] lines are shown from there; when more content
+	 * follows below with [TextOverflow.Ellipsis], the last visible line carries the ellipsis.
 	 */
 	fun measure(
 		maxWidth: Int = Constraints.Infinity,
 		maxLines: Int = Int.MAX_VALUE,
 		overflow: TextOverflow = TextOverflow.Clip,
 		alignmentWidth: Int = Constraints.Infinity,
+		scroll: Int = 0,
 	) {
 		val effectiveMaxWidth = if (maxWidth == Constraints.Infinity) Int.MAX_VALUE else maxWidth
 		val effectiveMaxLines = maxLines.coerceAtLeast(1)
 		val effectiveAlignmentWidth = if (alignmentWidth == Constraints.Infinity) Int.MAX_VALUE else alignmentWidth
+		val effectiveScroll = scroll.coerceAtLeast(0)
 		if (!dirty &&
 			effectiveMaxWidth == lastMaxWidth &&
 			effectiveMaxLines == lastMaxLines &&
 			overflow == lastOverflow &&
-			effectiveAlignmentWidth == lastAlignmentWidth
+			effectiveAlignmentWidth == lastAlignmentWidth &&
+			effectiveScroll == lastScroll
 		) {
 			return
 		}
@@ -90,15 +98,24 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 			}
 		}
 
-		val result = if (wrappedLines.size <= effectiveMaxLines) {
-			wrappedLines
+		// Clamp to the last line when asked to scroll past the end so the view never goes blank;
+		// scrolling further cannot reveal content that does not exist.
+		val lastLine = (wrappedLines.size - 1).coerceAtLeast(0)
+		val visibleStart = effectiveScroll.coerceAtMost(lastLine)
+		val visibleCount = wrappedLines.size - visibleStart
+		val result = if (visibleCount <= effectiveMaxLines) {
+			if (visibleStart == 0) {
+				wrappedLines
+			} else {
+				wrappedLines.subList(visibleStart, wrappedLines.size)
+			}
 		} else {
 			when (overflow) {
-				TextOverflow.Clip -> wrappedLines.take(effectiveMaxLines)
+				TextOverflow.Clip -> wrappedLines.subList(visibleStart, visibleStart + effectiveMaxLines)
 				TextOverflow.Ellipsis -> {
 					val kept = ArrayList<T>(effectiveMaxLines)
-					kept.addAll(wrappedLines.subList(0, effectiveMaxLines - 1))
-					val last = wrappedLines[effectiveMaxLines - 1]
+					kept.addAll(wrappedLines.subList(visibleStart, visibleStart + effectiveMaxLines - 1))
+					val last = wrappedLines[visibleStart + effectiveMaxLines - 1]
 					kept.add(
 						if (effectiveMaxWidth == Int.MAX_VALUE) {
 							last
@@ -111,7 +128,7 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 			}
 		}
 
-		width = result.maxOf { it.textWidth() }
+		width = result.maxOfOrNull { it.textWidth() } ?: 0
 		height = result.size
 		lines = result
 		lastMaxWidth = effectiveMaxWidth
@@ -119,6 +136,7 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 		lastOverflow = overflow
 		this.alignmentWidth = effectiveAlignmentWidth
 		lastAlignmentWidth = effectiveAlignmentWidth
+		lastScroll = effectiveScroll
 		dirty = false
 	}
 
