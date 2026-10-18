@@ -177,7 +177,7 @@
 
 > 决策（2026-10-17，`refactor` 分支）：这些是**最外层的组合组件**，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；当前阶段**只登记不实现**。优先级统一排在内部重构之后，具体顺序待内部核心完成后重排。实现原则：先实现 + 单元测试 + 用户确认，再归档。
 
-- [ ] **滚动容器（最大布局缺口）**：`verticalScroll` / `horizontalScroll` + `rememberScrollState`，与 `Text.scroll`（L4.4）复用查看窗口/裁剪逻辑，但抽象为通用滚动容器供任意内容使用。
+- [x] **滚动容器（最大布局缺口）** ✅（L7.15，`ac3e7572`）：`ScrollState`（`value`/`maxValue` 快照态 + `scrollBy`/`scrollTo` clamp + `rememberScrollState`）+ `verticalScroll`/`horizontalScroll`（滚动轴无界测量、视口=约束、内容位移取负，clip 在外 offset 在内）+ `clipToBounds()` + 画布裁剪矩形；顺带修复绘制三处（簇裁剪后续列卡死 / `maxValue` 快照可观察 / 格子首写重置消除背景残留），滚轮内建（一格 3 行）；showcase 第 6 页演示三类容器；要点见 progress §5。
 - [ ] **惰性列表**：`LazyColumn` / `LazyRow`（仅组合可视区子项）；依赖滚动容器与稳定的 item key，作为滚动容器之后的自然延伸。
 - [ ] **输入控件**：可编辑单行输入（`BasicTextField` 等价物，含光标/IME），依赖 L5 输入（鼠标/粘贴/键盘编辑语义）落地。
 - [ ] **鼠标交互**：`clickable` / `hoverable`（鼠标事件当前**已解析但未消费**，见 todo §8），依赖 L5 把事件接到平台回调。

@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.14（`f1c580cf`）· 创建：2026-10-17 · 更新：2026-10-18
+> 分支：`refactor` · 当前 HEAD：L7.15（`ac3e7572`）· 创建：2026-10-17 · 更新：2026-10-18
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -84,9 +84,20 @@
 | L7 | L7.12 | ISO 控制字符净化为「非打印」：C0（0x00-0x1F）/DEL（0x7F）/C1（0x80-0x9F）一律 0 列、不绘图、不进 ANSI 流（原为 1 列 + 原样发出，真实终端把 CR/BS/TAB/ESC 当控制序列打乱整帧）；`charWidth`/`graphemeClusterWidth` 返回 0（测/绘唯一口径），ASCII 快路径排除 tab，簇写入器跳过 0 宽簇；`\n` 仍是行分隔符 | `3390599c` | `IsoControlRenderingTest`（7：TAB/CR/BS/ESC/C1-NEL 净化为纯内容 / CRLF 与 `\n` 分行保持 / 纯控制行空）+ `GraphemeWidthTest` 增 controlCharactersOccupyZeroColumns（1 条）；runtime jvmTest 615 / linuxX64Test 613 全绿 | ✅ 已归档 |
 | L7 | L7.13 | `Modifier.onGloballyPositioned { position, size -> }`（放置回调）：节点放置完成后报告根坐标（屏幕）左上角 + 尺寸——父级不参与、透传 LayoutModifier 不占空间不改测量，仅位置/尺寸变化时触发（未移动不以帧频重复回调） | `a3f7cc6c` | `OnGloballyPositionedTest`（5：嵌套 padding 报 (3,5)+尺寸 / Row 兄弟累加报 (7,0) / offset 移动二次触发 / 宽度变化二次触发 / 20 动画帧未移动仅报 1 次）；runtime jvmTest 620 / linuxX64Test 618 全绿 | ✅ 已归档 |
 | L7 | L7.14 | 能力探测 1s 超时降级可观测：无法响应终端不再静默——`withTimeoutOrNull` 捕获结果，超时即向 stderr 打英文提示（含卡住阶段 DA1/能力/默认查询），开 `MOSAIC_TTY_TERMINAL_DEBUG=true` 追加已确认能力清单；指标文本抽成 internal 纯函数；新增 expect/actual `stderrPrint`（JVM `System.err` flush / native posix `STDERR_FILENO`，与 L7.8 非交互提示同构） | `f1c580cf` | `TtyTerminalBootstrapTimeoutNoticeTest`（4：默认文案/调试清单/空清单/未知阶段）+ `TtyTerminalTimeoutNoticeJvmTest`（1：真实无回复终端 1s 超时 + stderr 重定向断言）；tty-terminal jvmTest 259 / linuxX64Test 258 全绿，apiCheck 通过 | ✅ 已归档 |
+| L7 | L7.15 | 通用滚动容器（最大布局缺口）：`ScrollState`（`value`/`maxValue` 快照态、`scrollBy`/`scrollTo` clamp、`rememberScrollState`）、`verticalScroll`/`horizontalScroll`（滚动轴无界测量 + 视口=约束 + 内容位移取负，clip 在外 offset 在内）、`clipToBounds()` + 画布裁剪矩形（逐层与外层 clip 求交）；顺带修复三处绘制问题（簇被裁后列游标不前进→整行空白 / `maxValue` 快照可观察 / 格子帧内首写重置→跨页背景残留）；滚轮内建（一格 3 行，方向镜像方向键）；showcase 新增第 6 页演示三类容器（纵向列表/横向长行/混合色块）+ 实时 `value/maxValue` + 滚动条 | `ac3e7572` | `ScrollStateTest`（4）+ `ScrollRenderingTest`（6 含滚轮）+ `ClipToBoundsTest`（4）+ `CellStyleResetTest`（1）；runtime jvmTest 635 / linuxX64Test 633，showcase jvm/native 各 4，apiCheck 通过 | ✅ 已归档 |
 
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
+
+### L7.15 通用滚动容器 + 裁剪（`ac3e7572`）
+- **定位**：`Text.scroll`（L4.4）只动 Text 的查看窗口；本次把「滚动 + 裁剪 + 状态」抽象成通用 `LayoutModifier`，任意内容（列表 / 单行 / 带背景块）都能放进有界视口滚动。
+- **状态（`layout/Scroll.kt`）**：`ScrollState.value` 与 `maxValue` 均为 `mutableIntStateOf` 快照态（setter internal）；`maxValue` 每次 measure 由滚动 modifier 计算写回（内容尺寸 − 视口，clamp≥0），UI（状态行 / 滚动条）上帧即可刷新，无需等 value 变化；`scrollBy`/`scrollTo` 双端 clamp，`scrollBy` 返回实际消费量（到边界时小于 delta）。
+- **滚动布局**：`verticalScroll`/`horizontalScroll` 链上 `ClipToBoundsElement`（外）+ `ScrollingLayoutModifier`（内）；滚动轴方向用 `Infinity` 测内容取自然尺寸，视口取父约束有界值（父无界则视口=内容、无可滚）；返回 `layout(视口){ content.place(-scroll, 0) }`。
+- **裁剪**：`clipToBounds()` 是纯 DrawModifier；`Node.kt` `DrawLayer` 对 ClipToBoundsElement 安装画布裁剪矩形（用本层 x/y/width/height 与外层 clip 求交）并在绘制尾部恢复；`surface.kt` 增加 `clipActive/clipLeft/clipTop/clipRight/clipBottom`（非 clip 单布尔分支）；`DrawScope` 簇写入 / 实心矩形前加 clip 守卫（整簇可见才写，续列一并）。
+- **绘制修复（新路径逼出的三个真 bug）**：① 簇写入器只在「实际绘制」时推进列游标——一旦某簇被裁剪跳过，后续簇全部卡同一列、整行空白；改判可见性、始终 `characterColumn += w`，整簇落入 canvas+clip 才写。② `maxValue` 由普通字段改快照态（见上）。③ `TextSurface` 格子跨帧复用：`updateTextPixel` 仅覆盖「已指定」字段 → 无背景文本继承上一帧背景色（切页残留）；改为帧内**首次写入重置空白**（同帧后续绘制仍叠加，保住「父填充 + 子文字」层叠语义）。
+- **鼠标**：`ScrollWheelMouseModifier` 挂在滚动容器上，`Press` 型 `WheelUp/WheelDown` → `scrollBy(±3)`，方向镜像方向键；命中走既有「先子后父」分发，子项不消费时容器滚；到边界仍消费（与常规做法一致）。
+- **showcase**：第 6 页 Scroll——三类容器 + 三种快捷键分工（第 1 段 `↑/↓`、第 2 段 `[`/`]`、第 3 段 `PageUp/PageDown`）+ 滚轮；每段状态行实时 `value/maxValue` + `█·` 滚动条。注意页高：滚动页按 ~16 行排布，过矮终端第 3 段会溢出，属 showcase 页面的已知布局约束。
+- **todo 勾销**：§15「滚动容器（最大布局缺口）」；下一候选即 §15「惰性列表」。
 
 ### L7.14 能力探测超时降级可观测（`f1c580cf`）
 - **背景**：1s bootstrap 预算（`withTimeoutOrNull`）早已有，但无响应终端降级**全程静默**——扩展能力静默关闭、界面照常运行，用户误以为一切正常或把它当 bug 排查。
