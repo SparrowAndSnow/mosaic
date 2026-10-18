@@ -261,6 +261,10 @@ public final class com/jakewharton/mosaic/layout/OffsetKt {
 	public static synthetic fun offset$default (Lcom/jakewharton/mosaic/modifier/Modifier;IIILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
 }
 
+public final class com/jakewharton/mosaic/layout/OnGloballyPositionedKt {
+	public static final fun onGloballyPositioned (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function2;)Lcom/jakewharton/mosaic/modifier/Modifier;
+}
+
 public final class com/jakewharton/mosaic/layout/PaddingKt {
 	public static final fun padding (Lcom/jakewharton/mosaic/modifier/Modifier;I)Lcom/jakewharton/mosaic/modifier/Modifier;
 	public static final fun padding (Lcom/jakewharton/mosaic/modifier/Modifier;II)Lcom/jakewharton/mosaic/modifier/Modifier;
