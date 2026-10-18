@@ -29,7 +29,7 @@ class AnsiIncrementalRenderingTest {
 				|Hello
 				|World!
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -47,7 +47,7 @@ class AnsiIncrementalRenderingTest {
 				|Hello
 				|World!
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -75,7 +75,7 @@ class AnsiIncrementalRenderingTest {
 				|ABCDEFGHIJ
 				|KLMNOPQRST
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -99,7 +99,7 @@ class AnsiIncrementalRenderingTest {
 				"""
 				|abcdefghij
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -121,7 +121,7 @@ class AnsiIncrementalRenderingTest {
 				"""
 				|AAAAA
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -149,7 +149,7 @@ class AnsiIncrementalRenderingTest {
 				|Two
 				|Three
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -178,7 +178,7 @@ class AnsiIncrementalRenderingTest {
 				|OneTwoThree
 				|AAAAAAAAAAA
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -202,7 +202,7 @@ class AnsiIncrementalRenderingTest {
 				"""
 				|AAAAA中BBBB
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -223,7 +223,7 @@ class AnsiIncrementalRenderingTest {
 				"""
 				|AAAAA中BBBB
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -245,7 +245,7 @@ class AnsiIncrementalRenderingTest {
 				"""
 				|中B
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -270,7 +270,7 @@ class AnsiIncrementalRenderingTest {
 				|Hello
 				|World!
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -288,7 +288,7 @@ class AnsiIncrementalRenderingTest {
 				|Wor
 				|ld!
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -310,7 +310,7 @@ class AnsiIncrementalRenderingTest {
 				|Wor
 				|ld!
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -326,7 +326,7 @@ class AnsiIncrementalRenderingTest {
 				|${clearLine}
 				|${clearLine}
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -344,7 +344,7 @@ class AnsiIncrementalRenderingTest {
 				|One
 				|Two
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -358,7 +358,7 @@ class AnsiIncrementalRenderingTest {
 				|${cursorUp(1)}${clearLine}Three
 				|Four
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -380,7 +380,7 @@ class AnsiIncrementalRenderingTest {
 				|A
 				|B
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -394,7 +394,7 @@ class AnsiIncrementalRenderingTest {
 				|${cursorUp(2)}${clearLine}S
 				|${clearLine}A
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -414,7 +414,7 @@ class AnsiIncrementalRenderingTest {
 				|B
 				|C
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -432,7 +432,7 @@ class AnsiIncrementalRenderingTest {
 				|${clearLine}Two
 				|${clearLine}X
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -454,7 +454,7 @@ class AnsiIncrementalRenderingTest {
 				|C
 				|D
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {
@@ -470,7 +470,7 @@ class AnsiIncrementalRenderingTest {
 				|${clearLine}
 				|${clearLine}
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -489,7 +489,7 @@ class AnsiIncrementalRenderingTest {
 				|Hello
 				|World!
 				|
-				""".trimMargin().replaceLineEndingsWithCRLF().wrapWithAnsiCursorHideShow(),
+				""".trimMargin().dropLast(1).replaceLineEndingsWithCRLF().wrapWithAnsiCursorHideShow(),
 			)
 
 			// An unchanged frame draws nothing, so no hide/show is needed and none is emitted.
@@ -513,7 +513,7 @@ class AnsiIncrementalRenderingTest {
 				"""
 				|ABCDEFGHIJ
 				|
-				""".trimMargin().replaceLineEndingsWithCRLF().wrapWithAnsiCursorHideShow(),
+				""".trimMargin().dropLast(1).replaceLineEndingsWithCRLF().wrapWithAnsiCursorHideShow(),
 			)
 
 			setContent {
@@ -537,7 +537,7 @@ class AnsiIncrementalRenderingTest {
 				"""
 				|Hi
 				|
-				""".trimMargin().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).replaceLineEndingsWithCRLF(),
 			)
 
 			setContent {

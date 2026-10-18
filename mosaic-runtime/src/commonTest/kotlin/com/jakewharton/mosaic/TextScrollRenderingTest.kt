@@ -25,7 +25,7 @@ class TextScrollRenderingTest {
 				|c
 				|d
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -40,7 +40,7 @@ class TextScrollRenderingTest {
 				"""
 				|c
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -63,7 +63,7 @@ class TextScrollRenderingTest {
 				|c
 				|d…
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}

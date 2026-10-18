@@ -26,7 +26,7 @@ class TextWrapRenderingTest {
 				|中B
 				|中C
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -41,7 +41,7 @@ class TextWrapRenderingTest {
 				"""
 				|中A中B中C
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -57,7 +57,7 @@ class TextWrapRenderingTest {
 				|中A
 				|中B
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}
@@ -73,7 +73,7 @@ class TextWrapRenderingTest {
 				|中A
 				|中B…
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 		}
 	}

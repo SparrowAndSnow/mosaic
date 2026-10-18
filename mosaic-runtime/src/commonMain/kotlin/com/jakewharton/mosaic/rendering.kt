@@ -132,9 +132,14 @@ internal class AnsiIncrementalRendering(
 					append(static)
 					append("\r\n")
 				}
+				// Rows are CRLF-separated but never CRLF-terminated: a trailing newline after the
+				// last row scrolls the terminal up a line, desyncing every later absolute-positioned
+				// diff (stale rows, doubled headers, orphaned tab bars).
 				for (row in 0 until height) {
+					if (row > 0) {
+						append("\r\n")
+					}
 					surface.appendRowTo(this, row, capabilities.ansiLevel, capabilities.kittyUnderline)
-					append("\r\n")
 				}
 			} else if (sizeChanged || staticChanged || static != null) {
 				// A layout or static change (or any static text at all, since mixing static and
@@ -142,6 +147,7 @@ internal class AnsiIncrementalRendering(
 				// previous dynamic area from its top, moving relative to the current cursor
 				// because printed static output may have scrolled the screen between frames.
 				var rowsReplaced = 0
+				var rowsEmitted = 0
 				if (prevHeight > 0) {
 					append(CSI)
 					append(prevHeight)
@@ -150,28 +156,38 @@ internal class AnsiIncrementalRendering(
 				static?.let { staticText ->
 					// Clear each line the static text occupies before rewriting it, charging it
 					// against the old rows being replaced so shorter content never leaves residue.
+					// These lines are CRLF-separated but never CRLF-terminated (see first frame).
 					staticText.lineSequence().forEach { staticLine ->
+						if (rowsEmitted > 0) {
+							append("\r\n")
+						}
 						if (rowsReplaced < prevHeight) {
 							append(clearLine)
 							rowsReplaced++
 						}
 						append(staticLine.trimEnd('\r'))
-						append("\r\n")
+						rowsEmitted++
 					}
 				}
 				for (row in 0 until height) {
+					if (rowsEmitted > 0) {
+						append("\r\n")
+					}
 					if (rowsReplaced < prevHeight) {
 						append(clearLine)
 						rowsReplaced++
 					}
 					surface.appendRowTo(this, row, capabilities.ansiLevel, capabilities.kittyUnderline)
-					append("\r\n")
+					rowsEmitted++
 				}
 				// Clear any leftover old rows below the redrawn block line by line instead of
 				// erasing the whole display, so unrelated content off-screen stays intact.
 				while (rowsReplaced < prevHeight) {
+					if (rowsEmitted > 0) {
+						append("\r\n")
+					}
 					append(clearLine)
-					append("\r\n")
+					rowsEmitted++
 					rowsReplaced++
 				}
 			} else {

@@ -198,11 +198,13 @@ internal class BoxWithConstraintsMeasurePolicy(
 		state.version.intValue
 
 		state.refreshComposition(constraints, compositionContext)
-		// The sub-composition root is a structural container; its composed children are measured
-		// directly so (as with [Box]) matchParentSize children match this layout's own size and
-		// alignment is applied here.
-		val children: List<Measurable> = state.subRoot?.children ?: emptyList()
-		if (children.isEmpty()) {
+		// The sub-composition root is a structural container. Give it a size even though its own
+		// children are measured and placed individually below: the draw walk skips any child whose
+		// width or height is zero, so a 0x0 container would stop this whole subtree from painting.
+		// The container's own box measure is discarded; alignment and matchParentSize are applied
+		// here so they measure against this layout's size, not the container's content size.
+		val subRoot = state.subRoot ?: return layout(constraints.minWidth, constraints.minHeight) {}
+		if (subRoot.children.isEmpty()) {
 			return layout(constraints.minWidth, constraints.minHeight) {}
 		}
 		val contentConstraints = if (propagateMinConstraints) {
@@ -210,6 +212,9 @@ internal class BoxWithConstraintsMeasurePolicy(
 		} else {
 			constraints.copy(minWidth = 0, minHeight = 0)
 		}
+		@Suppress("UNUSED_EXPRESSION")
+		subRoot.measure(contentConstraints)
+		val children: List<Measurable> = subRoot.children
 		val placeables = arrayOfNulls<Placeable>(children.size)
 		var boxWidth = constraints.minWidth
 		var boxHeight = constraints.minHeight

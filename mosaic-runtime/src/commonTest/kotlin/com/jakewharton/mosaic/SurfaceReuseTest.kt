@@ -65,7 +65,7 @@ class SurfaceReuseTest {
 				|Alpha
 				|footer
 				|
-				""".trimMargin().wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
+				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
 		// Shrink the first row to nothing on the reused surface, then diff against the previous

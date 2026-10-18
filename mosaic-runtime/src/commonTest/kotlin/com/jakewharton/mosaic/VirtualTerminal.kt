@@ -89,7 +89,10 @@ internal class VirtualTerminal(
 			'B' -> cursorRow = (cursorRow + values.getOrElse(0) { 1 }).coerceAtMost(rows - 1)
 			'C' -> cursorColumn = (cursorColumn + values.getOrElse(0) { 1 }).coerceAtMost(columns - 1)
 			'D' -> cursorColumn = (cursorColumn - values.getOrElse(0) { 1 }).coerceAtLeast(0)
-			'F' -> cursorRow = (cursorRow - values.getOrElse(0) { 1 }).coerceAtLeast(0) // CPL
+			'F' -> { // CPL: previous line, back to the first column like the real terminal does
+				cursorRow = (cursorRow - values.getOrElse(0) { 1 }).coerceAtLeast(0)
+				cursorColumn = 0
+			}
 			'E' -> { // CNL
 				cursorRow = (cursorRow + values.getOrElse(0) { 1 }).coerceAtMost(rows - 1)
 				cursorColumn = 0

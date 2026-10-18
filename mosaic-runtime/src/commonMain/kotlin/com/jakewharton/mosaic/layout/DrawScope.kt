@@ -223,10 +223,14 @@ internal open class TextCanvasDrawScope(
 		topLeft: IntOffset,
 		size: IntSize,
 	) {
-		val xStart = topLeft.x.coerceAtLeast(0)
-		val xEnd = (topLeft.x + size.width).coerceAtMost(width)
-		val yStart = topLeft.y.coerceAtLeast(0)
-		val yEnd = (topLeft.y + size.height).coerceAtMost(height)
+		// The scope's own bounds may sit off the screen canvas (a fixed-size parent with content
+		// overhanging it), so clip in local coordinates against the canvas edges, translated back
+		// from this node's placement, exactly as drawText's cluster writer does. Clamping to the
+		// scope size alone still faults once the node is placed past the canvas boundary.
+		val xStart = topLeft.x.coerceAtLeast(-canvas.translationX).coerceAtLeast(0)
+		val xEnd = (topLeft.x + size.width).coerceAtMost(canvas.width - canvas.translationX).coerceAtMost(width)
+		val yStart = topLeft.y.coerceAtLeast(-canvas.translationY).coerceAtLeast(0)
+		val yEnd = (topLeft.y + size.height).coerceAtMost(canvas.height - canvas.translationY).coerceAtMost(height)
 		for (y in yStart until yEnd) {
 			for (x in xStart until xEnd) {
 				drawTextPixel(x, y, text, foreground, background, textStyle)
@@ -304,6 +308,19 @@ internal open class TextCanvasDrawScope(
 			// layout and drawing can never disagree about where a cluster starts or how wide it is.
 			val w = clusterWidth
 
+			// The scope's own [width]/[height] are this node's bounds, but the underlying canvas is
+			// the whole screen translated by this node's placement. A cluster that lands outside the
+			// canvas (content overhanging a fixed-size layout) must be skipped, not written: the
+			// surface getter is strict. Continuation cells past the right edge are guarded below.
+			val canvasWidth = canvas.width
+			val canvasHeight = canvas.height
+			val canvasRow = canvas.translationY + row
+			val canvasColumn = canvas.translationX + characterColumn
+			if (canvasRow >= canvasHeight || canvasColumn >= canvasWidth) return
+
+			// The surface getter expects this scope's own (local) coordinates and applies the node
+			// placement translation itself, so write with [row]/[characterColumn], not the absolute
+			// positions computed for the bounds check above.
 			val character = canvas[row, characterColumn]
 			character.updateTextPixel(text, clusterStart, clusterEnd, w, foreground, background, textStyle, underlineStyle, underlineColor)
 			spanStylesProvider?.invoke(clusterStart, clusterEnd)?.forEach {
@@ -313,9 +330,9 @@ internal open class TextCanvasDrawScope(
 			// Mark continuation cells for wide clusters (e.g. CJK, fullwidth emoji)
 			if (w > 1) {
 				for (offset in 1 until w) {
-					val continuationCol = characterColumn + offset
-					if (continuationCol < width) {
-						canvas[row, continuationCol].markAsContinuation()
+					val continuationCol = canvasColumn + offset
+					if (continuationCol < canvasWidth) {
+						canvas[row, characterColumn + offset].markAsContinuation()
 					}
 				}
 			}

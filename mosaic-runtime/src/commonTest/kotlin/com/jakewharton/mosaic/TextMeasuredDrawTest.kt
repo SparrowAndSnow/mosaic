@@ -115,4 +115,21 @@ class TextMeasuredDrawTest {
 			i++
 		}
 	}
+
+	@Test fun streamedTextWiderThanCanvasClipsAtRightEdge() {
+		val canvas = TextSurface(4, 1)
+		val scope = TextCanvasDrawScope(canvas, 4, 1)
+		scope.drawText(0, 0, "中中中")
+		val cells = (0 until 4).map { canvas[0, it].text }
+		assertEquals(listOf("中", "", "中", ""), cells, "right edge clip keeps in-bounds heads only")
+	}
+
+	@Test fun streamedTextBelowCanvasClipsAtBottom() {
+		val canvas = TextSurface(4, 1)
+		val scope = TextCanvasDrawScope(canvas, 4, 1)
+		scope.drawText(1, 0, "abc")
+		val cells = (0 until 4).map { canvas[0, it].text }
+		assertEquals(listOf(" ", " ", " ", " "), cells, "off-canvas row writes nothing")
+	}
+
 }
