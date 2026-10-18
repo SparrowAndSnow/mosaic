@@ -78,7 +78,16 @@
 | L7 | L7.6 | awaitComplete 语义明确化：run-until-idle 收尾（效果全结束 + 欠下的 layout/draw 显式驱动一帧并 join 后 close）+ `cancel()` 必释放等待者；`setContent` 二次调用替换内容并取消旧 effect；TODO 注释替换为结论 | `00ebdb43` | `LifecycleSemanticsTest`（3 条：无限 effect 保活至 cancel 释放 / 静态自然返回 / 二次 setContent 取消旧 effect）；双平台全绿 | ✅ 已归档 |
 | L7 | L7.7 | `TextLayoutWidthTest`「测量与绘制一致」：按测量 `LineMeasure` 逐列对拍绘制结果（簇头列文本 / 宽簇 placeholder 续列 / 右沿 == totalWidth / `layout.width` == 最宽行）；覆盖 ascii/cjk/ZWJ/flags/keycap/VS16/内嵌空格/softWrap/Clip/Ellipsis/scroll/Annotated | `f51e04ee` | `TextLayoutWidthTest` 14 条（原 7 + 新 7）；双平台全绿 | ✅ 已归档 |
 | L7 | L7.8 | 非交互能力提示：`withTerminal` 落到 `NonInteractiveTerminal`（`Ignore` 绑定失败 / `AssumeAndIgnore`）时先向 stderr 打 `NonInteractiveNotice`（JVM `System.err` / native posix `STDERR_FILENO`），能力降级不再静默 | `91c6d23b` | `NonInteractiveTest`（commonTest 2 条：AssumeAndIgnore 分派 + 惰性终端能力清单）+ `NonInteractiveNoticeTest`（jvmTest 1 条：stderr 捕获）；双平台全绿 | ✅ 已归档 |
+| L7 | L7.9 | 快照体系扩展：`mosaic-testing` 增加 `CapabilityMatrix.defaults`（ansiLevel × kittyUnderline × synchronizedOutput × graphemeClustering 的 7 组代表性组合）+ `runMosaicTestForEach`（每组新 mosaic 跑同一断言）；`TestMosaic` 补齐 `sendFocusEvent`（→ 生命周期 ON_PAUSE/ON_RESUME） | `c2e51cad` | `CapabilityMatrixTest`（布局跨矩阵稳定，commonTest）+ `FocusEventTest`（焦点驱动 RESUMED/STARTED，commonTest）；mosaic-testing + mosaic-runtime 双平台全绿 | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
+
+### L7.9 快照体系扩展（能力矩阵 + 焦点注入）（`c2e51cad`）
+- **能力矩阵**（`mosaic-testing/CapabilityMatrix.kt`）：`CapabilityMatrix.defaults` 7 组代表性组合——全能力 / 关 2027 / 关 kitty underline / 关 synchronized output / ANSI16 / ANSI256 / 全关（NONE）；`runMosaicTestForEach(capabilities, block)` 每组用全新 `RealTestMosaic` 跑同一 `TestMosaic<String>` 断言并透传该组能力。
+- **事件注入补齐**：`TestMosaic.sendFocusEvent(focused)` 写 `TestTerminal.state.focused`，走 runtime 的 `terminalState` collector → `LifecycleRegistry` ON_PAUSE/ON_RESUME（与真实终端焦点事件一致）。鼠标/粘贴/剪贴板注入此前已有。
+- **测试**（mosaic-testing commonTest，双平台）：
+  - `CapabilityMatrixTest`：同一内容（CJK/combining/emoji/ASCII/多行）在矩阵全部组合下纯文本快照一致（能力开关不破坏布局），并断言全部组合均实际执行。
+  - `FocusEventTest`：`sendFocusEvent(false/true)` 使组合生命周期 `RESUMED → STARTED → RESUMED`。
+- **todo 勾销**：§13「P2 快照体系扩展」（能力矩阵 + 事件流注入）。
 
 ### L7.8 非交互能力提示（`91c6d23b`）
 - **背景**：`Ignore`（绑定失败）与 `AssumeAndIgnore`（跳过检测）都会用惰性 `NonInteractiveTerminal` 继续跑——无颜色/输入/扩展能力，但此前**静默**，用户易误以为正常。

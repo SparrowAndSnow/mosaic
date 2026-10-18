@@ -157,7 +157,7 @@
 ## 13. 测试 / 质量
 - [x] **P1 宽字符渲染级回归** ✅（L3.4，`76b8d301`）：`CellDiffRenderingTest` 补齐 ZWJ / keycap / 宽→窄覆盖清理 / 窄→宽强制宽 / 相邻宽簇 / 右缘 / resize 的**端到端屏幕态断言**（经 `VirtualTerminal` 重放）。剩余：不确定宽（VS16 结尾）在真实终端与预测口径分叉的探测与挂接（归 L6 DEC 2027）。
 - [x] **P1 `TextLayoutWidthTest`** ✅（L7.7，`f51e04ee`）：增加「测量与绘制一致」逐列对拍断言——按测量 `LineMeasure` 逐列核对绘制（簇头列文本 / 宽簇 placeholder 续列 / 右沿 == totalWidth / `layout.width` == 最宽行），覆盖 ascii/cjk/ZWJ/flags/keycap/VS16/内嵌空格/softWrap/Clip/Ellipsis/scroll/Annotated。
-- [ ] **P2 快照体系扩展**：`mosaic-testing` 增加能力矩阵（ansiLevel × kittyUnderline × synchronizedOutput × 2027）；`TestTerminal` 支持注入鼠标/粘贴/焦点事件流。
+- [x] **P2 快照体系扩展** ✅（L7.9，`c2e51cad`）：`mosaic-testing` 增加 `CapabilityMatrix`（ansiLevel × kittyUnderline × synchronizedOutput × 2027 代表性组合）+ `runMosaicTestForEach`；`TestMosaic` 补齐焦点事件注入（`sendFocusEvent` → 生命周期 ON_PAUSE/ON_RESUME）。
 - [x] **P2 性能基准** ✅（L7.1）：`samples/bench`（commonMain 单一驱动）对 render 单行 delta / 全量重建 / layout-pass / EventParser 建模，JVM+native 对照（见 `docs/benchmarks.md`）。
 - [ ] **P3 端到端 golden**：在真终端（script/pty）跑样例快照（Ratatui 有 golden/视觉测试体系，BubbleTea 有 examples 快照）。
 
