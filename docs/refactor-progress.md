@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.12（`3390599c`）· 创建：2026-10-17 · 更新：2026-10-18
+> 分支：`refactor` · 当前 HEAD：L7.13（`a3f7cc6c`）· 创建：2026-10-17 · 更新：2026-10-18
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -82,8 +82,17 @@
 | L7 | L7.10 | 真实终端渲染回归：全量重绘帧末尾不再带尾随 `\r\n`（真实终端末行收到换行=整屏上滚一行 → 后续所有绝对坐标 diff 错位 → 双 tabBar / 上一页残留；内存 `VirtualTerminal` 不模拟滚动故测不出）→ 行间 CRLF、末行不终止；`VirtualTerminal` 补 `CSI F` 回列 0；`BoxWithConstraints` 子组合根 0×0 容器被绘制遍历跳过（Layout 页第 4 节整段空白）→ 补一次真实 measure（结果丢弃，matchParentSize/align 语义不变）；顺带归档早期 paint 越界裁剪（越出屏幕改为裁剪而非抛错） | `ea2fd122` | `FullRedrawNoScrollTest`（2：帧永不带行终止 / Unicode→Input 切页无残留且 tabBar 单行）+ `BoxWithConstraintsRenderingTest`（1/2 1/3 余量渲染）+ `UnicodeScreenReproTest` + `OffsetTest`（越界改裁剪）+ `TextMeasuredDrawTest` +2；runtime jvmTest 607 全绿 | ✅ 已归档 |
 | L7 | L7.11 | showcase 演示样本（仅公共 API，`samples/showcase`）：Unicode/Text/Layout/Input/Animation 五页 + 页头/可点击 tab 外壳；Text 页新增第 5 节字符串截断示例（`maxLines=2` + `softWrap` 定宽，`Clip` 硬切 vs `Ellipsis` 省略号、两种宽度对比，中英混排不拆字素簇） | `371a2b01` | `ShowcaseTest` 3 条（Unicode 宽字/emoji 内容 / Text 对齐+滚动 / 截断省略号渲染）；showcase jvmTest 全绿 | ✅ 已归档 |
 | L7 | L7.12 | ISO 控制字符净化为「非打印」：C0（0x00-0x1F）/DEL（0x7F）/C1（0x80-0x9F）一律 0 列、不绘图、不进 ANSI 流（原为 1 列 + 原样发出，真实终端把 CR/BS/TAB/ESC 当控制序列打乱整帧）；`charWidth`/`graphemeClusterWidth` 返回 0（测/绘唯一口径），ASCII 快路径排除 tab，簇写入器跳过 0 宽簇；`\n` 仍是行分隔符 | `3390599c` | `IsoControlRenderingTest`（7：TAB/CR/BS/ESC/C1-NEL 净化为纯内容 / CRLF 与 `\n` 分行保持 / 纯控制行空）+ `GraphemeWidthTest` 增 controlCharactersOccupyZeroColumns（1 条）；runtime jvmTest 615 / linuxX64Test 613 全绿 | ✅ 已归档 |
+| L7 | L7.13 | `Modifier.onGloballyPositioned { position, size -> }`（放置回调）：节点放置完成后报告根坐标（屏幕）左上角 + 尺寸——父级不参与、透传 LayoutModifier 不占空间不改测量，仅位置/尺寸变化时触发（未移动不以帧频重复回调） | `a3f7cc6c` | `OnGloballyPositionedTest`（5：嵌套 padding 报 (3,5)+尺寸 / Row 兄弟累加报 (7,0) / offset 移动二次触发 / 宽度变化二次触发 / 20 动画帧未移动仅报 1 次）；runtime jvmTest 620 / linuxX64Test 618 全绿 | ✅ 已归档 |
+
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
+
+### L7.13 `Modifier.onGloballyPositioned` 放置回调（`a3f7cc6c`）
+- **定位**：把布局"反向读取结果"——普通节点只被父级摆放、不知道自己的绝对坐标；该 modifier 在放置完成后回调**根坐标系（屏幕）左上角 + 尺寸**，用于锚定弹出层/菜单、定位光标、判断越界与裁剪决策等，不参与也不改变布局。
+- **实现（`layout/OnGloballyPositioned.kt`）**：透传 `LayoutModifier`（`measurable.measure(constraints)` 原样 + `layout(w,h){...}`），placementBlock 里 `x/y` 即全局坐标（放置级联自顶向下，结束时已累加全部祖先偏移）；用字段比较上次 (x,y,w,h)，**仅变化时触发**，未移动布局不会每帧重复回调。
+- **closure of §5「P2 Modifier 缺口」**：`widthIn/heightIn/sizeIn`、`requiredWidth/Height/Size(+In)`、`fillMax*`、`wrapContent*`、`defaultMinSize` 等便捷约束早已齐备（`layout/Size.kt`），真实缺口仅 `onGloballyPositioned`——本次补上后该条勾销；§15「定位回调」亦随之闭环。
+- **测试**：`OnGloballyPositionedTest`（5 条）——嵌套 padding 报 (3,5)+(4,6)、Row 7 宽兄弟后报 (7,0)、`offset` 移动二次触发、宽度变化二次触发、真实组合循环 20 动画帧持续重绘但未移动节点仅报 1 次。`apiDump` 同步 `.api` 声明，`apiCheck` 通过。
+- **todo 勾销**：§5「P2 Modifier 缺口」、§15「定位回调」。
 
 ### L7.12 ISO 控制字符净化（`3390599c`）
 - **背景**：`Text("A\tB")` 等含控制符的字符串此前被 `charWidth`/快路径量成 1 列并**原样发出**——真实终端把 `\r` 当回车回行首、`\b` 当退格、`\t` 当跳格、`\u001B` 当转义等，会直接打乱当前行的游标/布局（与测量宽度不一致）。

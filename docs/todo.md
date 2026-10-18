@@ -89,7 +89,7 @@
 - [x] **P2 约束扩展（比例布局）** ✅（方向见台账 L4.5 调研、实现 L4.6 `d2780c1a`）：比例/百分比**不新增自造 modifier**，遵循 Compose 语法——等分/占剩余用 `weight`（已有）、占父级可用比例用 `fillMaxWidth/H/S(fraction)`（已有）、精确混合比例走 `BoxWithConstraints`（单槽位子组合实现）。剩余可选：gap/overlap（间距/负重叠）。
 - [x] **P2 布局缓存** ✅（L4.7，`9146adaa`）：`needLayout` 时不再全树重跑测量——每个节点以（Constraints, layoutVersion）为键缓存最近一次测量，命中即整子树跳过；失效覆盖结构变化与测量期读取的 snapshot 状态。单槽位 memo（LRU-of-1）已够用，缓解高频重排与同构重布局。剩余优化：apply 失效查扫改反向索引、未放置子树裁剪（台账 L4.7）。
 - [x] **P0 BoxWithConstraints 0×0 空白** ✅（L7.10，`ea2fd122`）：子组合根被量成 0×0，绘制遍历跳过零尺寸容器 → 整棵比例子树一笔不画（Layout 页第 4 节空白；节点树/尺寸均正常）。修复为对 subRoot 补一次真实 measure（结果丢弃，matchParentSize / alignment 语义不变）；回归 `BoxWithConstraintsRenderingTest`。
-- [ ] **P2 Modifier 缺口**：现有 `padding/offset/aspectRatio/size/weight/drawBehind/onKeyEvent`；评估 `margin`、`fillMaxSize/widthIn…` 类便捷约束、`onGloballyPositioned` 类回调。
+- [x] **P2 Modifier 缺口** ✅（L7.13，`a3f7cc6c`）：约束便捷族早已齐备——`widthIn/heightIn/sizeIn`、`requiredWidth/Height/Size(+In)`、`fillMaxWidth/H/S(fraction)`、`wrapContent*/defaultMinSize`（`layout/Size.kt`）；真实缺口 `onGloballyPositioned` 放置回调已于 L7.13 补齐（根坐标+尺寸，仅变化时触发）。`margin` 明确不补（Compose 无 margin）。
 - [ ] **P2 intrinsic 复用**：`min/maxIntrinsicWidth/Height` 已透传，但测量重复计算；考虑缓存（与布局缓存合并）。
 - [ ] **P3 焦点/键盘导航**：无焦点管理/方向键导航原语（Ratatui 生态靠 widget 状态机、BubbleTea 靠应用层）。
 
@@ -183,7 +183,7 @@
 - [ ] **鼠标交互**：`clickable` / `hoverable`（鼠标事件当前**已解析但未消费**，见 todo §8），依赖 L5 把事件接到平台回调。
 - [ ] **焦点 / 键盘导航原语**：交叉引用 todo §5 已有 P3 条目。
 - [ ] **边框 / 分隔绘制**：`border` / 分隔线（在 DrawScope 之上，无核心依赖，可随时插入）。
-- [ ] **定位回调**：`onGloballyPositioned` 等价物（todo §5 已列出）。
+- [x] **定位回调** ✅（L7.13，`a3f7cc6c`）：`Modifier.onGloballyPositioned { position, size -> }`（根坐标 + 尺寸，仅变化时触发）。
 - [ ] **动画容器**：`Crossfade` / `AnimatedVisibility` 类容器（`mosaic-animation` 已有核心值动画，仅需容器装配）。
 - [ ] **第一方 widget 集**：charts / tables / tabs / scrollbars（todo §6 已有 P3 条目）。
 - [ ] 备注：`margin` **不是**缺口——Compose 没有 `margin`，间距用 `padding` 或外层间隔表达。
