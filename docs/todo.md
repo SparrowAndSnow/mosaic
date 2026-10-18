@@ -6,6 +6,7 @@
 > 优先级：**P0**=正确性/回归优先；**P1**=高价值优化；**P2**=增强/打磨；**P3**=长期/可选。
 > 参考基准：`docs/tui-arch-deep-comparison.md`（逐功能深挖对照）、`docs/unicode-width-research.md`。
 
+> **对账更新：2026-10-18（二）** 全面对账完成（见 §14「台账同步」✅）：过时项已勾销——static 逐行清理（L3.5）、DEC 2027 探测（L6.2）、右缘裁剪/部分覆盖（L3.4 + L7.2 + L7.10）、drawSolidRect 越界（L7.10）、画布复用（L7.2）；并刷新 §0 矩阵与运行模型/tty 行。
 > **对账更新：2026-10-18（refactor 分支）** L7.10/L7.11 已归档（真实终端渲染回归 + showcase 演示样本）。
 > **对账更新：2026-10-17（refactor 分支）**
 > - 本清单是**总 backlog**；执行进度以 `docs/refactor-progress.md`（推进台账）为准，本文件只标记「已落地 ✅（提交）／仍待办」。
@@ -16,19 +17,19 @@
 
 | 功能域 | 现状 | 最短板 | 借鉴对象 | 优先级 |
 | --- | --- | --- | --- | --- |
-| 运行模型 | Compose 声明式 + Snapshot 脏标记 | 帧循环 `delay(1)` 空转，无 FPS 上限 | BubbleTea 60fps ticker | P2 |
-| 渲染 | cell 级差分（L3.3）+ 宽格右缘防护与覆盖回归（L3.4） | static 输出行级清理（L3.5）未做 | — | **P1**（静态续） |
-| 缓冲 | `TextPixel` = 簇字符串 + 显式列宽（L2.1 已落地） | 无部分覆盖清理 / 右缘裁剪 | Ratatui `Cell` / uv `Cell` | **P1**（余项） |
-| 宽字符 | 簇级列宽唯一口径（L1.2），测/绘统一（L3.1） | DEC 2027 未探测；右缘裁剪 | uv `WidthMethod` 可插拔 | **P1** |
-| 布局 | Row/Column weight + Box + Modifier 链 | 无 percentage/fill/ratio；无缓存 | Ratatui Constraint+LRU | P2 |
+| 运行模型 | Compose 声明式 + Snapshot 脏标记 + 自适应帧节流（L7.3） | — | — | — |
+| 渲染 | cell 级差分（L3.3）+ 右缘/覆盖回归（L3.4）+ static 逐行清理（L3.5）+ 全量重绘不带上滚（L7.10） | — | — | — |
+| 缓冲 | `TextPixel` = 簇字符串 + 显式列宽（L2.1）+ 越界裁剪（L7.10） | 部分覆盖/右缘已闭环（L3.4 论证 + L7.2 懒复位） | — | — |
+| 宽字符 | 簇级列宽唯一口径（L1.2/L3.1）+ DEC 2027 探测（L6.2） | 逐 rune 后备与光标漂移补偿未做 | — | **P3** |
+| 布局 | weight + fillMaxWidth(fraction) + BoxWithConstraints（L4.5~L4.6）+ 布局缓存（L4.7） | gap/overlap 可选 | — | P3 |
 | 文本 | AnnotatedString + TextLayout | ellipsis/alignment/scroll 已落地（L4.2~L4.4） | Ratatui Paragraph | P2 |
 | 颜色 | 16/256/24bit 输出 + env 探测 | 探测可提升（profile/OSC4） | colorprofile | P3 |
-| 输入 | kitty 键盘协议全解析 | 鼠标/粘贴仅解析未消费；无 clipboard | BubbleTea View 声明式 | **P1/P2** |
-| 能力探测 | DA1 + 批量 DECRPM/DCS/OSC + 1s 兜底 | 缺 DEC 2027（UnicodeCore） | BubbleTea DECRQM 2027 | **P1** |
-| tty 适配 | JNI/FFM/cinterop 三绑定 + C(posix/windows) + Zig | 平台矩阵维护负担重；回调空挂 | — | **P1（大头）** |
-| 生命周期 | withTerminal + finalization hook + NonInteractive | panic 恢复、信号处理薄 | Ratatui run / BubbleTea shutdown | P2/P3 |
+| 输入 | 鼠标/粘贴/clipboard/kitty 键盘全消费（L5.1~L5.6） | 声明式 CellMotion/AllMotion 分档未做（固定 1003） | — | P3 |
+| 能力探测 | DA1 + 批量 DECRPM/DCS/OSC + 1s 兜底；DEC 2027（L6.2）+ 探测清单（L6.8） | 超时降级可观测；逐 rune 后备 | — | P3 |
+| tty 适配 | JNI/FFM/cinterop 三绑定 + C(posix/windows) + Zig；信号/resize/raw 已核对（L6） | 三套绑定一致性 / Windows 路径待环境验证 | — | **P1** |
+| 生命周期 | 异常恢复（L7.4）+ native 信号兜底（L6.4）+ 非交互提示（L7.8） | 前后台/失焦降帧联动 | — | P3 |
 | 动画 | mosaic-animation（Compose port） | 跟随 androidx 升级 | Compose upstream | P3 |
-| 测试 | mosaic-testing 快照 + TestTerminal + 簇/渲染级断言 | 已补 ZWJ/keycap/宽格覆盖/右缘渲染级断言（L3.4）；无 benchmark | — | **P1** |
+| 测试 | 快照 + TestTerminal + 簇/渲染级断言 + 能力矩阵（L7.9）+ bench（L7.1） | 端到端 golden | — | P3 |
 
 ---
 
@@ -47,7 +48,7 @@
 - [x] **P1 旧渲染器去重** ✅（L3.8，`72e359af`）：删除全量 `AnsiRendering` 与其专属测试（410 行），`AnsiIncrementalRendering` 为唯一增量渲染器；关键行为覆盖已由 `AnsiIncrementalRenderingTest` 承接。
 - [x] **P2 宽格 diff 右缘防护 + 覆盖回归** ✅（L3.4，`76b8d301`）：`appendRowRange` 加 `rowEnd`，宽簇在末列放不下时以同风格空格占位（杜绝换行）；新增 `VirtualTerminal`（解析 ANSI→屏幕网格）与 `CellDiffRenderingTest`（15 条，覆盖宽→窄/窄→宽/ZWJ/keycap/相邻宽簇/右缘/resize）。调研中"覆盖残留"经 crafted-cell 全场景验证为**结构上已排除**（占位身份区分 + 簇边界扩展 + 区间合并），无需额外逻辑改动。
 - [x] **P0 全量重绘不复位上滚** ✅（L7.10，`ea2fd122`）：首帧 / resize / static 全量重绘帧末尾不再带 `\r\n`——真实终端末行收到换行=整屏上滚一行，此后所有绝对坐标 diff 全部错位（双 tabBar / 上一页残留；内存 `VirtualTerminal` 不模拟滚动所以先测不出）；改为行间 CRLF、末行不终止；`VirtualTerminal` 补 `CSI F` 回列 0。回归：`FullRedrawNoScrollTest`。
-- [ ] **P2 静态输出优化**：`static()` 分支目前用 `clearDisplay` 兜底整屏（`rendering.kt`）；可解析 `static` 行数 / 逐行 `EL` 最小化清理（注释里已说明是"为省事"）。
+- [x] **P2 静态输出优化** ✅（L3.5，`e2497ca3`）：static 帧改为**逐行 `clearLine` + 重写**（替代整屏 `clearDisplay` 兜底），静态/活区混合同规处理；`AnsiIncrementalRenderingTest` 增至 16 条。
 - [x] **P2 闪烁防护** ✅（L3.6，`e15497c4`）：synchronized output（DEC 2026）按能力包裹整帧；无该能力且可切换光标时改为「光标 hide/show 包裹」（帧首 `hide` / 帧尾 `show`），空帧不包裹避免闪；`cursorVisibility=false` 时退化为裸帧。启动期 hide 一次/退出恢复逻辑不变。
 - [x] **P2 输出缓冲** ✅（L3.7，`8a0d3e7c`）：`render` 结果不再 `.toString()` + 单次 `print`，改由 `FrameWriter` 增量 UTF-8 编码到固定 8KB 缓冲并分块写出（码点原子落块、代理对读前视、孤立代理替换 `?`）；JVM `System.out.write` + 每帧 flush，Native `posix.write(STDOUT)` 循环写。
 - [ ] **P3 光标 API**：运行中无自定义光标位置/形状（Ratatui `Frame::set_cursor_position`、BubbleTea `View.Cursor`）；如需 IME/输入框类 widget，需补。
@@ -64,22 +65,22 @@
 - [x] **P1 P2 override 测/绘两层不一致** ✅（L1.2/L2.1 统一到簇级 `graphemeWidth` 单一口径）。背景：原 `CharWidth.kt` 带 `emojiOverrideRanges` 而 `TextLayout` 无 override，同块「布局 1 格、绘制 2 格」。
 
 ### 边界 / 健壮性
-- [ ] 宽字符落在最后一列（右缘裁剪）：`drawText` 簇循环右缘直接跳过，不预留/不裁剪（参考 uv 右缘补同风格空格、Ratatui 放不下不写）。
+- [x] **右缘裁剪** ✅（L3.4 `appendRowRange` 放不下以同风格空格占位/不写 + L7.10 簇/画布越界裁剪）：宽簇头落在末列不换行、续列不越界；内部缓冲末列“半格”不外泄（diff 层以空格归一）。`CellDiffRenderingTest` 右缘 3 例 + `TextMeasuredDrawTest` 越界 2 例。
 - [x] **P1 `isWideContinuation` 生命周期** ✅（L2.1 起改为显式「簇字符串 + 列宽占位」cell，不再依赖该标志生命周期）。
-- [ ] `drawSolidRect` clamp 是 node-local，叠加 `translationX/Y` 后右缘越界仍 `check` 崩（多数静默裁剪、右缘必崩）。
+- [x] **`drawSolidRect`/簇写入越界裁剪** ✅（L7.10，`ea2fd122`）：clamp 改到 canvas 边界（含 placement 平移）——越出屏幕的绘制不再抛错、右缘不再崩；`OffsetTest` 越界改裁剪 + `TextMeasuredDrawTest` 增 2 例。
 
 ### 修复方向
 - [x] **P0 方案 A（治本）** ✅（核心已落地）：L2.1 cell 升级为「簇字符串 + 显式列宽」、L3.1 `drawText` 按扩展字素簇迭代（整簇写首格、续格预留占位、surface 只发首格）、L1.2 测/绘统一簇级宽度。剩余子项见下方未勾条目。
-  - [ ] 部分覆盖清理：占位语义用 `Width==0`（非布尔标志），做"部分覆盖时清理/修复整段宽格"生命周期（现状已用占位 cell，清理逻辑未做，见 §4 P1）。
-  - [ ] 右缘裁剪：补同风格空格或放不下不写（见上「边界 / 健壮性」）。
-- [ ] **P1 DEC 2027（UnicodeCore）探测**：`TtyTerminal` 未查询 `CSI ?2027$p`；无 2027 的终端上 ZWJ 族逐码点进格，Mosaic 无条件按簇折叠会错位。参照 BubbleTea（`tea.go` startup + `ModeReportMsg`→`setWidthMethod`）：探测并暴露宽度口径（簇折叠 `GraphemeWidth` / 逐 rune `WcWidth` 后备），必要时做光标漂移补偿（uv `reanchorWideLine`）。
+  - [x] 部分覆盖清理：已由 L3.4 crafted-cell 全场景验证为**结构上已排除**（占位身份区分 + 簇边界扩展 + 区间合并），`CellDiffRenderingTest` 宽→窄/窄→宽/整行清理 3 例锁定；叠加 L7.2 cell 级懒复位保证同帧旧格不残留，无需额外逻辑改动。
+  - [x] 右缘裁剪：见上「边界 / 健壮性」✅（L3.4/L7.10）。
+- [x] **P1 DEC 2027（UnicodeCore）探测** ✅（L6.2，`9f88fbc7`，见 §10）：`CSI ?2027$p` 探测 → `Capabilities.graphemeClustering`，支持时 `CSI ?2027h` 启用（退出恢复）。剩余：逐 rune 后备宽度口径与光标漂移补偿未做（口径落法见 progress §6，P3）。
 - [x] **P3 方案 B（最小改动，治标）** ✅（已被方案 A 取代，不再实施）：原案 `w==0` 并入当前格，家庭 emoji 仍画 6 格，留档。
 - [ ] **P3 输入侧组合字符**：IME/预组合输入（grapheme 重组）在 `EventParser` 层如何表示/透传（当前只有码点流）。
 
 ## 4. 缓冲 / cell 模型（`surface.kt`）
 - [x] **P0 升级 `TextPixel`** ✅（L2.1，`1a0e39d4`）：`Int codePoint + Boolean isWideContinuation` → `String content + Int width`（含 `markAsContinuation()`；`appendRowTo` 跳格逻辑已同步）。
-- [ ] **P1 部分覆盖清理**：宽格被 `drawRect`/后续文本覆盖头列或续列时，整段清空/修复，避免半格残留（cell 已是占位模型，清理逻辑未做）。
-- [ ] **P2 画布复用/内存**：`TextSurface` 每帧重建；评估保留并差分（与 L3.4 双缓冲联动）。
+- [x] **P1 部分覆盖清理** ✅（L3.4 结构论证 + L7.2 cell 级懒复位）：宽格头/续列被覆盖不再留半格——占位身份区分 + 簇边界扩展 + 区间合并（`CellDiffRenderingTest` 3 例）+ 帧末 `resetCellsNotWritten` 清同帧未写旧格。
+- [x] **P2 画布复用/内存** ✅（L7.2 ①/⑧）：`TextSurface` 不再每帧 `new`（`reset()` 复用）+ cell 级懒复位（`SurfaceReuseTest`/`SurfaceLazyResetTest`）；剩余「跨帧差分保留」未做（现为每帧全量重绘后 diff，收益有限，P3）。
 - [ ] **P2 ISO 控制字符处理**：`drawText` 对 `\t`/`\r`/`\b` 的控制语义（`charWidth` 兜底 1）——是否需要处理制表符展开/退格（Ratatui `set_stringn` 是过滤控制符）。
 
 ## 5. 布局（`layout/` + `ui/`）
@@ -168,7 +169,7 @@
 - [ ] **P2 README/CHANGELOG**：随上述功能落地更新能力矩阵与已知限制（非 UTF-8 locale、DEC 2027 依赖等）。
 - [ ] **P3 API 稳定性**：0.x 阶段明确 breaking 窗口；§4/§3 方案 A 涉及 `TextPixel`（internal）不破坏 public API，但 `Text`/`Modifier` 新增入口需同步 `CHANGELOG`。
 - [x] **P3 示例补齐（基础）** ✅（L7.11，`371a2b01`）：`samples/showcase`（仅公共 API）落地 Unicode / Text / Layout / Input / Animation 五页演示——鼠标 / 粘贴 / 剪贴板 / 滚动 / 自动滚动+Ellipsis / 字符串截断（Clip vs Ellipsis）/ 动画均已示例化；剩余按需补齐。
-- [ ] **P2 台账同步**：`docs/todo.md` 勾选/状态与 `docs/refactor-progress.md` 台账保持一致（每次归档步骤后同步 ✅ 与提交号）。
+- [x] **P2 台账同步** ✅（2026-10-18 对账）：逐条核对待办与台账/代码，勾销过时项（static 清理 L3.5、DEC 2027 L6.2、右缘/覆盖 L3.4 + L7.10、drawSolidRect 越界 L7.10、画布复用 L7.2）；后续每次归档步骤后同步 ✅ 与提交号。
 
 ---
 
