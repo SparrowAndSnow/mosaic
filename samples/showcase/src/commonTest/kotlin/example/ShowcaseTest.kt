@@ -3,6 +3,7 @@ package example
 import assertk.assertThat
 import assertk.assertions.contains
 import com.jakewharton.mosaic.testing.runMosaicTest
+import example.screens.ScrollScreen
 import example.screens.TextScreen
 import example.screens.UnicodeScreen
 import kotlin.test.Test
@@ -38,6 +39,16 @@ class ShowcaseTest {
 			val snapshot = setContentAndSnapshot { TextScreen() }
 			assertThat(snapshot).contains("截断")
 			assertThat(snapshot).contains("…")
+		}
+	}
+
+	@Test fun scrollPageShowsScrollingContentWithinViewport() = runTest {
+		runMosaicTest {
+			val snapshot = setContentAndSnapshot { ScrollScreen() }
+			assertThat(snapshot).contains("纵向滚动")
+			assertThat(snapshot).contains("L01")
+			assertThat(snapshot).contains("横向滚动")
+			assertThat(snapshot).contains("块1")
 		}
 	}
 }

@@ -34,6 +34,16 @@ internal class TextSurface(
 	var translationX = 0
 	var translationY = 0
 
+	// Active clip region in canvas (absolute, post-translation) coordinates. When [clipActive] is
+	// false, writes are bounded only by the canvas itself - the overwhelming common case. Draw
+	// layers that clip install an intersecting region here and restore it afterward, so the hot
+	// per-cell guards add a single cheap branch plus, only when a clip is active, four comparisons.
+	var clipActive = false
+	var clipLeft = 0
+	var clipTop = 0
+	var clipRight = Int.MAX_VALUE
+	var clipBottom = Int.MAX_VALUE
+
 	internal val cells = Array(width * height) { TextPixel() }
 	private var written = BooleanArray(width * height)
 
@@ -43,7 +53,15 @@ internal class TextSurface(
 		check(x in 0 until width)
 		check(y in 0 until height)
 		val index = y * width + x
-		written[index] = true
+		if (!written[index]) {
+			// First touch of this cell in the frame: start from a blank pixel so a draw that
+			// leaves a style field unspecified (e.g. an uncolored Text painted over a spot where
+			// the previous frame had a background fill) does not inherit stale styling from the
+			// reused cell. Later writes within the same frame keep accumulating on top, which is
+			// what lets a child's uncolored text sit on its parent's colored fill.
+			cells[index].reset()
+			written[index] = true
+		}
 		return cells[index]
 	}
 

@@ -320,22 +320,30 @@ internal open class TextCanvasDrawScope(
 			val canvasHeight = canvas.height
 			val canvasRow = canvas.translationY + row
 			val canvasColumn = canvas.translationX + characterColumn
-			if (canvasRow >= canvasHeight || canvasColumn >= canvasWidth) return
 
-			// The surface getter expects this scope's own (local) coordinates and applies the node
-			// placement translation itself, so write with [row]/[characterColumn], not the absolute
-			// positions computed for the bounds check above.
-			val character = canvas[row, characterColumn]
-			character.updateTextPixel(text, clusterStart, clusterEnd, w, foreground, background, textStyle, underlineStyle, underlineColor)
-			spanStylesProvider?.invoke(clusterStart, clusterEnd)?.forEach {
-				character.updateTextPixel(character.textSource, character.textStart, character.textEnd, character.width, it.color, it.background, it.textStyle, it.underlineStyle, it.underlineColor)
-			}
+			// A cluster is drawn only when every cell of it lands within the canvas and, when a
+			// clip is active, inside that clip. Whatever the outcome the character column must
+			// still advance by [w], otherwise clusters that follow a clipped-away cluster would all
+			// pile up on the same column and the rest of the line goes blank.
+			val fullyVisible = canvasColumn >= 0 && canvasRow >= 0 &&
+				canvasColumn + w <= canvasWidth && canvasRow < canvasHeight &&
+				(!canvas.clipActive ||
+					(canvasColumn >= canvas.clipLeft && canvasColumn + w <= canvas.clipRight &&
+						canvasRow >= canvas.clipTop && canvasRow < canvas.clipBottom))
+			if (fullyVisible) {
+				// The surface getter expects this scope's own (local) coordinates and applies the
+				// node placement translation itself, so write with [row]/[characterColumn], not the
+				// absolute positions computed for the bounds check above.
+				val character = canvas[row, characterColumn]
+				character.updateTextPixel(text, clusterStart, clusterEnd, w, foreground, background, textStyle, underlineStyle, underlineColor)
+				spanStylesProvider?.invoke(clusterStart, clusterEnd)?.forEach {
+					character.updateTextPixel(character.textSource, character.textStart, character.textEnd, character.width, it.color, it.background, it.textStyle, it.underlineStyle, it.underlineColor)
+				}
 
-			// Mark continuation cells for wide clusters (e.g. CJK, fullwidth emoji)
-			if (w > 1) {
-				for (offset in 1 until w) {
-					val continuationCol = canvasColumn + offset
-					if (continuationCol < canvasWidth) {
+				// Mark continuation cells for wide clusters (e.g. CJK, fullwidth emoji). The head
+				// is fully visible so its continuations are too (rect clip window).
+				if (w > 1) {
+					for (offset in 1 until w) {
 						canvas[row, characterColumn + offset].markAsContinuation()
 					}
 				}
@@ -367,6 +375,15 @@ internal open class TextCanvasDrawScope(
 		underlineStyle: UnderlineStyle = UnderlineStyle.Unspecified,
 		underlineColor: Color = Color.Unspecified,
 	) {
+		if (canvas.clipActive) {
+			val canvasColumn = canvas.translationX + x
+			val canvasRow = canvas.translationY + y
+			if (canvasColumn < canvas.clipLeft || canvasColumn >= canvas.clipRight ||
+				canvasRow < canvas.clipTop || canvasRow >= canvas.clipBottom
+			) {
+				return
+			}
+		}
 		canvas[y, x].updateTextPixel(text, 0, text.length, 1, foreground, background, textStyle, underlineStyle, underlineColor)
 	}
 

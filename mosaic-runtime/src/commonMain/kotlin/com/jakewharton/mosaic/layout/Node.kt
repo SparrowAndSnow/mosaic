@@ -363,17 +363,47 @@ private class DrawLayer(
 	private val element: DrawModifier,
 	override val next: MosaicNodeLayer,
 ) : MosaicNodeLayer() {
+	// Saved clip region restored after drawing, stored on this long-lived layer instead of being
+	// allocated per frame. Only meaningful when [element] is [ClipToBoundsElement].
+	private var savedClipActive = false
+	private var savedClipLeft = 0
+	private var savedClipTop = 0
+	private var savedClipRight = Int.MAX_VALUE
+	private var savedClipBottom = Int.MAX_VALUE
+
 	override fun drawTo(canvas: TextSurface) {
 		val oldX = canvas.translationX
 		val oldY = canvas.translationY
 		canvas.translationX = x
 		canvas.translationY = y
+		val clip = element is ClipToBoundsElement
+		if (clip) {
+			// Intersect with any enclosing clip (translation above makes this layer's bounds the
+			// current canvas origin, x/y are absolute so the region is in canvas coordinates).
+			savedClipActive = canvas.clipActive
+			savedClipLeft = canvas.clipLeft
+			savedClipTop = canvas.clipTop
+			savedClipRight = canvas.clipRight
+			savedClipBottom = canvas.clipBottom
+			canvas.clipActive = true
+			if (x > canvas.clipLeft) canvas.clipLeft = x
+			if (y > canvas.clipTop) canvas.clipTop = y
+			if (x + width < canvas.clipRight) canvas.clipRight = x + width
+			if (y + height < canvas.clipBottom) canvas.clipBottom = y + height
+		}
 		val scope = object : TextCanvasDrawScope(canvas, width, height), ContentDrawScope {
 			override fun drawContent() {
 				next.drawTo(canvas)
 			}
 		}
 		element.run { scope.draw() }
+		if (clip) {
+			canvas.clipActive = savedClipActive
+			canvas.clipLeft = savedClipLeft
+			canvas.clipTop = savedClipTop
+			canvas.clipRight = savedClipRight
+			canvas.clipBottom = savedClipBottom
+		}
 		canvas.translationX = oldX
 		canvas.translationY = oldY
 	}

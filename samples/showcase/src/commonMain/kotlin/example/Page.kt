@@ -9,4 +9,5 @@ internal enum class Page(
 	Layout("Layout"),
 	Input("Input"),
 	Animation("Animation"),
+	Scroll("Scroll"),
 }
