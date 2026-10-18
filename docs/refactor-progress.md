@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L6.8（`53ba2ea2`）后 · 创建/更新：2026-10-17
+> 分支：`refactor` · 当前 HEAD：L7.11（`371a2b01`）· 创建：2026-10-17 · 更新：2026-10-18
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -79,7 +79,21 @@
 | L7 | L7.7 | `TextLayoutWidthTest`「测量与绘制一致」：按测量 `LineMeasure` 逐列对拍绘制结果（簇头列文本 / 宽簇 placeholder 续列 / 右沿 == totalWidth / `layout.width` == 最宽行）；覆盖 ascii/cjk/ZWJ/flags/keycap/VS16/内嵌空格/softWrap/Clip/Ellipsis/scroll/Annotated | `f51e04ee` | `TextLayoutWidthTest` 14 条（原 7 + 新 7）；双平台全绿 | ✅ 已归档 |
 | L7 | L7.8 | 非交互能力提示：`withTerminal` 落到 `NonInteractiveTerminal`（`Ignore` 绑定失败 / `AssumeAndIgnore`）时先向 stderr 打 `NonInteractiveNotice`（JVM `System.err` / native posix `STDERR_FILENO`），能力降级不再静默 | `91c6d23b` | `NonInteractiveTest`（commonTest 2 条：AssumeAndIgnore 分派 + 惰性终端能力清单）+ `NonInteractiveNoticeTest`（jvmTest 1 条：stderr 捕获）；双平台全绿 | ✅ 已归档 |
 | L7 | L7.9 | 快照体系扩展：`mosaic-testing` 增加 `CapabilityMatrix.defaults`（ansiLevel × kittyUnderline × synchronizedOutput × graphemeClustering 的 7 组代表性组合）+ `runMosaicTestForEach`（每组新 mosaic 跑同一断言）；`TestMosaic` 补齐 `sendFocusEvent`（→ 生命周期 ON_PAUSE/ON_RESUME） | `c2e51cad` | `CapabilityMatrixTest`（布局跨矩阵稳定，commonTest）+ `FocusEventTest`（焦点驱动 RESUMED/STARTED，commonTest）；mosaic-testing + mosaic-runtime 双平台全绿 | ✅ 已归档 |
+| L7 | L7.10 | 真实终端渲染回归：全量重绘帧末尾不再带尾随 `\r\n`（真实终端末行收到换行=整屏上滚一行 → 后续所有绝对坐标 diff 错位 → 双 tabBar / 上一页残留；内存 `VirtualTerminal` 不模拟滚动故测不出）→ 行间 CRLF、末行不终止；`VirtualTerminal` 补 `CSI F` 回列 0；`BoxWithConstraints` 子组合根 0×0 容器被绘制遍历跳过（Layout 页第 4 节整段空白）→ 补一次真实 measure（结果丢弃，matchParentSize/align 语义不变）；顺带归档早期 paint 越界裁剪（越出屏幕改为裁剪而非抛错） | `ea2fd122` | `FullRedrawNoScrollTest`（2：帧永不带行终止 / Unicode→Input 切页无残留且 tabBar 单行）+ `BoxWithConstraintsRenderingTest`（1/2 1/3 余量渲染）+ `UnicodeScreenReproTest` + `OffsetTest`（越界改裁剪）+ `TextMeasuredDrawTest` +2；runtime jvmTest 607 全绿 | ✅ 已归档 |
+| L7 | L7.11 | showcase 演示样本（仅公共 API，`samples/showcase`）：Unicode/Text/Layout/Input/Animation 五页 + 页头/可点击 tab 外壳；Text 页新增第 5 节字符串截断示例（`maxLines=2` + `softWrap` 定宽，`Clip` 硬切 vs `Ellipsis` 省略号、两种宽度对比，中英混排不拆字素簇） | `371a2b01` | `ShowcaseTest` 3 条（Unicode 宽字/emoji 内容 / Text 对齐+滚动 / 截断省略号渲染）；showcase jvmTest 全绿 | ✅ 已归档 |
+
 ## 5. 已完成步骤的实现要点（供恢复上下文）
+
+### L7.10 真实终端渲染回归修复（`ea2fd122`）
+- **尾随 CRLF 上滚（切页残留根因）**：首帧 / resize / static 全量重绘帧在最后一行后带 `\r\n`——真实终端在末行收到换行会把整屏上滚一行；此后所有绝对坐标 diff 全部错位一行 → 双 tabBar、上一页标题/CJK 行残留。内存 `VirtualTerminal` 不模拟滚动，单元测试测不出。修复（`rendering.kt`）：全量重绘路径改为**行与行之间 CRLF 分隔、最后一行不终止**；分隔符需在 `clearLine` 之前（清的是下一行）。`VirtualTerminal` 的 `CSI F`（CPL）补 `cursorColumn = 0`（原漏回列 0，被 resize 测试暴露）。
+- **BoxWithConstraints 0×0 容器不绘制（Layout 页第 4 节空白根因）**：`BoxWithConstraintsMeasurePolicy.measure` 只逐个测量子节点并 place，子组合根容器永远是 0×0；绘制遍历（`Node.BottomLayer.drawTo`）跳过宽或高为 0 的节点 → 整棵比例子树一笔不画（节点树完整、尺寸全对）。修复：对 `subRoot` 额外 measure 一次（结果丢弃）让容器获得非零尺寸；子节点仍按原语义单独测量/place，`matchParentSize` / `align` 不受影响。
+- **paint 越界裁剪（早期遗留一并归档）**：越出屏幕画布的绘制从抛错改为裁剪到屏幕边缘（`DrawScope` 簇写入器 + fillRect 边界，在节点 placement 平移后的 canvas 局部系换算）。
+- **回归**：`FullRedrawNoScrollTest`（2：帧永不带行终止 / Unicode→Input 切页无残留、tabBar 单行）、`BoxWithConstraintsRenderingTest`（1/2 1/3 余量渲染）、`UnicodeScreenReproTest`、`OffsetTest`（越界改裁剪）、`TextMeasuredDrawTest` +2；runtime jvmTest 607 全绿。
+
+### L7.11 showcase 演示样本 + 字符串截断示例（`371a2b01`）
+- **定位**：仅用公共 API 的自包含演示（`samples/showcase`），把重构后的能力集落到可运行样例：页头 + 可点击 tab 外壳；Unicode / Text / Layout / Input / Animation 五页；`←`/`→`/`Tab`/`1`-`5` 切页，Ctrl-C 退出。
+- **字符串截断示例**（Text 页第 5 节）：`maxLines=2` + `softWrap` 固定宽度，并排展示 `TextOverflow.Clip`（硬切断、无标记）vs `TextOverflow.Ellipsis`（末可见行带 `…`），以及更宽宽度能看到更多内容的对比；中英混排文本，超宽字不拆字素簇。
+- **测试**：`ShowcaseTest` 3 条（Unicode 宽字/emoji 内容、Text 对齐+滚动、截断省略号渲染）；showcase jvmTest 全绿。
 
 ### L7.9 快照体系扩展（能力矩阵 + 焦点注入）（`c2e51cad`）
 - **能力矩阵**（`mosaic-testing/CapabilityMatrix.kt`）：`CapabilityMatrix.defaults` 7 组代表性组合——全能力 / 关 2027 / 关 kitty underline / 关 synchronized output / ANSI16 / ANSI256 / 全关（NONE）；`runMosaicTestForEach(capabilities, block)` 每组用全新 `RealTestMosaic` 跑同一 `TestMosaic<String>` 断言并透传该组能力。

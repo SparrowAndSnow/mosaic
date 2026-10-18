@@ -6,6 +6,7 @@
 > 优先级：**P0**=正确性/回归优先；**P1**=高价值优化；**P2**=增强/打磨；**P3**=长期/可选。
 > 参考基准：`docs/tui-arch-deep-comparison.md`（逐功能深挖对照）、`docs/unicode-width-research.md`。
 
+> **对账更新：2026-10-18（refactor 分支）** L7.10/L7.11 已归档（真实终端渲染回归 + showcase 演示样本）。
 > **对账更新：2026-10-17（refactor 分支）**
 > - 本清单是**总 backlog**；执行进度以 `docs/refactor-progress.md`（推进台账）为准，本文件只标记「已落地 ✅（提交）／仍待办」。
 > - ✅ 项对应的重构提交见各条目，实现细节见台账 §5。
@@ -45,6 +46,7 @@
 - [x] **P1 行内段差分** ✅（L3.3，`dc031ff3`）：cell 级 diff，变化区间按字素簇边界切分后 `goto` + 片段重写；稀疏段就地 patch、稠密/删尾整行 `goto;clearLine` 回退。
 - [x] **P1 旧渲染器去重** ✅（L3.8，`72e359af`）：删除全量 `AnsiRendering` 与其专属测试（410 行），`AnsiIncrementalRendering` 为唯一增量渲染器；关键行为覆盖已由 `AnsiIncrementalRenderingTest` 承接。
 - [x] **P2 宽格 diff 右缘防护 + 覆盖回归** ✅（L3.4，`76b8d301`）：`appendRowRange` 加 `rowEnd`，宽簇在末列放不下时以同风格空格占位（杜绝换行）；新增 `VirtualTerminal`（解析 ANSI→屏幕网格）与 `CellDiffRenderingTest`（15 条，覆盖宽→窄/窄→宽/ZWJ/keycap/相邻宽簇/右缘/resize）。调研中"覆盖残留"经 crafted-cell 全场景验证为**结构上已排除**（占位身份区分 + 簇边界扩展 + 区间合并），无需额外逻辑改动。
+- [x] **P0 全量重绘不复位上滚** ✅（L7.10，`ea2fd122`）：首帧 / resize / static 全量重绘帧末尾不再带 `\r\n`——真实终端末行收到换行=整屏上滚一行，此后所有绝对坐标 diff 全部错位（双 tabBar / 上一页残留；内存 `VirtualTerminal` 不模拟滚动所以先测不出）；改为行间 CRLF、末行不终止；`VirtualTerminal` 补 `CSI F` 回列 0。回归：`FullRedrawNoScrollTest`。
 - [ ] **P2 静态输出优化**：`static()` 分支目前用 `clearDisplay` 兜底整屏（`rendering.kt`）；可解析 `static` 行数 / 逐行 `EL` 最小化清理（注释里已说明是"为省事"）。
 - [x] **P2 闪烁防护** ✅（L3.6，`e15497c4`）：synchronized output（DEC 2026）按能力包裹整帧；无该能力且可切换光标时改为「光标 hide/show 包裹」（帧首 `hide` / 帧尾 `show`），空帧不包裹避免闪；`cursorVisibility=false` 时退化为裸帧。启动期 hide 一次/退出恢复逻辑不变。
 - [x] **P2 输出缓冲** ✅（L3.7，`8a0d3e7c`）：`render` 结果不再 `.toString()` + 单次 `print`，改由 `FrameWriter` 增量 UTF-8 编码到固定 8KB 缓冲并分块写出（码点原子落块、代理对读前视、孤立代理替换 `?`）；JVM `System.out.write` + 每帧 flush，Native `posix.write(STDOUT)` 循环写。
@@ -85,6 +87,7 @@
 - [x] **P2 换行/截断/对齐/滚动参数** ✅（L4.2 `de3c9a1a` + L4.3 `271f53fa` + L4.4 `ac703463`）：`Text` 增加 `maxLines`/`overflow`（Clip/Ellipsis 簇安全截断）、`textAlign`（Start/Center/End，有界宽行偏移、Start/无界零回归）、`scroll`（垂直查看窗口，配合 `maxLines` 滚动切片，越界 clamp 不至于空窗）。
 - [x] **P2 约束扩展（比例布局）** ✅（方向见台账 L4.5 调研、实现 L4.6 `d2780c1a`）：比例/百分比**不新增自造 modifier**，遵循 Compose 语法——等分/占剩余用 `weight`（已有）、占父级可用比例用 `fillMaxWidth/H/S(fraction)`（已有）、精确混合比例走 `BoxWithConstraints`（单槽位子组合实现）。剩余可选：gap/overlap（间距/负重叠）。
 - [x] **P2 布局缓存** ✅（L4.7，`9146adaa`）：`needLayout` 时不再全树重跑测量——每个节点以（Constraints, layoutVersion）为键缓存最近一次测量，命中即整子树跳过；失效覆盖结构变化与测量期读取的 snapshot 状态。单槽位 memo（LRU-of-1）已够用，缓解高频重排与同构重布局。剩余优化：apply 失效查扫改反向索引、未放置子树裁剪（台账 L4.7）。
+- [x] **P0 BoxWithConstraints 0×0 空白** ✅（L7.10，`ea2fd122`）：子组合根被量成 0×0，绘制遍历跳过零尺寸容器 → 整棵比例子树一笔不画（Layout 页第 4 节空白；节点树/尺寸均正常）。修复为对 subRoot 补一次真实 measure（结果丢弃，matchParentSize / alignment 语义不变）；回归 `BoxWithConstraintsRenderingTest`。
 - [ ] **P2 Modifier 缺口**：现有 `padding/offset/aspectRatio/size/weight/drawBehind/onKeyEvent`；评估 `margin`、`fillMaxSize/widthIn…` 类便捷约束、`onGloballyPositioned` 类回调。
 - [ ] **P2 intrinsic 复用**：`min/maxIntrinsicWidth/Height` 已透传，但测量重复计算；考虑缓存（与布局缓存合并）。
 - [ ] **P3 焦点/键盘导航**：无焦点管理/方向键导航原语（Ratatui 生态靠 widget 状态机、BubbleTea 靠应用层）。
@@ -164,7 +167,7 @@
 ## 14. 文档 / 发布
 - [ ] **P2 README/CHANGELOG**：随上述功能落地更新能力矩阵与已知限制（非 UTF-8 locale、DEC 2027 依赖等）。
 - [ ] **P3 API 稳定性**：0.x 阶段明确 breaking 窗口；§4/§3 方案 A 涉及 `TextPixel`（internal）不破坏 public API，但 `Text`/`Modifier` 新增入口需同步 `CHANGELOG`。
-- [ ] **P3 示例补齐**：鼠标/粘贴/滚动/富文本/动画 样例与文档一一对应。
+- [x] **P3 示例补齐（基础）** ✅（L7.11，`371a2b01`）：`samples/showcase`（仅公共 API）落地 Unicode / Text / Layout / Input / Animation 五页演示——鼠标 / 粘贴 / 剪贴板 / 滚动 / 自动滚动+Ellipsis / 字符串截断（Clip vs Ellipsis）/ 动画均已示例化；剩余按需补齐。
 - [ ] **P2 台账同步**：`docs/todo.md` 勾选/状态与 `docs/refactor-progress.md` 台账保持一致（每次归档步骤后同步 ✅ 与提交号）。
 
 ---
