@@ -308,6 +308,10 @@ internal open class TextCanvasDrawScope(
 			// layout and drawing can never disagree about where a cluster starts or how wide it is.
 			val w = clusterWidth
 
+			// Zero-width clusters (control characters, and format codepoints like ZWSP/BOM) occupy
+			// no columns: skip them entirely so their bytes never reach a cell or the ANSI stream.
+			if (w <= 0) return
+
 			// The scope's own [width]/[height] are this node's bounds, but the underlying canvas is
 			// the whole screen translated by this node's placement. A cluster that lands outside the
 			// canvas (content overhanging a fixed-size layout) must be skipped, not written: the

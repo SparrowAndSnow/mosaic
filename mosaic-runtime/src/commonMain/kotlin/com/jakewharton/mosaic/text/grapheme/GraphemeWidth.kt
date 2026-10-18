@@ -1,6 +1,7 @@
 package com.jakewharton.mosaic.text.grapheme
 
 import com.jakewharton.mosaic.text.charWidth
+import com.jakewharton.mosaic.text.isControl
 import com.jakewharton.mosaic.text.unicodewidth.strWidth
 
 /**
@@ -27,7 +28,7 @@ internal fun CharSequence.graphemeWidth(): Int {
 private fun CharSequence.isPrintableAscii(): Boolean {
 	for (i in indices) {
 		val code = this[i].code
-		if (code !in 0x20..0x7E && code != 0x09) return false
+		if (code !in 0x20..0x7E) return false
 	}
 	return true
 }
@@ -39,6 +40,11 @@ private fun CharSequence.isPrintableAscii(): Boolean {
  * emoji family, keycap, flag, or Hangul jamo run) is always measured and drawn the same way.
  */
 internal fun CharSequence.graphemeClusterWidth(from: Int, to: Int): Int {
+	// Control characters are GCB_CONTROL: they always form their own single-codepoint cluster and
+	// are non-printing, so such a cluster occupies zero columns regardless of what the width tables
+	// report. Measurement and drawing both consult this rule, so a control is never laid out as a
+	// column nor written to a cell.
+	if (isControl(codepointAt(from))) return 0
 	val width = strWidth(this, from, to)
 	if (width == 1 && charWidth(codepointAt(from)) == 2) return 2
 	return width

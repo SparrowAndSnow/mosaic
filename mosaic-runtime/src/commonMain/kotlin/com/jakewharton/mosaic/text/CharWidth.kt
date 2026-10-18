@@ -3,6 +3,13 @@ package com.jakewharton.mosaic.text
 import com.jakewharton.mosaic.text.unicodewidth.unicodeWidth
 
 /**
+ * C0 (0x00-0x1F), DEL (0x7F) and C1 (0x80-0x9F) control characters are non-printing. They occupy
+ * zero columns and must never be emitted into the ANSI stream: a terminal interprets them as
+ * cursor motions (CR/BS/TAB) or protocol escapes, which would corrupt frame layout.
+ */
+internal fun isControl(codepoint: Int): Boolean = codepoint in 0x00..0x1F || codepoint in 0x7F..0x9F
+
+/**
  * Emoji blocks that the Unicode East Asian Width data lists as `N`/`A` (width 1) but that virtually
  * all modern terminals render as 2-cell emoji.
  */
@@ -38,10 +45,11 @@ private operator fun List<IntRange>.contains(codepoint: Int): Boolean {
  * Returns the number of terminal columns a Unicode code point occupies.
  *
  * Delegates to the bundled UAX #11 width tables (see `text/unicodewidth/`) so width data always
- * tracks the Unicode standard. Control characters, for which the backing implementation reports
- * no width, are treated as 1 column.
+ * tracks the Unicode standard. Control characters ([isControl]) are non-printing and occupy zero
+ * columns; they are filtered out before anything is drawn or emitted.
  */
 internal fun charWidth(codepoint: Int): Int {
+	if (isControl(codepoint)) return 0
 	val width = codepoint.unicodeWidth() ?: 1
 	if (width == 1 && codepoint in emojiOverrideRanges) return 2
 	return width

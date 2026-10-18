@@ -13,8 +13,18 @@ class GraphemeWidthTest {
 
 	@Test fun printableAsciiIsOneColumnPerUnit() {
 		assertEquals(3, "ABC".graphemeWidth())
-		assertEquals(3, "\tAB".graphemeWidth())
 		assertEquals(1, " ".graphemeWidth())
+	}
+
+	@Test fun controlCharactersOccupyZeroColumns() {
+		assertEquals(0, "\t".graphemeWidth())
+		assertEquals(0, "\r".graphemeWidth())
+		assertEquals(0, "\b".graphemeWidth())
+		assertEquals(0, "\u001B".graphemeWidth())
+		assertEquals(0, "\u007F".graphemeWidth())
+		assertEquals(0, "\u0085".graphemeWidth()) // NEL (C1)
+		assertEquals(2, "\tAB".graphemeWidth()) // control filtered out, does not advance a column
+		assertEquals(2, "A\tB".graphemeWidth())
 	}
 
 	@Test fun cjkText() {
