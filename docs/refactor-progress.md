@@ -76,7 +76,18 @@
 | L7 | L7.4 | 异常/panic 恢复：`runMosaicComposition` 捕获非取消异常→`frameWriter` 写纯文本错误帧（`Mosaic error`+堆栈+`NODES`）→`cancel()` 收队→rethrow；终端恢复由 `withTerminal` use 保证；`runMosaicComposition` 增可注入 `frameWriter` | `ddbaa911` | `FrameErrorVisibilityTest`（2 条：致命错误帧+传播 / 正常取消无错误帧）；双平台全绿 | ✅ 已归档 |
 | L7 | L7.5 | paste 逃生口：未终止 bracketed paste（只收到 start、未收到 end）中 Ctrl-C 仍退出（清空 paste 累积 → `job.cancel()`），普通粘贴字符不触发退出；顺带消除 `pasteText!!` | `6c4f46bd` | `PasteInterruptTest`（2 条：Ctrl-C 中断未终止 paste / 普通字符不退出；`Ticker` keep-alive 区分自然 idle 返回）；双平台全绿 | ✅ 已归档 |
 | L7 | L7.6 | awaitComplete 语义明确化：run-until-idle 收尾（效果全结束 + 欠下的 layout/draw 显式驱动一帧并 join 后 close）+ `cancel()` 必释放等待者；`setContent` 二次调用替换内容并取消旧 effect；TODO 注释替换为结论 | `00ebdb43` | `LifecycleSemanticsTest`（3 条：无限 effect 保活至 cancel 释放 / 静态自然返回 / 二次 setContent 取消旧 effect）；双平台全绿 | ✅ 已归档 |
+| L7 | L7.7 | `TextLayoutWidthTest`「测量与绘制一致」：按测量 `LineMeasure` 逐列对拍绘制结果（簇头列文本 / 宽簇 placeholder 续列 / 右沿 == totalWidth / `layout.width` == 最宽行）；覆盖 ascii/cjk/ZWJ/flags/keycap/VS16/内嵌空格/softWrap/Clip/Ellipsis/scroll/Annotated | `f51e04ee` | `TextLayoutWidthTest` 14 条（原 7 + 新 7）；双平台全绿 | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
+
+### L7.7 TextLayoutWidthTest「测量与绘制一致」断言（`f51e04ee`）
+- **动机**：测量端按 (簇, 宽) 切分每行、绘制端直接消费该切分，但没有任何测试把两侧钉在一起——若某处让测量与绘制对簇列数/落位分叉（wrap 切簇、截断错位、续列开合），布局会 vs 渲染尺寸不一致。
+- **断言口径（`assertColumnsMatchLayout`）**：
+  1. **逐列对拍**：按 `LineMeasure.clusterStarts/clusterWidths` 构造每列期望（簇头部列 = 簇文本；宽簇后续 = placeholder 续列），与 `TextSurface` 实际绘制逐列相等。
+  2. **右沿**：每行最后一个 contentful cell（非空、非 placeholder）的 `列+width` == `totalWidth`。
+  3. **总宽**：`layout.width` == 各行 `totalWidth` 最大值（measure 端自身闭合）。
+  边界口径：行尾空格 cell 被渲染器视为空列，用例避免行尾空格；孤立零宽簇与画布覆盖语义一致（0 宽仍写当前列，per-column 同步覆盖）。
+- **用例**（`TextLayoutWidthTest` 7 → 14）：ASCII/CJK、宽簇+combining（ZWJ/flags/keycap/VS16）、行内空格、softWrap 折行（簇不拆）、Clip/Ellipsis、scroll 窗口、AnnotatedString 布局。
+- **todo 勾销**：§13「P1 `TextLayoutWidthTest`」。
 
 ### L7.6 awaitComplete 生命周期语义明确化（`00ebdb43`）
 - **背景**：`awaitComplete` 的 `// TODO Re-evaluate this for correctness.` 注释继承自上游单函数内联提交，语义一直未定论。
