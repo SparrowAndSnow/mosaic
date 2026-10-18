@@ -87,10 +87,10 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 	) : Terminal.Capabilities
 }
 
-private const val StageDeviceAttributes = 3
-private const val StageCapabilityQueries = 2
-private const val StageDefaultQueries = 1
-private const val StageNormalOperation = 0
+internal const val StageDeviceAttributes = 3
+internal const val StageCapabilityQueries = 2
+internal const val StageDefaultQueries = 1
+internal const val StageNormalOperation = 0
 
 @OptIn(ExperimentalAtomicApi::class)
 public suspend fun Tty.asTerminalIn(
@@ -397,13 +397,36 @@ public suspend fun Tty.asTerminalIn(
 	// exist a terminal which does not respond to DA1 or DSR. Does that terminal actually work?
 	// Who knows, but we don't want to hang forever waiting. Take whatever we got so far
 	// (if anything) and move on with rendering.
-	withTimeoutOrNull(1.seconds) {
+	val bootstrapComplete = withTimeoutOrNull(1.seconds) {
 		bootstrapDone.await()
-	}
+		true
+	} ?: false
+	// Capture the stuck stage before it is reset: the notice below needs to report where the
+	// bootstrap was abandoned rather than pretending every timeout is identical.
+	val bootstrapStuckStage = stage
 	stage = StageNormalOperation
 
 	if (debugBootstrap) {
 		write("\r\n")
+	}
+
+	if (!bootstrapComplete) {
+		val confirmed = buildList {
+			if (cursorVisibility) add("cursor visibility")
+			if (focusEvents) add("focus events")
+			if (inBandResizeEvents) add("in-band resize")
+			if (kittyGraphics) add("kitty graphics")
+			if (kittyKeyboard) add("kitty keyboard")
+			if (kittyNotifications) add("kitty notifications")
+			if (graphemeClustering) add("grapheme clustering")
+			if (kittyPointerShape) add("kitty pointer shape")
+			if (kittyTextSizingScale) add("kitty text sizing scale")
+			if (kittyTextSizingWidth) add("kitty text sizing width")
+			if (kittyUnderlines) add("kitty underline")
+			if (synchronizedOutput) add("synchronized output")
+			if (themeEvents) add("theme events")
+		}
+		stderrPrint(bootstrapTimeoutNotice(bootstrapStuckStage, confirmed, debugBootstrap))
 	}
 
 	if (!inBandResizeEvents) {
@@ -485,6 +508,39 @@ internal fun detectAnsiLevel(): AnsiLevel {
 		return AnsiLevel.TRUECOLOR
 	}
 	return AnsiLevel.NONE
+}
+
+/**
+ * Builds the diagnostic printed to standard error when capability detection does not finish within
+ * the one-second bootstrap budget. This makes the silent fall-back observable: a non-responsive
+ * terminal otherwise runs with extended capabilities quietly disabled.
+ *
+ * @param stage the bootstrap [StageDeviceAttributes]/[StageCapabilityQueries]/[StageDefaultQueries]
+ *   stage at which the budget expired.
+ * @param confirmed the capabilities that were confirmed before the budget expired.
+ * @param debug when true the notice additionally lists the confirmed capabilities; when false it
+ *   points at the debug flag for chasing the cause.
+ */
+internal fun bootstrapTimeoutNotice(stage: Int, confirmed: List<String>, debug: Boolean): String {
+	val stuck = when (stage) {
+		StageDeviceAttributes -> "awaiting an initial device-attributes (DA1) reply"
+		StageCapabilityQueries -> "awaiting capability-query replies"
+		StageDefaultQueries -> "awaiting default-state query replies"
+		else -> "awaiting a reply"
+	}
+	val headline =
+		"Terminal capability detection did not respond within the 1 second budget ($stuck); " +
+			"unconfirmed capabilities are disabled."
+	return if (!debug) {
+		"$headline Set MOSAIC_TTY_TERMINAL_DEBUG=true for per-query detail."
+	} else {
+		val detail = if (confirmed.isEmpty()) {
+			"No capabilities were confirmed."
+		} else {
+			"Confirmed capabilities: ${confirmed.joinToString()}."
+		}
+		"$headline\n$detail"
+	}
 }
 
 private val Setting.isSupported get() = when (this) {
