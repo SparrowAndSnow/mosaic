@@ -52,6 +52,12 @@ public interface TestMosaic<T> : Mosaic {
 
 	public fun sendKeyEvent(keyEvent: KeyboardEvent)
 	public fun sendMouseEvent(mouseEvent: MouseEvent)
+	/**
+	 * Focuses or blurs the terminal, which drives the composition's lifecycle through
+	 * ON_RESUME/ON_PAUSE just as a real focus event would.
+	 */
+	public fun sendFocusEvent(focused: Boolean)
+
 	/** Sends a bracketed paste (start marker, then one key event per code point, then end marker). */
 	public fun sendPaste(text: String)
 	/** Delivers an OSC 52 clipboard reply, which satisfies a pending [com.jakewharton.mosaic.ui.platform.Clipboard.getText]. */
@@ -115,6 +121,10 @@ private class RealTestMosaic<T>(
 
 	override fun sendMouseEvent(mouseEvent: MouseEvent) {
 		testTerminal.events.trySend(mouseEvent)
+	}
+
+	override fun sendFocusEvent(focused: Boolean) {
+		testTerminal.state.focused.value = focused
 	}
 
 	override fun sendPaste(text: String) {
