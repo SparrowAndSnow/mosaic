@@ -146,7 +146,7 @@
 
 ## 11. 生命周期 / 集成
 - [x] **P1 异常安全** ✅（L6.7，`963279b3`）：teardown 提为幂等函数（`AtomicBoolean` 单次），`close()` 同步先跑再 `closeJob.cancel()`，保证先于 `tty.close()` 完成恢复；finalization hook 复用同一 teardown 兜底信号/shutdown 路径。异常/取消/信号三条路径核实全覆盖；消除对 `Unconfined` 内联续传的隐性依赖。
-- [ ] **P2 非交互策略**：`NonInteractivePolicy` 五态已有；补充在 `AssumeAndIgnore` 时 `NonInteractiveTerminal` 的能力提示（避免静默画错）。
+- [x] **P2 非交互策略** ✅（L7.8，`91c6d23b`）：`withTerminal` 落到 `NonInteractiveTerminal`（`Ignore` 绑定失败 / `AssumeAndIgnore`）时先向 stderr 打 `NonInteractiveNotice`（JVM `System.err` / native posix `STDERR_FILENO`），能力降级不再静默。
 - [ ] **P3 静态日志**：`StaticEffect`/`static()` 与整帧渲染并发写 stdout 的原子性（`rendering.kt` 已考虑 `clearDisplay` 兜底）。
 
 ## 12. 动画（`mosaic-animation/`）

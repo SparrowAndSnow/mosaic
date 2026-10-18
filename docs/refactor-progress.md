@@ -77,7 +77,16 @@
 | L7 | L7.5 | paste 逃生口：未终止 bracketed paste（只收到 start、未收到 end）中 Ctrl-C 仍退出（清空 paste 累积 → `job.cancel()`），普通粘贴字符不触发退出；顺带消除 `pasteText!!` | `6c4f46bd` | `PasteInterruptTest`（2 条：Ctrl-C 中断未终止 paste / 普通字符不退出；`Ticker` keep-alive 区分自然 idle 返回）；双平台全绿 | ✅ 已归档 |
 | L7 | L7.6 | awaitComplete 语义明确化：run-until-idle 收尾（效果全结束 + 欠下的 layout/draw 显式驱动一帧并 join 后 close）+ `cancel()` 必释放等待者；`setContent` 二次调用替换内容并取消旧 effect；TODO 注释替换为结论 | `00ebdb43` | `LifecycleSemanticsTest`（3 条：无限 effect 保活至 cancel 释放 / 静态自然返回 / 二次 setContent 取消旧 effect）；双平台全绿 | ✅ 已归档 |
 | L7 | L7.7 | `TextLayoutWidthTest`「测量与绘制一致」：按测量 `LineMeasure` 逐列对拍绘制结果（簇头列文本 / 宽簇 placeholder 续列 / 右沿 == totalWidth / `layout.width` == 最宽行）；覆盖 ascii/cjk/ZWJ/flags/keycap/VS16/内嵌空格/softWrap/Clip/Ellipsis/scroll/Annotated | `f51e04ee` | `TextLayoutWidthTest` 14 条（原 7 + 新 7）；双平台全绿 | ✅ 已归档 |
+| L7 | L7.8 | 非交互能力提示：`withTerminal` 落到 `NonInteractiveTerminal`（`Ignore` 绑定失败 / `AssumeAndIgnore`）时先向 stderr 打 `NonInteractiveNotice`（JVM `System.err` / native posix `STDERR_FILENO`），能力降级不再静默 | `91c6d23b` | `NonInteractiveTest`（commonTest 2 条：AssumeAndIgnore 分派 + 惰性终端能力清单）+ `NonInteractiveNoticeTest`（jvmTest 1 条：stderr 捕获）；双平台全绿 | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
+
+### L7.8 非交互能力提示（`91c6d23b`）
+- **背景**：`Ignore`（绑定失败）与 `AssumeAndIgnore`（跳过检测）都会用惰性 `NonInteractiveTerminal` 继续跑——无颜色/输入/扩展能力，但此前**静默**，用户易误以为正常。
+- **实现**：`withTerminal` 落到 `NonInteractiveTerminal` 时先调新增 expect/actual `warnNonInteractive()`（JVM `System.err` + flush；native posix `write(STDERR_FILENO)`，与 `nonInteractiveExit` 同构），打印 `NonInteractiveNotice`（一行英文中性提示）；`Exit/Throw/Return` 早返回不受影响。
+- **测试**：
+  - `NonInteractiveTest`（commonTest 2 条，双平台）：`AssumeAndIgnore` 跳过绑定、block 拿到惰性终端（`interactive=false`、事件通道已关、`withTerminal` 返回 `true`）；惰性终端能力清单（`ansiLevel=NONE`、kitty/2027/同步输出全 false、focused、`Size.Default`）。
+  - `NonInteractiveNoticeTest`（jvmTest 1 条）：重定向 stderr 断言 `AssumeAndIgnore` 确实输出 `NonInteractiveNotice`（非静默）。
+- **todo 勾销**：§11「P2 非交互策略」。
 
 ### L7.7 TextLayoutWidthTest「测量与绘制一致」断言（`f51e04ee`）
 - **动机**：测量端按 (簇, 宽) 切分每行、绘制端直接消费该切分，但没有任何测试把两侧钉在一起——若某处让测量与绘制对簇列数/落位分叉（wrap 切簇、截断错位、续列开合），布局会 vs 渲染尺寸不一致。
