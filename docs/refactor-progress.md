@@ -75,7 +75,19 @@
 | L7 | L7.3 | 帧节流：`runMosaicComposition` 帧循环按负载自适应（`hasPendingFrameWork` 判定，活跃 ~60fps / 空闲 ~20fps），替代 ~1000fps 恒空转 | `59c1df44` | `FrameThrottleTest`（3 条：闲判定 / 动画保帧率 / 静态不空转重绘）；双平台全绿 | ⏳ 待确认 |
 | L7 | L7.4 | 异常/panic 恢复：`runMosaicComposition` 捕获非取消异常→`frameWriter` 写纯文本错误帧（`Mosaic error`+堆栈+`NODES`）→`cancel()` 收队→rethrow；终端恢复由 `withTerminal` use 保证；`runMosaicComposition` 增可注入 `frameWriter` | `ddbaa911` | `FrameErrorVisibilityTest`（2 条：致命错误帧+传播 / 正常取消无错误帧）；双平台全绿 | ✅ 已归档 |
 | L7 | L7.5 | paste 逃生口：未终止 bracketed paste（只收到 start、未收到 end）中 Ctrl-C 仍退出（清空 paste 累积 → `job.cancel()`），普通粘贴字符不触发退出；顺带消除 `pasteText!!` | `6c4f46bd` | `PasteInterruptTest`（2 条：Ctrl-C 中断未终止 paste / 普通字符不退出；`Ticker` keep-alive 区分自然 idle 返回）；双平台全绿 | ⏳ 待确认 |
+| L7 | L7.6 | awaitComplete 语义明确化：run-until-idle 收尾（效果全结束 + 欠下的 layout/draw 显式驱动一帧并 join 后 close）+ `cancel()` 必释放等待者；`setContent` 二次调用替换内容并取消旧 effect；TODO 注释替换为结论 | `00ebdb43` | `LifecycleSemanticsTest`（3 条：无限 effect 保活至 cancel 释放 / 静态自然返回 / 二次 setContent 取消旧 effect）；双平台全绿 | ✅ 已归档 |
 ## 5. 已完成步骤的实现要点（供恢复上下文）
+
+### L7.6 awaitComplete 生命周期语义明确化（`00ebdb43`）
+- **背景**：`awaitComplete` 的 `// TODO Re-evaluate this for correctness.` 注释继承自上游单函数内联提交，语义一直未定论。
+- **语义确认（run-until-idle）**：
+  1. `effectJob.children.forEach { join() }`——等重组合器 effect job 的所有子协程结束；无限 effect（动画/tick）使 app 常驻（这是演示不退出的机制）。
+  2. `recomposer.awaitIdle()`——等重组工作收敛。
+  3. 若 `needLayout || needDraw` 仍有欠账，显式驱动一帧并 join：recomposer 已 idle 后无 effect 会再请求帧、帧循环无事可做；该帧保证欠下的 layout/draw pass 在 `close()` 前完整应用（run-until-idle 的显式收尾）。
+  4. `finally` 兜底 dispose + `job.cancel()`——`cancel()` 走该路径后 `awaitComplete` 正常返回、不挂死。
+- **setContent 二次调用**：为 Compose `composition.setContent` 标准替换语义——旧内容 dispose、其 effect 取消、新内容呈现。
+- **测试**：新增 `LifecycleSemanticsTest`（commonTest，jvm + linuxX64 全绿，3 条）：`infiniteEffectKeepsAwaitCompleteBlockedUntilCancel` / `awaitCompleteReturnsOnceAllEffectsFinish` / `secondSetContentReplacesContentAndCancelsOldEffects`。
+- **todo 勾销**：§1「P2 多实例 / 复用」——`setContent` 二次调用、`cancel`/`awaitComplete` 并发语义已明确并有测试固化。
 
 ### L7.1 双平台微基准：native 是否达主流实时标准（todo §13 P2）
 - **结构决策**：微基准从 `mosaic-runtime`（`explicitApi` + apiCheck 约束 + 二进制会进发布制品）迁到 `samples/bench`（不发布、不进 API 基线）。render 负载走**公共 API**（`Mosaic` + `onDraw` 里 `mosaic.draw()`/`static()`）镜像生产「计算屏幕内容」阶段；JVM 与 native 共用同一 `commonMain` 驱动，逐平台独立读数。

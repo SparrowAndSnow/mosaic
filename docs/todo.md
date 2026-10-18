@@ -35,7 +35,7 @@
 
 - [x] **P2 帧循环** ✅（L7.3）：`runMosaicComposition` 帧循环按负载自适应——活跃（重组/布局/绘制/动画等待中）~60fps、空闲 ~20fps，替代原 ~1000fps 恒发帧；`MosaicComposition.hasPendingFrameWork()` 判定 + `yield()` 消除动画重注册竞态；空闲帧不触发重绘（`FrameThrottleTest` 3 条）。
 - [x] **P2 异常/panic 恢复** ✅（L7.4）：`runMosaicComposition` 捕获非取消异常→写纯文本错误帧（堆栈+节点树）→`cancel()` 收队→rethrow；终端状态恢复由 `withTerminal` 双 `use` 保证；正常取消不报错、不写错误帧（`FrameErrorVisibilityTest` 2 条）。
-- [ ] **P2 多实例 / 复用**：`Mosaic(…)` 已可独立构造；明确 `setContent` 二次调用、`cancel`/`awaitComplete` 的并发语义（`mosaic.kt` 已有 "Re-evaluate this for correctness" TODO）。
+- [x] **P2 多实例 / 复用** ✅（L7.6，`00ebdb43`）：awaitComplete 语义明确化——静态无 effect 内容按 run-until-idle 自然返回；无限 effect 保活期间阻塞，仅 `cancel()` 释放；`setContent` 二次调用替换内容并取消旧 content 的 effect；原 "Re-evaluate" TODO 替换为结论化说明（`LifecycleSemanticsTest` 3 条）。
 - [ ] **P3 运行时对齐**：`mosaic-animation/` 是手写 Compose animation port，需跟随 androidx 版本（`AnimateAsState`/`Animatable` 等）并评估是否上 `AnimationVector` 表维护成本。
 - [ ] **P3 生命周期集成**：`LifecycleOwner`/`LocalTerminalState` 已接入；补齐前后台/焦点与动画节流的联动（如失焦时降帧）。
 
