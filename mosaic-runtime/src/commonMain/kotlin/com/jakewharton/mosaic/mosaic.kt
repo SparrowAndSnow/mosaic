@@ -492,7 +492,14 @@ internal class MosaicComposition(
 
 			applyObserverHandle.dispose()
 			if (needLayout || needDraw) {
-				// TODO Re-evaluate this for correctness.
+				// Layout/draw invalidation can arrive after the recomposer reports idle, e.g. from the
+				// final snapshot-apply observer callback of a settling composition. Nothing else would
+				// then request a frame: the last effect has finished, so the frame loop has no pending
+				// work to drive another pass. Reserve a single frame on the internal clock and wait for
+				// it so the owed layout/draw pass runs and is fully applied before the recomposer is
+				// closed. This is the explicit tail of the run-until-idle contract: skipping it could
+				// leave layout/draw pending when the recomposer shuts down, and joining the frame
+				// coroutine (not merely scheduling it) guarantees the pass completed before close().
 				scope.launch { internalClock.withFrameNanos { } }.join()
 			}
 
