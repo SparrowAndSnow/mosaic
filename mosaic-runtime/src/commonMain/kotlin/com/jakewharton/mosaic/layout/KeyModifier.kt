@@ -28,6 +28,11 @@ public class KeyEvent(
 	public val alt: Boolean = false,
 	public val ctrl: Boolean = false,
 	public val shift: Boolean = false,
+	/**
+	 * True when this is an auto-repeat of a held key (the terminal requested it), false for a fresh
+	 * press. Lets callers treat paging keys as one action per physical press.
+	 */
+	public val repeat: Boolean = false,
 )
 
 /**

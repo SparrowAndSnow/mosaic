@@ -35,6 +35,7 @@ private fun formatKey(event: KeyEvent): String = buildString {
 	if (event.alt) append("A-")
 	if (event.shift) append("S-")
 	append(event.key)
+	if (event.repeat) append("(repeat)")
 }
 
 private fun formatMouse(event: MouseEvent): String = buildString {

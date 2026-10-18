@@ -3,6 +3,8 @@ package example
 import assertk.assertThat
 import assertk.assertions.contains
 import com.jakewharton.mosaic.testing.runMosaicTest
+import com.jakewharton.mosaic.terminal.KeyboardEvent
+import example.screens.LazyScreen
 import example.screens.ScrollScreen
 import example.screens.TextScreen
 import example.screens.UnicodeScreen
@@ -49,6 +51,34 @@ class ShowcaseTest {
 			assertThat(snapshot).contains("L01")
 			assertThat(snapshot).contains("横向滚动")
 			assertThat(snapshot).contains("块1")
+		}
+	}
+
+	@Test fun lazyPageShowsOnlyTheVisibleWindow() = runTest {
+		runMosaicTest {
+			val snapshot = setContentAndSnapshot { LazyScreen() }
+			assertThat(snapshot).contains("LazyColumn")
+			assertThat(snapshot).contains("第  0行")
+			assertThat(snapshot).contains("offset 0/500")
+		}
+	}
+
+	@Test fun lazyPagePageKeysIgnoreAutoRepeat() = runTest {
+		runMosaicTest {
+			setContentAndSnapshot { LazyScreen() }
+
+			// A single physical press followed by the auto-repeat burst a hold would generate must
+			// land on exactly one page, not stack several pages.
+			sendKeyEvent(KeyboardEvent(KeyboardEvent.PageDown, eventType = KeyboardEvent.EventTypePress))
+			sendKeyEvent(KeyboardEvent(KeyboardEvent.PageDown, eventType = KeyboardEvent.EventTypeRepeat))
+			sendKeyEvent(KeyboardEvent(KeyboardEvent.PageDown, eventType = KeyboardEvent.EventTypeRepeat))
+			val one = awaitSnapshot().toString()
+			assertThat(one).contains("offset 9/500")
+
+			// Flipping to the opposite direction is not a repeat and stays immediate.
+			sendKeyEvent(KeyboardEvent(KeyboardEvent.PageUp, eventType = KeyboardEvent.EventTypePress))
+			val up = awaitSnapshot().toString()
+			assertThat(up).contains("offset 0/500")
 		}
 	}
 }

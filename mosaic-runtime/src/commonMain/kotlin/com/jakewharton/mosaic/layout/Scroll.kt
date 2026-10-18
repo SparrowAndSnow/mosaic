@@ -101,7 +101,7 @@ public fun Modifier.horizontalScroll(
  * scroll container itself, so any content - a list, a single long line - scrolls under the wheel
  * without the caller wiring up mouse plumbing.
  */
-private class ScrollWheelMouseModifier(
+internal class ScrollWheelMouseModifier(
 	private val state: ScrollState,
 ) : MouseModifier {
 	override fun onMouseEvent(event: MouseEvent): Boolean {
@@ -120,7 +120,7 @@ private class ScrollWheelMouseModifier(
 	override fun toString(): String = "ScrollWheel"
 }
 
-private const val MouseWheelLines = 3
+internal const val MouseWheelLines = 3
 
 private class ScrollingLayoutModifier(
 	private val state: ScrollState,

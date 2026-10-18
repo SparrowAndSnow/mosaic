@@ -10,4 +10,5 @@ internal enum class Page(
 	Input("Input"),
 	Animation("Animation"),
 	Scroll("Scroll"),
+	Lazy("Lazy"),
 }

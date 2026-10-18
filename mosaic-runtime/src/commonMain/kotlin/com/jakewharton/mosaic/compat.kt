@@ -37,5 +37,6 @@ internal fun KeyboardEvent.toKeyEventOrNull(): KeyEvent? {
 		alt = alt,
 		ctrl = ctrl,
 		shift = shift,
+		repeat = eventType == KeyboardEvent.EventTypeRepeat,
 	)
 }

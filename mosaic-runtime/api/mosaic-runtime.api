@@ -148,12 +148,13 @@ public final class com/jakewharton/mosaic/layout/IntrinsicSize : java/lang/Enum 
 
 public final class com/jakewharton/mosaic/layout/KeyEvent {
 	public static final field $stable I
-	public fun <init> (Ljava/lang/String;ZZZ)V
-	public synthetic fun <init> (Ljava/lang/String;ZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;ZZZZ)V
+	public synthetic fun <init> (Ljava/lang/String;ZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAlt ()Z
 	public final fun getCtrl ()Z
 	public final fun getKey ()Ljava/lang/String;
+	public final fun getRepeat ()Z
 	public final fun getShift ()Z
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -732,6 +733,15 @@ public final class com/jakewharton/mosaic/ui/Layout {
 }
 
 public abstract interface annotation class com/jakewharton/mosaic/ui/LayoutScopeMarker : java/lang/annotation/Annotation {
+}
+
+public final class com/jakewharton/mosaic/ui/LazyColumn {
+	public static final fun LazyColumn (Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/layout/ScrollState;IIILkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
+public abstract interface class com/jakewharton/mosaic/ui/LazyListScope {
+	public abstract fun items (ILkotlin/jvm/functions/Function3;)V
+	public abstract fun items (Ljava/util/List;Lkotlin/jvm/functions/Function3;)V
 }
 
 public abstract interface annotation class com/jakewharton/mosaic/ui/MosaicComposable : java/lang/annotation/Annotation {

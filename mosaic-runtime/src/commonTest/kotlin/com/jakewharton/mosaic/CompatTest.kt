@@ -43,11 +43,13 @@ class CompatTest {
 		assertThat(press(57380).toKeyEventOrNull()).isEqualTo(KeyEvent("F17"))
 	}
 
-	@Test fun repeatIsDeliveredAsPress() {
+	@Test fun repeatIsDeliveredFlaggedAndPressIsNot() {
 		assertThat(
 			KeyboardEvent(KeyboardEvent.Left, eventType = KeyboardEvent.EventTypeRepeat)
 				.toKeyEventOrNull(),
-		).isEqualTo(KeyEvent("ArrowLeft"))
+		).isEqualTo(KeyEvent("ArrowLeft", repeat = true))
+		assertThat(press(KeyboardEvent.Down).toKeyEventOrNull())
+			.isEqualTo(KeyEvent("ArrowDown", repeat = false))
 	}
 
 	@Test fun releaseIsDropped() {
