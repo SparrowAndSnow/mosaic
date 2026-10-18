@@ -17,6 +17,13 @@ internal actual fun nonInteractiveExit(): Nothing {
 	exitProcess(1)
 }
 
+internal actual fun warnNonInteractive() {
+	System.err.apply {
+		println(NonInteractiveNotice)
+		flush()
+	}
+}
+
 internal actual fun writeScreenBytes(bytes: ByteArray, offset: Int, count: Int) {
 	System.out.write(bytes, offset, count)
 }

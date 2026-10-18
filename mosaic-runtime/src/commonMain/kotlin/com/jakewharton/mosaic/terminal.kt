@@ -36,7 +36,12 @@ internal suspend fun withTerminal(
 	}
 
 	tty.use {
-		val terminal = tty?.asTerminalIn(this, mouse = mouse, paste = paste) ?: NonInteractiveTerminal
+		val terminal = if (tty != null) {
+			tty.asTerminalIn(this, mouse = mouse, paste = paste)
+		} else {
+			warnNonInteractive()
+			NonInteractiveTerminal
+		}
 		terminal.use { block(it) }
 	}
 
@@ -95,3 +100,11 @@ internal object NonInteractiveTerminal : Terminal, Terminal.State, Terminal.Capa
 }
 
 internal const val NonInteractiveMessage = "Unable to run in non-interactive mode."
+
+/**
+ * Shown on stderr when a composition runs against [NonInteractiveTerminal] (Ignore with no
+ * bindable TTY, or AssumeAndIgnore) so degraded rendering is never silent: the inert
+ * terminal has no colors, input, or extended capabilities.
+ */
+internal const val NonInteractiveNotice =
+	"No interactive terminal available; colors, input, and extended features are unavailable."

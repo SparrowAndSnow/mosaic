@@ -25,6 +25,12 @@ internal actual fun nonInteractiveExit(): Nothing {
 }
 
 @OptIn(ExperimentalForeignApi::class, UnsafeNumber::class)
+internal actual fun warnNonInteractive() {
+	val message = "$NonInteractiveNotice\n".cstr
+	write(STDERR_FILENO, message, message.size.convert())
+}
+
+@OptIn(ExperimentalForeignApi::class, UnsafeNumber::class)
 internal actual fun writeScreenBytes(bytes: ByteArray, offset: Int, count: Int) {
 	var remaining = count
 	var currentOffset = offset
