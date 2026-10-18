@@ -34,6 +34,8 @@ fun main(args: Array<String>) = runBlocking {
 		benchmarkRenderAndLayoutDrawIdleOnly()
 	} else if (args.isNotEmpty() && args[0] == "fullrebuild") {
 		benchmarkRenderAndLayoutFullRebuildOnly()
+	} else if (args.isNotEmpty() && args[0] == "cjk") {
+		benchmarkCjk()
 	} else {
 		benchmarkRenderAndLayout()
 		benchmarkParser()
@@ -46,6 +48,38 @@ private suspend fun benchmarkRenderAndLayoutFullRebuildOnly() {
 	val status = mutableStateOf(0)
 	harness.seed { Dashboard(status.value, rebuild = true) }
 	benchmark("render-full-rebuild", iterations = 2_000, warmup = 300) {
+		status.value++
+		harness.driveFrame()
+	}
+	harness.mosaic.cancel()
+}
+
+/** Same load shape as [Dashboard] but real CJK/emoji content to expose the non-ASCII path cost. */
+@Composable
+private fun DashboardCjk(status: Int, rebuild: Boolean = false) {
+	Column {
+		Text("「服务器监控」面板 线程32 进程1024 在线 👨‍👩‍👧‍👦")
+		for (i in 0 until 30) {
+			val value = if (rebuild) i * 7 + status else i * 7
+			Text("第${i.toString().padStart(2)}行 指标${value.toString().padStart(4)} ${"▉".repeat(i % 5 + 1)} 状态正常")
+		}
+		Text("状态=$status CPU=42% 内存=1.2G 温度=38℃")
+		Text("── 尾部 ──")
+	}
+}
+
+private suspend fun benchmarkCjk() {
+	val harness = benchHarness()
+	val status = mutableStateOf(0)
+
+	harness.seed { DashboardCjk(status.value) }
+	benchmark("render-draw-idle-cjk", iterations = 10_000, warmup = 1_000) {
+		harness.mosaic.draw()
+		harness.mosaic.static()
+	}
+
+	harness.seed { DashboardCjk(status.value, rebuild = true) }
+	benchmark("render-full-rebuild-cjk", iterations = 2_000, warmup = 300) {
 		status.value++
 		harness.driveFrame()
 	}
