@@ -29,6 +29,7 @@ include ':samples:java-tty'
 include ':samples:jest'
 include ':samples:robot'
 include ':samples:rrtop'
+include ':samples:showcase'
 include ':samples:snake'
 include ':samples:bench'
 
