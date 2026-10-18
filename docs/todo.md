@@ -145,7 +145,7 @@
 ## 10. 能力探测（`TtyTerminal.kt`）
 - [x] **P1 DEC 2027** ✅（L6.2，`9f88fbc7`）：补 `CSI ?2027$p` 探测 → `Capabilities.graphemeClustering`；支持时自动 `CSI ?2027h` 启用（退出恢复）、set/permanentlySet 不重复；`TtyTerminalDec2027Test`（5 态）+ `EventParser` 2027 例。宽度口径落法见 progress §6 决策：能力暴露 + 终端侧启用，逐 rune 后备未做（理由已记录）。
 - [x] **P2 探测列表完备性** ✅（L6.8，`53ba2ea2`）：审计对账 13 项探测全对应暴露能力；theme 996/997 确认非笔误；「逐项重查」评估驳回（不响应终端逐项同样不响应 + N+1 轮询 + 破坏安全契约）；新增 `TtyTerminalProbeInventoryTest` 锁定完整探测清单防失。
-- [ ] **P2 超时兜底**：`withTimeoutOrNull(1s)` 已有；无响应终端降级路径要可观测（debug 输出），避免静默错配。
+- [x] **P2 超时兜底** ✅（L7.14，`f1c580cf`）：`withTimeoutOrNull(1s)` 已有；无响应终端降级路径不再静默——超时即向 stderr 打英文提示（含卡住阶段），`MOSAIC_TTY_TERMINAL_DEBUG=true` 追加已确认能力清单；`stderrPrint` 双平台实现（L7.8 提示同构）；`TtyTerminalBootstrapTimeoutNoticeTest`（4）+ `TtyTerminalTimeoutNoticeJvmTest`（1 真实超时 stderr 捕获）。
 - [ ] **P3 env 兜底**：`detectAnsiLevel` 扩展 `TERM_PROGRAM`（iTerm2/WezTerm…）与 kitty/OSC 12 兜底（BubbleTea colorprofile 思路）。
 
 ## 11. 生命周期 / 集成
