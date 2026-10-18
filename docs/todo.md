@@ -81,7 +81,7 @@
 - [x] **P0 升级 `TextPixel`** ✅（L2.1，`1a0e39d4`）：`Int codePoint + Boolean isWideContinuation` → `String content + Int width`（含 `markAsContinuation()`；`appendRowTo` 跳格逻辑已同步）。
 - [x] **P1 部分覆盖清理** ✅（L3.4 结构论证 + L7.2 cell 级懒复位）：宽格头/续列被覆盖不再留半格——占位身份区分 + 簇边界扩展 + 区间合并（`CellDiffRenderingTest` 3 例）+ 帧末 `resetCellsNotWritten` 清同帧未写旧格。
 - [x] **P2 画布复用/内存** ✅（L7.2 ①/⑧）：`TextSurface` 不再每帧 `new`（`reset()` 复用）+ cell 级懒复位（`SurfaceReuseTest`/`SurfaceLazyResetTest`）；剩余「跨帧差分保留」未做（现为每帧全量重绘后 diff，收益有限，P3）。
-- [ ] **P2 ISO 控制字符处理**：`drawText` 对 `\t`/`\r`/`\b` 的控制语义（`charWidth` 兜底 1）——是否需要处理制表符展开/退格（Ratatui `set_stringn` 是过滤控制符）。
+- [x] **P2 ISO 控制字符处理** ✅（L7.12，`3390599c`）：C0/DEL/C1 控制符按「过滤控制符」口径净化为**非打印**——0 列、不绘制、不进 ANSI 流（原 1 列 + 原样发出会在真实终端触发 CR/BS/TAB/ESC，打乱帧）；**不做 tab 展开**（需列上下文，破坏测/绘唯一口径不变量）；`\n` 保持行分隔。回归：`IsoControlRenderingTest`（7）+ `GraphemeWidthTest` 增 1。
 
 ## 5. 布局（`layout/` + `ui/`）
 - [x] **P1 Text 内建排版（簇级安全换行）** ✅（L4.1，`9c622d53`）：`Text` 参数化 `softWrap`（默认 false 不回归），开启时按入向 `maxWidth` 约束在**字素簇边界**软换行；ZWJ 家庭/组合字符/变体/旗帜永不拆开，超宽簇独占行，空段落保留；约束变化即时重排。测试：`TextLayoutWrapTest` + `TextWrapRenderingTest`。
