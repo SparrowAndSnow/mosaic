@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.17（`108a07fa`）· 创建：2026-10-17 · 更新：2026-10-19
+> 分支：`refactor` · 当前 HEAD：L7.17（`108a07fa`）+ L7.18 工作树 · 创建：2026-10-17 · 更新：2026-10-19
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -89,10 +89,21 @@
 | L7 | L7.16.1 | `<key>~` 键事件补解析调制键与事件类型（根因修复）：`CSI <key>;<modifiers>[:<event-type>]~` 此前只取数字码，`:3~`（松开）被当成第二次按下——`Fn+PageDown` 一次按压翻两页；按游标键分支解析 payload，松开标记为 release、被 runtime（`compat.kt`）丢弃。顺带撤销 L7.16 的 Page 键 600ms 时间窗「敷衍式」兜底——改 Page 键只响应全新 press、吞 keyboard-protocol repeat（长按只翻一页）；`bin/` 构建产物入 gitignore | `b4ff8220` | `EventParserCsiTildeKeyboardEventTest`（9：PgUp/PgDn/Insert/Delete/Home/End 纯形 + `6;129:1~` press / `:3~` release / `:2~` repeat / `11;2~` Shift+F1）+ `ShowcaseTest` 改 press/repeat/release/反向 4 事件；tty-terminal jvm/native 各 +9，runtime 642/640，showcase 6/6，apiCheck 通过 | ✅ 已归档 |
 | L7 | L7.17 | 单行可编辑文本输入框：`BasicTextField(value, onValueChange, modifier, enabled, readOnly, textStyle, color, background, onDone)`——Compose 同款受控语义；光标=终端原生反显块（SGR 7，字符上反显该字素、末尾反显空格）；编辑按 UAX#29 字素移动/删除（CJK 与组合序列），IME/粘贴插光标处，Ctrl 组合不吞；`enabled=false` 惰性无光标、`readOnly` 只导航不编辑；**内部文本镜像**解决同帧连击丢字（编辑基于镜像而非旧闭包 value）；编辑器抽成纯类可单测 | `108a07fa` | `BasicTextFieldTest`（18：引擎 9 条——插入/退格/删除/导航含宽字符列宽与组合簇边界；组合层 9 条——渲染+反显光标/disabled/typing/ctrl 不插/退格/中插/粘贴，走真实事件通路）；runtime jvm 660 / native 658，showcase 各 7，apiCheck（.api/.klib.api）通过 | ✅ 已归档 |
 
+| L7 | L7.18 | 鼠标交互原语：`Modifier.hoverable(onHoverChanged)`（enter/leave）+ `Modifier.clickable(enabled, onClickLabel, onClick)`（主键 Press→Release 同界内触发，越界/换节点取消）；每元素 state 用 `.composed`+`remember` 跨重组稳定；根节点统一 PointerState 预检——收集命中路径上所有 pointer 输入 → hover enter/exit 会话级对账 + click 按下捕获/释放判定（取叶子优先，释放位置回查原节点当前边界与树上存活）→ 再走原有命中分发。showcase TabBar 改由 clickable/hoverable 驱动（顺带修复 hover 粘滞） | 待提交 | `PointerInputTest`（12 条：hover enter/exit/跨兄弟/disabled；click 同界触发/越界取消/界外按下/disabled/叠放兄弟取顶/嵌套取内/wheel 忽略/hover+click 共存/拖拽后仍在界内点击）；runtime jvm 672 / native 670，showcase jvm/native 各 8，apiCheck 通过 | ⏳ 待确认 |
+
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
-### L7.15 通用滚动容器 + 裁剪（`ac3e7572`）
+### L7.18 鼠标交互原语 `hoverable` / `clickable`（L7.18 工作树）
+- **定位**：落地 todo §15「鼠标交互」——把已解析但未消费的鼠标事件提升为声明式原语；依赖 L5 鼠标通路 + L4 布局已就绪。
+- **API（`layout/PointerInput.kt`）**：
+  - `Modifier.hoverable(enabled = true, onHoverChanged: (Boolean) -> Unit)`：指针进入/离开元素边界回调；leave 在**下次鼠标事件**上报（静止指针无事件，接受该限制）。
+  - `Modifier.clickable(enabled = true, onClickLabel: String? = null, onClick: () -> Unit)`：主键（左键）在边界内按下→边界内松开才触发；按下后拖走 / 到边界外松开 / 松开落在其他组件都取消。wheel 等非左键不响应。
+- **稳定性设计**：`composed`+`remember` 让每个元素的 `PointerInputState` 跨重组复用（重组仅刷新 `enabled`/回调）；`Node.setModifier` 折叠时把元素 state 收集进节点 `pointerInputs`（每次重建、天然去陈旧）。删除元素后其 state 不再在路径上 → 下次事件触发 leave。
+- **会话级预检（`PointerState`，仅在组合根一次）**：`sendMouseEvent` 在根节点先跑 `preDispatch` 再走原命中分发——① 沿命中路径收集 pointer 输入（递归先子后己，列表首项=最具体叶子）② hover enter/exit 与「上次 hovered 集合」对账 ③ click 按下捕获（路径上第一个 enabled clickable）+ 松开判定（回查**原节点当前边界** + `isAttachedTo(root)` 存活校验，防节点已移除仍触发）。不消费事件，`onMouseEvent` 低层通路照常。
+- **showcase**：`TabBar`/`Tab` 改由 `.clickable { onSelect(index) }`+`.hoverable { hovering = it }` 驱动——移除旧的 `hoveredPage` 状态；顺带修复原 hover 粘滞（旧实现只置不清，指针移开后高亮残留；新实现 leave 正确清除）。页脚提示改「悬停/点击标签」。
+- **测试**：`PointerInputTest`（12 条，双平台）——hover：enter/exit、兄弟间迁移、disabled 忽略；click：同界触发、越界取消、界外按下不触发、disabled 忽略、叠放兄弟取顶序、嵌套取内层、wheel 忽略、hover+click 共存、按下后拖动仍在原界内释放触发。`ShowcaseTest` 增 `tabBarClickSwitchesPage`（端到端：算实际标签宽定位 Text 页签→模拟 Press/Release→断言切页；顺带暴露 `weight(fill)` 槽位=内容宽的既有布局行为）。
+- **验证**：runtime jvm 672 / native 670，showcase jvm/native 各 8，apiCheck（.api/.klib.api）通过。 通用滚动容器 + 裁剪（`ac3e7572`）
 - **定位**：`Text.scroll`（L4.4）只动 Text 的查看窗口；本次把「滚动 + 裁剪 + 状态」抽象成通用 `LayoutModifier`，任意内容（列表 / 单行 / 带背景块）都能放进有界视口滚动。
 - **状态（`layout/Scroll.kt`）**：`ScrollState.value` 与 `maxValue` 均为 `mutableIntStateOf` 快照态（setter internal）；`maxValue` 每次 measure 由滚动 modifier 计算写回（内容尺寸 − 视口，clamp≥0），UI（状态行 / 滚动条）上帧即可刷新，无需等 value 变化；`scrollBy`/`scrollTo` 双端 clamp，`scrollBy` 返回实际消费量（到边界时小于 delta）。
 - **滚动布局**：`verticalScroll`/`horizontalScroll` 链上 `ClipToBoundsElement`（外）+ `ScrollingLayoutModifier`（内）；滚动轴方向用 `Infinity` 测内容取自然尺寸，视口取父约束有界值（父无界则视口=内容、无可滚）；返回 `layout(视口){ content.place(-scroll, 0) }`。

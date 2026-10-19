@@ -92,6 +92,7 @@
 - [x] **P2 Modifier 缺口** ✅（L7.13，`a3f7cc6c`）：约束便捷族早已齐备——`widthIn/heightIn/sizeIn`、`requiredWidth/Height/Size(+In)`、`fillMaxWidth/H/S(fraction)`、`wrapContent*/defaultMinSize`（`layout/Size.kt`）；真实缺口 `onGloballyPositioned` 放置回调已于 L7.13 补齐（根坐标+尺寸，仅变化时触发）。`margin` 明确不补（Compose 无 margin）。
 - [ ] **P2 intrinsic 复用**：`min/maxIntrinsicWidth/Height` 已透传，但测量重复计算；考虑缓存（与布局缓存合并）。
 - [ ] **P3 焦点/键盘导航**：无焦点管理/方向键导航原语（Ratatui 生态靠 widget 状态机、BubbleTea 靠应用层）。
+- [ ] **P3 `weight(fill)` 语义核对（L7.18 顺带发现）：`weight(1f)` 平均分配剩余主轴时，子节点仍按**内容宽**报告与放置（探针：槽位 80/8=10，节点宽=标签宽 4，按内容宽顺序排布不透槽）。与 Compose `weight(fill=true)` 语义不符，影响整槽点击/均分布局的可点击面积与视觉；归 L4 布局待核查。
 
 ## 6. 文本 / 样式（`text/` + `ui/Text.kt`）
 - [x] **P1 测/绘口径统一** ✅（L1.2/L2.1）：`TextLayout` 与 `drawText` 已共用簇级宽度；勿在 `TextLayout` 单独加 override（会和 `©=1/☀︎=1` 锁定语义冲突）。
@@ -180,7 +181,7 @@
 - [x] **滚动容器（最大布局缺口）** ✅（L7.15，`ac3e7572`）：`ScrollState`（`value`/`maxValue` 快照态 + `scrollBy`/`scrollTo` clamp + `rememberScrollState`）+ `verticalScroll`/`horizontalScroll`（滚动轴无界测量、视口=约束、内容位移取负，clip 在外 offset 在内）+ `clipToBounds()` + 画布裁剪矩形；顺带修复绘制三处（簇裁剪后续列卡死 / `maxValue` 快照可观察 / 格子首写重置消除背景残留），滚轮内建（一格 3 行）；showcase 第 6 页演示三类容器；要点见 progress §5。
 - [x] **惰性列表** ✅（L7.16，`0a65dd39`；L7.16.1，`b4ff8220` 根因修复）：`LazyColumn`（仅组合可视区子项、代价 O(视口) 与总数无关）+ `LazyListScope` `items(count)`/`items(List)` + 固定 `itemHeight` 槽位；复用滚动容器/裁剪/滚轮；`KeyEvent` 增 `repeat` 标志（L7.16.1 补 `CSI <key>;<mod>:<type>~` 解析、撤销 600ms 时间窗兜底，Page 键只响应全新 press）；showcase 第 7 页（500 行）。`LazyRow` 仍待办；要点见 progress §5。
 - [x] **输入控件** ✅（L7.17，`108a07fa`）：`BasicTextField`（单行可编辑 + 反显块光标 + IME/粘贴 + 字素级编辑），受控组件、内部文本镜像防连击丢字；showcase 第 8 页 Field。多字段/点击聚焦待 §15「焦点 / 键盘导航原语」。
-- [ ] **鼠标交互**：`clickable` / `hoverable`（鼠标事件当前**已解析但未消费**，见 todo §8），依赖 L5 把事件接到平台回调。
+- [x] **鼠标交互** ✅（L7.18）：`Modifier.hoverable(onHoverChanged)`（enter/leave 会话级对账）+ `Modifier.clickable(enabled, onClickLabel, onClick)`（主键界内按下→界内松开触发，越界取消）；showcase TabBar 已改由二者驱动；要点见 progress §5。
 - [ ] **焦点 / 键盘导航原语**：交叉引用 todo §5 已有 P3 条目。
 - [ ] **边框 / 分隔绘制**：`border` / 分隔线（在 DrawScope 之上，无核心依赖，可随时插入）。
 - [x] **定位回调** ✅（L7.13，`a3f7cc6c`）：`Modifier.onGloballyPositioned { position, size -> }`（根坐标 + 尺寸，仅变化时触发）。
