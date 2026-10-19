@@ -67,11 +67,11 @@ class ShowcaseTest {
 		runMosaicTest {
 			setContentAndSnapshot { LazyScreen() }
 
-			// A single physical press followed by the auto-repeat burst a hold would generate must
-			// land on exactly one page, not stack several pages.
+			// A single physical press is one page; the keyboard-protocol auto-repeat is swallowed
+			// and the key-up (which the runtime drops before composition) must not add anything.
 			sendKeyEvent(KeyboardEvent(KeyboardEvent.PageDown, eventType = KeyboardEvent.EventTypePress))
 			sendKeyEvent(KeyboardEvent(KeyboardEvent.PageDown, eventType = KeyboardEvent.EventTypeRepeat))
-			sendKeyEvent(KeyboardEvent(KeyboardEvent.PageDown, eventType = KeyboardEvent.EventTypeRepeat))
+			sendKeyEvent(KeyboardEvent(KeyboardEvent.PageDown, eventType = KeyboardEvent.EventTypeRelease))
 			val one = awaitSnapshot().toString()
 			assertThat(one).contains("offset 9/500")
 

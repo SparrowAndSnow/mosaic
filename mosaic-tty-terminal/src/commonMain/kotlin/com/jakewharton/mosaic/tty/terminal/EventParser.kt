@@ -307,8 +307,25 @@ public class EventParser(
 						else -> break@error
 					}
 
-					// TODO parse rest of CSI ... ~
-					return KeyboardEvent(codepoint)
+					// CSI <key>~ and CSI <key>;<modifiers>[:<event-type>]~. The extended form (used by
+					// terminals that encode protocol keys with a traditional escape code) carries the
+					// same modifiers + event-type payload as the cursor-key branch; ignoring it turns a
+					// key-up or auto-repeat into a fresh press.
+					if (delimiter == finalIndex) {
+						return KeyboardEvent(codepoint)
+					}
+
+					val modifiersStart = delimiter + 1
+					val modifiersEnd =
+						buffer.indexOfOrDefault(':'.code.toByte(), modifiersStart, finalIndex, finalIndex)
+					val modifiers =
+						buffer.parseIntDigits(modifiersStart, modifiersEnd, orElse = { break@error }) - 1
+					val eventType = if (modifiersEnd < finalIndex) {
+						buffer.parseIntDigits(modifiersEnd + 1, finalIndex, orElse = { break@error })
+					} else {
+						KeyboardEvent.EventTypePress
+					}
+					return KeyboardEvent(codepoint, modifiers = modifiers, eventType = eventType)
 				}
 
 				'I'.code -> return FocusEvent(focused = true)
