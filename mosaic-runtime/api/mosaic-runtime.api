@@ -72,8 +72,21 @@ public final class com/jakewharton/mosaic/layout/BackgroundKt {
 	public static final fun background-fCupJr8 (Lcom/jakewharton/mosaic/modifier/Modifier;I)Lcom/jakewharton/mosaic/modifier/Modifier;
 }
 
+public final class com/jakewharton/mosaic/layout/BorderKt {
+	public static final fun HorizontalDivider-oQVZWHw (IIIILcom/jakewharton/mosaic/modifier/Modifier;Landroidx/compose/runtime/Composer;II)V
+	public static final fun VerticalDivider-oQVZWHw (IIIILcom/jakewharton/mosaic/modifier/Modifier;Landroidx/compose/runtime/Composer;II)V
+	public static final fun border-BGVa0Zk (Lcom/jakewharton/mosaic/modifier/Modifier;II)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static synthetic fun border-BGVa0Zk$default (Lcom/jakewharton/mosaic/modifier/Modifier;IIILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
+}
+
 public final class com/jakewharton/mosaic/layout/ClipToBoundsKt {
 	public static final fun clipToBounds (Lcom/jakewharton/mosaic/modifier/Modifier;)Lcom/jakewharton/mosaic/modifier/Modifier;
+}
+
+public final class com/jakewharton/mosaic/layout/ComposableSingletons$BorderKt {
+	public static final field INSTANCE Lcom/jakewharton/mosaic/layout/ComposableSingletons$BorderKt;
+	public fun <init> ()V
+	public final fun getLambda$2110025602$mosaic_runtime ()Lkotlin/jvm/functions/Function2;
 }
 
 public abstract interface class com/jakewharton/mosaic/layout/ContentDrawScope : com/jakewharton/mosaic/layout/DrawScope {

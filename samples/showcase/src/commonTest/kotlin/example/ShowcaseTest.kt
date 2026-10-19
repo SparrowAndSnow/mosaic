@@ -4,6 +4,7 @@ import assertk.assertThat
 import assertk.assertions.contains
 import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.terminal.KeyboardEvent
+import example.screens.BorderScreen
 import example.screens.FieldScreen
 import example.screens.LazyScreen
 import example.screens.ScrollScreen
@@ -90,6 +91,18 @@ class ShowcaseTest {
 			sendKeyEvent(KeyboardEvent(KeyboardEvent.PageUp, eventType = KeyboardEvent.EventTypePress))
 			val up = awaitSnapshot().toString()
 			assertThat(up).contains("offset 0/500")
+		}
+	}
+
+	@Test fun borderPageShowsBordersAndDividers() = runTest {
+		runMosaicTest {
+			val snapshot = setContentAndSnapshot { BorderScreen() }
+			assertThat(snapshot).contains("border()")
+			assertThat(snapshot).contains("┌")
+			assertThat(snapshot).contains("┐")
+			assertThat(snapshot).contains("│")
+			assertThat(snapshot).contains("水平分隔线")
+			assertThat(snapshot).contains("垂直分隔线")
 		}
 	}
 
