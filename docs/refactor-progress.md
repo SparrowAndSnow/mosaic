@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.18（`d13d1bd4`）+ L7.19 工作树 · 创建：2026-10-17 · 更新：2026-10-19
+> 分支：`refactor` · 当前 HEAD：L7.20（`9dc2cb7e`） · 创建：2026-10-17 · 更新：2026-10-19
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -91,12 +91,13 @@
 
 | L7 | L7.18 | 鼠标交互原语：`Modifier.hoverable(onHoverChanged)`（enter/leave）+ `Modifier.clickable(enabled, onClickLabel, onClick)`（主键 Press→Release 同界内触发，越界/换节点取消）；每元素 state 用 `.composed`+`remember` 跨重组稳定；根节点统一 PointerState 预检——收集命中路径上所有 pointer 输入 → hover enter/exit 会话级对账 + click 按下捕获/释放判定（取叶子优先，释放位置回查原节点当前边界与树上存活）→ 再走原有命中分发。showcase TabBar 改由 clickable/hoverable 驱动（顺带修复 hover 粘滞） | 待提交 | `PointerInputTest`（12 条：hover enter/exit/跨兄弟/disabled；click 同界触发/越界取消/界外按下/disabled/叠放兄弟取顶/嵌套取内/wheel 忽略/hover+click 共存/拖拽后仍在界内点击）；runtime jvm 672 / native 670，showcase jvm/native 各 8，apiCheck 通过 | ⏳ 待确认 |
 
-| L7 | L7.19 | 焦点 / 键盘导航原语：`Modifier.focusable(enabled)`（Tab/Shift+Tab 环形遍历 + 主键点击聚焦）+ `Modifier.onFocusChanged { FocusState }`（`hasFocus`=自或后代、`isFocused`=自身、`isCaptured` 恒 false）+ `FocusRequester`（`Modifier.focusRequester` 程序化 requestFocus，配 focusable 才会生效）；每节点单个 `FocusTarget`（跨重组复用，观察者每次重建拾取新 lambda），组合根 `FocusManager` 负责焦点事务——释放旧分支（自身+非共享祖先 down）→点亮新分支（至首个已亮祖先停），每节点**一次原子通知**；Tab 仅在存在 focusable 时消耗（否则保持旧行为）、Shift+Tab 反向、`repeat` 吞掉不连滚；BasicTextField 接入：仅聚焦字段响应输入/画光标，多字段同屏；祖先 `onFocusChanged` 观察后代（hasFocus=true/isFocused=false）。showcase Field 页双字段 + 聚焦状态 + 自动聚焦首字段 | 待提交 | `FocusTest`（11 条：Tab 前进/环绕、Shift+Tab 反向、单 focusable 消耗、无 focusable 不拦截、点击聚焦、点击非 focusable 不动焦点、disabled 跳过、FocusRequester 生效/对非 focusable 无效、祖先观察、Ctrl+Tab 不遍历）；`BasicTextFieldTest` 改聚焦前置；runtime jvm 683 / native 681，showcase 各 8，apiCheck 通过 | ⏳ 待确认 |
+| L7 | L7.19 | 焦点 / 键盘导航原语：`Modifier.focusable(enabled)`（Tab/Shift+Tab 环形遍历 + 主键点击聚焦）+ `Modifier.onFocusChanged { FocusState }`（`hasFocus`=自或后代、`isFocused`=自身、`isCaptured` 恒 false）+ `FocusRequester`（`Modifier.focusRequester` 程序化 requestFocus，配 focusable 才会生效）；每节点单个 `FocusTarget`（跨重组复用，观察者每次重建拾取新 lambda），组合根 `FocusManager` 负责焦点事务——释放旧分支（自身+非共享祖先 down）→点亮新分支（至首个已亮祖先停），每节点**一次原子通知**；Tab 仅在存在 focusable 时消耗（否则保持旧行为）、Shift+Tab 反向、`repeat` 吞掉不连滚；BasicTextField 接入：仅聚焦字段响应输入/画光标，多字段同屏；祖先 `onFocusChanged` 观察后代（hasFocus=true/isFocused=false）。showcase Field 页双字段 + 聚焦状态 + 自动聚焦首字段 | `973fdb5d` | `FocusTest`（11 条：Tab 前进/环绕、Shift+Tab 反向、单 focusable 消耗、无 focusable 不拦截、点击聚焦、点击非 focusable 不动焦点、disabled 跳过、FocusRequester 生效/对非 focusable 无效、祖先观察、Ctrl+Tab 不遍历）；`BasicTextFieldTest` 改聚焦前置；runtime jvm 683 / native 681，showcase 各 8，apiCheck 通过 | ✅ 已归档 |
+| L7 | L7.20 | 边框 / 分隔原语：`Modifier.border(width=1, color=Unspecified)`（`LayoutModifier` 按 width 四边内凹 + `DrawModifier` 画 `┌┐└┘` 角 + `─│` 边条——width>1 时边条跨整行/列实心，width=0 不画、尺寸不变；color 直通前景）/ `HorizontalDivider`（thickness=1、color、startIndent/endIndent，规则占满约束主向、次向 thickness）/ `VerticalDivider`（对称，占满高度、宽度 thickness）；showcase 第 9 页 Border 演示边框变体/内边距/嵌套/横竖分隔线 | `9dc2cb7e` | `BorderTest`（16 条：border 内容内凹+环线、单字符、border0 不画且尺寸不变、border2 边条实心、fillMaxWidth 整行、与 padding 组合、彩色 ANSI 前景、Unspecified 无前景、边框内 clickable 回归、横/竖分隔线含厚度与缩进、负参数 require）；runtime jvm 699 / native 697，showcase 各 9，apiCheck 通过 | ✅ 已归档 |
 
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
-### L7.19 焦点 / 键盘导航原语（`layout/Focus.kt`，L7.19 工作树）
+### L7.19 焦点 / 键盘导航原语（`layout/Focus.kt`，`973fdb5d`）
 - **定位**：落地 todo §15「焦点 / 键盘导航原语」——`BasicTextField`（L7.17）的「多字段 / 点击聚焦」前置；依赖 L5 输入 + L7.18 鼠标通路。
 - **API**：
   - `Modifier.focusable(enabled = true)`：进入焦点遍历（Tab / Shift+Tab 在树序上环形移动）+ 主键点击聚焦；disabled 既不遍历也不可点击聚焦。
@@ -466,6 +467,20 @@
 - 与 Compose 对比：思想一致（constraints+脏标记 ≈ version、测量期收依赖、结构失效）；工程差异在失效定位——Compose 用 `SnapshotStateObserver` 的「状态→节点」反向索引近似 O(1) 唤醒，并裁剪「不影响父尺寸/未放置」子树；本项目当前为整树扫 + 祖先链全 bump。正确性等价，性能余量在 apply 查扫与子树裁剪（后续优化项，可参考反向索引方案）。
 - 测试：`LayoutCacheTest` 4 条（单子树测量态变化不重测兄弟、插入兄弟不重测既有子、placement-only 变化跳过测量、约束变化强制重测）。
 - 验证：JVM 520/0、linuxX64 519/0，`:samples:rrtop:compileKotlinLinuxX64` 通过。
+
+
+### L7.20 边框 / 分隔绘制原语（`layout/Border.kt`，`9dc2cb7e`）
+- **定位**：落地 todo §15「边框 / 分隔绘制」——最外层组合组件系列的又一块；依赖 L4 布局 + 绘制原语（DrawScope/drawBehind）。
+- **`Modifier.border(width=1, color=Unspecified)`**：同一 element 同时实现 `LayoutModifier` + `DrawModifier`（Node 折叠时各建 `LayoutLayer` + `DrawLayer`，绘制在内容之前——边框在底层）。
+  - 测量：内容按 `constraints.offset(-2w, -2w)` 内凹后加回，`box = constrain(content+2w)`，内容 `place(width, width)`——内容被边框环包围，边框不占内容空间（符合 Compose border 语义）。
+  - 绘制：四个角 `┌┐└┘` + 上/下边条 `─`（从 (1,0)/(1,boxH-w) 起，`run=boxW-2` 宽、`w` 行）+ 左/右边条 `│`（`span=boxH-2` 高、`w` 列）——`w>1` 时边条跨整行/整列实心环；`w=0` 不画、测量尺寸不增。全部 `drawRect(Fill, foreground=color)`，`Color.Unspecified` 不打前景色（终端默认）。
+  - 陷阱已修：`ContentDrawScope.draw()` 内 `this.width` 是 **DrawScope 节点宽**，会遮蔽 `BorderModifier.width`（边框厚度）成员——必须 `this@BorderModifier.width` 取厚度，否则 width=2 会把边条画成满屏。
+- **`HorizontalDivider` / `VerticalDivider`（`thickness=1`、`color`、`startIndent/endIndent=0`、`modifier`）**：`Layout` + `drawBehind` 叶子。
+  - 测量：主向占满（`hasBoundedWidth ? maxWidth : minWidth`；竖同理按高度），次向 `coerceIn` 到 `thickness`；未知主向退 min（配合 fillMaxWidth 语义）。
+  - 绘制：铺 `─`（横）/ `│`（竖）矩形，左/上留 `startIndent`、右/下留 `endIndent`，都 `coerceAtLeast(0)`。
+- **测试 `BorderTest`（16 条，commonTest）**：内容内凹 + 环线精确帧、单字符、`border(0)` 不画且尺寸不变、`border(2)` 边条实心、`fillMaxWidth` 整行边框、与 `padding` 组合（外 padding 顶/底各多 1 空行）、彩色边框输出 TRUECOLOR 前景 SGR、`Unspecified` 无前景 SGR、边框内 `clickable` 仍可点（界内触发/界外不触发）、横/竖分隔线厚度与缩进、负参数 `require` 抛 `IllegalArgumentException`（border 走非组合路径、divider 组合期 setContent 抛）。
+- **showcase 第 9 页 Border**：`Page.Border` + `1`-`9` 键切换 + `BorderScreen`（边框变体一行并列 / 边框+内边距 / 嵌套边框 / 横分隔线含缩进 / 竖分隔线含缩进）。
+- 验证：runtime jvm 699 / native 697，showcase jvm/native 各 9，apiCheck 通过，kexe 已重链。
 
 
 ## 6. 当前状态 / 下一步候选

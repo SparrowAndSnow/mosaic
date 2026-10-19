@@ -6,6 +6,7 @@
 > 优先级：**P0**=正确性/回归优先；**P1**=高价值优化；**P2**=增强/打磨；**P3**=长期/可选。
 > 参考基准：`docs/tui-arch-deep-comparison.md`（逐功能深挖对照）、`docs/unicode-width-research.md`。
 
+> **对账更新：2026-10-19** L7.20 边框/分隔绘制已归档（`9dc2cb7e`，见 §15）；台账进度以 refactor-progress 为准。
 > **对账更新：2026-10-18（二）** 全面对账完成（见 §14「台账同步」✅）：过时项已勾销——static 逐行清理（L3.5）、DEC 2027 探测（L6.2）、右缘裁剪/部分覆盖（L3.4 + L7.2 + L7.10）、drawSolidRect 越界（L7.10）、画布复用（L7.2）；并刷新 §0 矩阵与运行模型/tty 行。
 > **对账更新：2026-10-18（refactor 分支）** L7.10/L7.11 已归档（真实终端渲染回归 + showcase 演示样本）。
 > **对账更新：2026-10-17（refactor 分支）**
@@ -183,7 +184,7 @@
 - [x] **输入控件** ✅（L7.17，`108a07fa`）：`BasicTextField`（单行可编辑 + 反显块光标 + IME/粘贴 + 字素级编辑），受控组件、内部文本镜像防连击丢字；showcase 第 8 页 Field。多字段/点击聚焦待 §15「焦点 / 键盘导航原语」。
 - [x] **鼠标交互** ✅（L7.18）：`Modifier.hoverable(onHoverChanged)`（enter/leave 会话级对账）+ `Modifier.clickable(enabled, onClickLabel, onClick)`（主键界内按下→界内松开触发，越界取消）；showcase TabBar 已改由二者驱动；要点见 progress §5。
 - [x] **焦点 / 键盘导航原语** ✅（L7.19）：`focusable(enabled)`（Tab/Shift+Tab 环形遍历 + 点击聚焦）+ `onFocusChanged { FocusState }`（hasFocus=自/后代、isFocused=自身）+ `FocusRequester`（程序化 requestFocus）；`BasicTextField` 已接入——仅聚焦的字段响应输入/显示光标，多字段可同屏；showcase Field 页双字段 + 聚焦状态行；要点见 progress §5。
-- [ ] **边框 / 分隔绘制**：`border` / 分隔线（在 DrawScope 之上，无核心依赖，可随时插入）。
+- [x] **边框 / 分隔绘制** ✅（L7.20，`9dc2cb7e`）：`Modifier.border(width=1, color)`（`LayoutModifier` 内凹 + `DrawModifier` 角/边条，width>1 实心环）+ `HorizontalDivider`/`VerticalDivider`（thickness/color/startIndent/endIndent，占满约束主向）；要点见 progress §5。
 - [x] **定位回调** ✅（L7.13，`a3f7cc6c`）：`Modifier.onGloballyPositioned { position, size -> }`（根坐标 + 尺寸，仅变化时触发）。
 - [ ] **动画容器**：`Crossfade` / `AnimatedVisibility` 类容器（`mosaic-animation` 已有核心值动画，仅需容器装配）。
 - [ ] **第一方 widget 集**：charts / tables / tabs / scrollbars（todo §6 已有 P3 条目）。
