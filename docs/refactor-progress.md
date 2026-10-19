@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.17（`108a07fa`）+ L7.18 工作树 · 创建：2026-10-17 · 更新：2026-10-19
+> 分支：`refactor` · 当前 HEAD：L7.18（`d13d1bd4`）+ L7.19 工作树 · 创建：2026-10-17 · 更新：2026-10-19
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -91,10 +91,24 @@
 
 | L7 | L7.18 | 鼠标交互原语：`Modifier.hoverable(onHoverChanged)`（enter/leave）+ `Modifier.clickable(enabled, onClickLabel, onClick)`（主键 Press→Release 同界内触发，越界/换节点取消）；每元素 state 用 `.composed`+`remember` 跨重组稳定；根节点统一 PointerState 预检——收集命中路径上所有 pointer 输入 → hover enter/exit 会话级对账 + click 按下捕获/释放判定（取叶子优先，释放位置回查原节点当前边界与树上存活）→ 再走原有命中分发。showcase TabBar 改由 clickable/hoverable 驱动（顺带修复 hover 粘滞） | 待提交 | `PointerInputTest`（12 条：hover enter/exit/跨兄弟/disabled；click 同界触发/越界取消/界外按下/disabled/叠放兄弟取顶/嵌套取内/wheel 忽略/hover+click 共存/拖拽后仍在界内点击）；runtime jvm 672 / native 670，showcase jvm/native 各 8，apiCheck 通过 | ⏳ 待确认 |
 
+| L7 | L7.19 | 焦点 / 键盘导航原语：`Modifier.focusable(enabled)`（Tab/Shift+Tab 环形遍历 + 主键点击聚焦）+ `Modifier.onFocusChanged { FocusState }`（`hasFocus`=自或后代、`isFocused`=自身、`isCaptured` 恒 false）+ `FocusRequester`（`Modifier.focusRequester` 程序化 requestFocus，配 focusable 才会生效）；每节点单个 `FocusTarget`（跨重组复用，观察者每次重建拾取新 lambda），组合根 `FocusManager` 负责焦点事务——释放旧分支（自身+非共享祖先 down）→点亮新分支（至首个已亮祖先停），每节点**一次原子通知**；Tab 仅在存在 focusable 时消耗（否则保持旧行为）、Shift+Tab 反向、`repeat` 吞掉不连滚；BasicTextField 接入：仅聚焦字段响应输入/画光标，多字段同屏；祖先 `onFocusChanged` 观察后代（hasFocus=true/isFocused=false）。showcase Field 页双字段 + 聚焦状态 + 自动聚焦首字段 | 待提交 | `FocusTest`（11 条：Tab 前进/环绕、Shift+Tab 反向、单 focusable 消耗、无 focusable 不拦截、点击聚焦、点击非 focusable 不动焦点、disabled 跳过、FocusRequester 生效/对非 focusable 无效、祖先观察、Ctrl+Tab 不遍历）；`BasicTextFieldTest` 改聚焦前置；runtime jvm 683 / native 681，showcase 各 8，apiCheck 通过 | ⏳ 待确认 |
+
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
-### L7.18 鼠标交互原语 `hoverable` / `clickable`（L7.18 工作树）
+### L7.19 焦点 / 键盘导航原语（`layout/Focus.kt`，L7.19 工作树）
+- **定位**：落地 todo §15「焦点 / 键盘导航原语」——`BasicTextField`（L7.17）的「多字段 / 点击聚焦」前置；依赖 L5 输入 + L7.18 鼠标通路。
+- **API**：
+  - `Modifier.focusable(enabled = true)`：进入焦点遍历（Tab / Shift+Tab 在树序上环形移动）+ 主键点击聚焦；disabled 既不遍历也不可点击聚焦。
+  - `Modifier.onFocusChanged { FocusState -> }`：`hasFocus` = 自身或后代聚焦、`isFocused` = 自身即聚焦目标、`isCaptured` 恒 false（无 capture 概念）。放在祖先可观察后代聚焦。
+  - `FocusRequester` + `Modifier.focusRequester(r)`：程序化 `requestFocus()`，与 `focusable` 配套（对非 focusable 目标无效）；典型用法 `LaunchedEffect { r.requestFocus() }` 首帧聚焦。
+- **每节点单 `FocusTarget`（`Focus.kt`）**：`setModifier` 折叠时，同一节点的 `focusable`/`onFocusChanged` 共享**一个** target（首个创建、跨重组复用，`hasFocus` 态不丢）；倒序清理观察者、按新 lambda 重建。无 focus 元素的节点 finalize（置 false）后置空 target。
+- **组合级 `FocusManager`（根节点惰性创建）**：`focus(node)` 为一个「焦点事务」——释放旧分支（自身 self↓ + 「非新路径」祖先 hasFocus↓）→ 点亮新分支（self↑ + 沿祖先 hasFocus↑ 至首个已亮祖先停）→ 每节点经 `setFocus(down, self)` **一次原子通知**（避免 Compose 式冗余回调）。`preKeyEvent`：Tab/Shift+Tab 且有 focusable → 移动并**消耗**（`repeat` 吞掉不连滚）；无 focusable → 放行（旧 Tab 应用行为不变）；Ctrl+Tab 不拦截。焦点节点失效（脱离树 / 不再 focusable）在下一事件 reconcile 清除。
+- **点击聚焦**：`PointerInput.preDispatch` 的 Press 阶段收集命中路径，取最具体（叶子优先）的可点 focusable 聚焦；点击非 focusable 不动焦点（与 Compose 语义一致）。
+- **BasicTextField 接入**：内部挂 `.focusable(enabled)` + `.onFocusChanged { focused = ... }`——只有聚焦才响应按键/IME/粘贴、画反显光标；未聚焦字段惰性。宽度恒 `strWidth+1`（enabled），避免空文本 0 宽不可点击、聚焦时宽度跳变。
+- **showcase Field 页**：双可编辑字段（姓名 auto-focus + 备注）+ 各自聚焦状态行 + readOnly/disabled 展示；页 8 中 Tab 现在走「字段间焦点」而非切页（其他页无 focusable，Tab 仍切页）。
+- **测试**：`FocusTest`（11 条）+ `BasicTextFieldTest` 改聚焦前置（字段惰性致使原直接打字用例全部先点击聚焦、空字段图 0 宽问题改为恒留 1 列）。
+- **验证**：runtime jvm 683 / native 681，showcase jvm/native 各 8，apiCheck 通过。 鼠标交互原语 `hoverable` / `clickable`（L7.18 工作树）
 - **定位**：落地 todo §15「鼠标交互」——把已解析但未消费的鼠标事件提升为声明式原语；依赖 L5 鼠标通路 + L4 布局已就绪。
 - **API（`layout/PointerInput.kt`）**：
   - `Modifier.hoverable(enabled = true, onHoverChanged: (Boolean) -> Unit)`：指针进入/离开元素边界回调；leave 在**下次鼠标事件**上报（静止指针无事件，接受该限制）。

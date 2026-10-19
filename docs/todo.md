@@ -91,7 +91,7 @@
 - [x] **P0 BoxWithConstraints 0×0 空白** ✅（L7.10，`ea2fd122`）：子组合根被量成 0×0，绘制遍历跳过零尺寸容器 → 整棵比例子树一笔不画（Layout 页第 4 节空白；节点树/尺寸均正常）。修复为对 subRoot 补一次真实 measure（结果丢弃，matchParentSize / alignment 语义不变）；回归 `BoxWithConstraintsRenderingTest`。
 - [x] **P2 Modifier 缺口** ✅（L7.13，`a3f7cc6c`）：约束便捷族早已齐备——`widthIn/heightIn/sizeIn`、`requiredWidth/Height/Size(+In)`、`fillMaxWidth/H/S(fraction)`、`wrapContent*/defaultMinSize`（`layout/Size.kt`）；真实缺口 `onGloballyPositioned` 放置回调已于 L7.13 补齐（根坐标+尺寸，仅变化时触发）。`margin` 明确不补（Compose 无 margin）。
 - [ ] **P2 intrinsic 复用**：`min/maxIntrinsicWidth/Height` 已透传，但测量重复计算；考虑缓存（与布局缓存合并）。
-- [ ] **P3 焦点/键盘导航**：无焦点管理/方向键导航原语（Ratatui 生态靠 widget 状态机、BubbleTea 靠应用层）。
+- [x] **P3 焦点管理** ✅（L7.19）：`focusable`/`onFocusChanged`/`FocusRequester` + 组合级 `FocusManager`（Tab/Shift+Tab 环形遍历、点击聚焦、锚点祖先 hasFocus）。**方向键导航原语**（箭头遍历 focus 环）仍缺——Compose 无通用实现、主流 TUI 靠各自状态机，属可选项。
 - [ ] **P3 `weight(fill)` 语义核对（L7.18 顺带发现）：`weight(1f)` 平均分配剩余主轴时，子节点仍按**内容宽**报告与放置（探针：槽位 80/8=10，节点宽=标签宽 4，按内容宽顺序排布不透槽）。与 Compose `weight(fill=true)` 语义不符，影响整槽点击/均分布局的可点击面积与视觉；归 L4 布局待核查。
 
 ## 6. 文本 / 样式（`text/` + `ui/Text.kt`）
@@ -182,7 +182,7 @@
 - [x] **惰性列表** ✅（L7.16，`0a65dd39`；L7.16.1，`b4ff8220` 根因修复）：`LazyColumn`（仅组合可视区子项、代价 O(视口) 与总数无关）+ `LazyListScope` `items(count)`/`items(List)` + 固定 `itemHeight` 槽位；复用滚动容器/裁剪/滚轮；`KeyEvent` 增 `repeat` 标志（L7.16.1 补 `CSI <key>;<mod>:<type>~` 解析、撤销 600ms 时间窗兜底，Page 键只响应全新 press）；showcase 第 7 页（500 行）。`LazyRow` 仍待办；要点见 progress §5。
 - [x] **输入控件** ✅（L7.17，`108a07fa`）：`BasicTextField`（单行可编辑 + 反显块光标 + IME/粘贴 + 字素级编辑），受控组件、内部文本镜像防连击丢字；showcase 第 8 页 Field。多字段/点击聚焦待 §15「焦点 / 键盘导航原语」。
 - [x] **鼠标交互** ✅（L7.18）：`Modifier.hoverable(onHoverChanged)`（enter/leave 会话级对账）+ `Modifier.clickable(enabled, onClickLabel, onClick)`（主键界内按下→界内松开触发，越界取消）；showcase TabBar 已改由二者驱动；要点见 progress §5。
-- [ ] **焦点 / 键盘导航原语**：交叉引用 todo §5 已有 P3 条目。
+- [x] **焦点 / 键盘导航原语** ✅（L7.19）：`focusable(enabled)`（Tab/Shift+Tab 环形遍历 + 点击聚焦）+ `onFocusChanged { FocusState }`（hasFocus=自/后代、isFocused=自身）+ `FocusRequester`（程序化 requestFocus）；`BasicTextField` 已接入——仅聚焦的字段响应输入/显示光标，多字段可同屏；showcase Field 页双字段 + 聚焦状态行；要点见 progress §5。
 - [ ] **边框 / 分隔绘制**：`border` / 分隔线（在 DrawScope 之上，无核心依赖，可随时插入）。
 - [x] **定位回调** ✅（L7.13，`a3f7cc6c`）：`Modifier.onGloballyPositioned { position, size -> }`（根坐标 + 尺寸，仅变化时触发）。
 - [ ] **动画容器**：`Crossfade` / `AnimatedVisibility` 类容器（`mosaic-animation` 已有核心值动画，仅需容器装配）。
