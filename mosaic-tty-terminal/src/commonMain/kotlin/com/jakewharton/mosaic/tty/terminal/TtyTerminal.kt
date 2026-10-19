@@ -21,6 +21,7 @@ import com.jakewharton.mosaic.terminal.SystemThemeEvent
 import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.terminal.TerminalVersionEvent
 import com.jakewharton.mosaic.tty.Tty
+import com.jakewharton.mosaic.tty.IOException
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -33,9 +34,11 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.BufferOverflow.SUSPEND
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -47,12 +50,35 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 		override val events: ReceiveChannel<Event>,
 		private val teardown: () -> Unit,
 		private val closeJob: Job,
+		private val readerJob: Job,
 		private val tty: Tty,
 	) : Terminal {
 		override val interactive get() = true
 		override fun close() {
 			teardown()
 			closeJob.cancel()
+			// The reader coroutine is a child of the scope which created the terminal, and the
+			// caller frees the tty (and its file descriptors) immediately after close() returns.
+			// Until the reader has fully exited it may still be inside a blocking read on those
+			// descriptors; freeing them mid-read would surface either EBADF (crash) or, if the
+			// descriptor number was reused before the read started, a read which never returns.
+			// The reader only stops once it observes an interrupt wake-up, so keep waking it
+			// until the job completes, bounded so a stuck reader cannot wedge normal shutdown.
+			runBlocking {
+				if (withTimeoutOrNull(readerShutdownTimeout) {
+						while (!readerJob.isCompleted) {
+							runCatching { tty.interruptRead() }
+							delay(1)
+						}
+					} == null
+				) {
+					// Best effort at the deadline: cancellation unblocks a cooperative reader (for
+					// example one suspended on the event channel); the final interrupt wakes one
+					// which is blocked inside a native read.
+					readerJob.cancel()
+					runCatching { tty.interruptRead() }
+				}
+			}
 		}
 
 		override fun requestClipboardRead(selection: ClipboardEvent.Selection) {
@@ -155,8 +181,9 @@ public suspend fun Tty.asTerminalIn(
 				try {
 					awaitCancellation()
 				} finally {
-					// When cancelled (from signal or normally), wake up the reader parse loop so it can exit.
-					interruptRead()
+					// When cancelled (from signal or normally), wake up the reader parse loop so it can
+					// exit. Best effort: on some shutdown paths the descriptor may already be closing.
+					runCatching { interruptRead() }
 				}
 			},
 		)
@@ -194,10 +221,17 @@ public suspend fun Tty.asTerminalIn(
 	var themeEvents = false
 
 	val bootstrapDone = CompletableDeferred<Unit>()
-	scope.launch(Dispatchers.IO) {
+	val readerJob = scope.launch(Dispatchers.IO) {
 		val parser = EventParser(this@asTerminalIn)
 		while (true) {
-			val event = parser.next() ?: break
+			// A read can fail while the descriptor is being torn down (or after a terminal hangup).
+			// The terminal is gone at that point, so end the reader quietly instead of letting an
+			// uncaught exception escape the caller's scope. Normal EOF arrives via the null break.
+			val event = try {
+				parser.next()
+			} catch (_: IOException) {
+				break
+			} ?: break
 			if (stage != StageNormalOperation && debugBootstrap) {
 				write("$event\r\n")
 			}
@@ -471,9 +505,14 @@ public suspend fun Tty.asTerminalIn(
 		events = events,
 		teardown = teardown,
 		closeJob = interruptJob,
+		readerJob = readerJob,
 		tty = this,
 	)
 }
+
+// How long TtyTerminal.close() keeps waking the reader loop before giving up and force-cancelling
+// it. The reader stops on the first interrupt it observes, so this is normally a single wake-up.
+private val readerShutdownTimeout = 1.seconds
 
 private fun Tty.write(s: String) {
 	val b = s.encodeToByteArray()

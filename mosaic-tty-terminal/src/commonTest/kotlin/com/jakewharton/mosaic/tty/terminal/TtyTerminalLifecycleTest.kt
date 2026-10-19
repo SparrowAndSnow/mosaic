@@ -6,6 +6,24 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 
 class TtyTerminalLifecycleTest {
+	// Repeatedly exercise the exact `withTerminal` exit sequence: close() wakes the reader and
+	// must not return until it has fully exited, so the immediately-following tty.close() (which
+	// frees the underlying file descriptors) can never race an in-flight read. Without that
+	// guarantee the freed descriptors can surface EBADF -- crashing with an uncaught IOException,
+	// or worse, a read that blocks forever when the descriptor number is recycled. The repetition
+	// forces many distinct thread interleavings so a regression in the ordering shows up.
+	@Test fun shutdownNeverRacesFdFree() = runBlocking {
+		repeat(200) {
+			TestTerminal.bind().use { testTty ->
+				coroutineScope {
+					val terminal = testTty.tty.asTerminalIn(this)
+					terminal.close()
+					testTty.tty.close()
+				}
+			}
+		}
+	}
+
 	// Mirrors the nesting of `withTerminal`: the terminal is created in the caller's scope, its
 	// close() runs the synchronous teardown, and the underlying tty is closed right after in the
 	// same scope. The teardown must have completed before the tty is freed, so this must neither
