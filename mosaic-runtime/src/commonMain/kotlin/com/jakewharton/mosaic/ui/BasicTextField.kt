@@ -8,6 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.drawBehind
+import com.jakewharton.mosaic.layout.focusable
+import com.jakewharton.mosaic.layout.onFocusChanged
 import com.jakewharton.mosaic.layout.onKeyEvent
 import com.jakewharton.mosaic.layout.onPaste
 import com.jakewharton.mosaic.modifier.Modifier
@@ -21,8 +23,10 @@ import com.jakewharton.mosaic.text.unicodewidth.strWidth
  * IME text and bracketed paste all insert at the caret; the caret renders as the terminal-native
  * reverse-video block under the character (or the empty cell after the last one).
  *
- * Keyboard input is currently delivered to every focusable node (a focus system is a separate
- * item), so an app should only host one field per screen until focus is wired up.
+ * The field participates in focus: it gains focus by clicking it or via Tab traversal (and
+ * programmatically through a [com.jakewharton.mosaic.layout.FocusRequester]), and only edits and
+ * shows its caret while focused. Unfocused fields ignore keyboard input, so any number of fields
+ * can share a screen.
  *
  * @param value the text to display (owned by the caller).
  * @param onValueChange called whenever an edit changes [value].
@@ -55,6 +59,7 @@ public fun BasicTextField(
 	// the caller's value whenever a recomposition hands down a different string.
 	var editableText by remember { mutableStateOf(value) }
 	var cursor by remember { mutableIntStateOf(value.length) }
+	var focused by remember { mutableStateOf(false) }
 	if (editableText != value) {
 		editableText = value
 		cursor = cursor.coerceIn(0, value.length)
@@ -67,8 +72,11 @@ public fun BasicTextField(
 	}
 
 	val inputModifier = modifier
+		.focusable(enabled = enabled)
+		.onFocusChanged { state -> focused = state.isFocused }
 		.onKeyEvent { event ->
-			if (!enabled) {
+			// Only the focused field consumes keys, so any number of fields can coexist.
+			if (!enabled || !focused) {
 				return@onKeyEvent false
 			}
 			// Re-read the live caret and mirror here: events can arrive in a burst before any
@@ -122,7 +130,7 @@ public fun BasicTextField(
 			}
 		}
 		.onPaste { text ->
-			if (!enabled || readOnly) {
+			if (!enabled || readOnly || !focused) {
 				false
 			} else {
 				val caret = cursor.coerceIn(0, editableText.length)
@@ -139,7 +147,7 @@ public fun BasicTextField(
 		},
 		modifier = inputModifier.drawBehind {
 			drawText(0, 0, value, color, background, textStyle)
-			if (enabled) {
+			if (enabled && focused) {
 				val caret = cursor.coerceIn(0, value.length)
 				val caretColumn = strWidth(value, 0, caret)
 				val caretStyle = textStyle + TextStyle.Invert

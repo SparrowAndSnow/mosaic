@@ -135,6 +135,16 @@ internal class MosaicNode(
 	/** Cross-node pointer session, created lazily on the composition root. */
 	private var pointerState: PointerState? = null
 
+	/** Focus target active on this node (null when no focus-related modifier is applied). */
+	internal var focusTarget: FocusTarget? = null
+
+	/** Focus requesters attached to this node, so they can be detached when the modifier goes away. */
+	internal val focusRequesters = ArrayList<FocusRequester>()
+
+	/** Cross-node focus session, created lazily on the composition root. */
+	internal var focusManager: FocusManager? = null
+		private set
+
 	/** Number of times an actual (non-cached) measurement ran on this node. */
 	internal var measureCount: Long = 0
 		private set
@@ -160,6 +170,12 @@ internal class MosaicNode(
 	fun setModifier(modifier: Modifier) {
 		invalidateLayoutVersion()
 		pointerInputs.clear()
+		focusRequesters.forEach { it.detach() }
+		focusRequesters.clear()
+		val previousTarget = focusTarget
+		previousTarget?.observers?.clear()
+		var sawFocusElement = false
+		focusTarget = null
 		topLayer = modifier.foldOut(bottomLayer) { element, nextLayer ->
 			var nextLayer = nextLayer
 			// The Modifier class can inherit from several key Modifier types
@@ -179,6 +195,23 @@ internal class MosaicNode(
 			if (element is PointerInputModifier) {
 				pointerInputs += element.state
 			}
+			if (element is FocusableModifier) {
+				sawFocusElement = true
+				val target = focusTarget ?: previousTarget ?: FocusTarget().also { focusTarget = it }
+				focusTarget = target
+				target.enabled = element.enabled
+				target.traversable = element.enabled
+			}
+			if (element is FocusObserverModifier) {
+				sawFocusElement = true
+				val target = focusTarget ?: previousTarget ?: FocusTarget().also { focusTarget = it }
+				focusTarget = target
+				target.observers += element.onFocusChanged
+			}
+			if (element is FocusRequesterModifier) {
+				element.requester.attach(this)
+				focusRequesters += element.requester
+			}
 			if (element is PasteModifier) {
 				nextLayer = PasteLayer(element, nextLayer)
 			}
@@ -189,6 +222,10 @@ internal class MosaicNode(
 				testTag = element.tag
 			}
 			nextLayer
+		}
+		if (!sawFocusElement) {
+			previousTarget?.finalize()
+			focusTarget = null
 		}
 	}
 
@@ -238,7 +275,20 @@ internal class MosaicNode(
 	}
 
 	fun sendKeyEvent(keyEvent: KeyEvent): Boolean {
+		if (parent == null) {
+			// On the composition root, the focus manager first handles Tab / Shift+Tab traversal
+			// (consuming them when a focusable exists), then the raw event is dispatched normally.
+			if (ensureFocusManager().preKeyEvent(this, keyEvent)) {
+				return true
+			}
+		}
 		return topLayer.sendKeyEvent(keyEvent)
+	}
+
+	internal fun ensureFocusManager(): FocusManager {
+		val existing = focusManager
+		if (existing != null) return existing
+		return FocusManager().also { focusManager = it }
 	}
 
 	/**
@@ -251,6 +301,7 @@ internal class MosaicNode(
 	fun sendMouseEvent(event: MouseEvent): Boolean {
 		if (parent == null) {
 			val state = pointerState ?: PointerState().also { pointerState = it }
+			ensureFocusManager()
 			state.preDispatch(this, event)
 		}
 		return dispatchMouseEvent(event)

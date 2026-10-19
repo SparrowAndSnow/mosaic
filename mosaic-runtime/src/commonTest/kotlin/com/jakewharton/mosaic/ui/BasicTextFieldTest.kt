@@ -7,7 +7,6 @@ import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.doesNotContain
 import assertk.assertions.isEqualTo
-import com.jakewharton.mosaic.NodeSnapshots
 import com.jakewharton.mosaic.DebugRendering
 import com.jakewharton.mosaic.RenderingSnapshots
 import com.jakewharton.mosaic.terminal.AnsiLevel
@@ -97,9 +96,28 @@ class BasicTextFieldTest {
 
 	private fun output(frame: String): String = frame.substringAfter("OUTPUT:\r\n")
 
+	private fun com.jakewharton.mosaic.testing.TestMosaic<*>.focusField() {
+		// The single field sits at the origin; a press focuses it (focus happens on press).
+		val click = { type: com.jakewharton.mosaic.terminal.MouseEvent.Type ->
+			sendMouseEvent(
+				com.jakewharton.mosaic.terminal.MouseEvent(
+					x = 0,
+					y = 0,
+					type = type,
+					button = com.jakewharton.mosaic.terminal.MouseEvent.Button.Left,
+				),
+			)
+		}
+		click(com.jakewharton.mosaic.terminal.MouseEvent.Type.Press)
+		click(com.jakewharton.mosaic.terminal.MouseEvent.Type.Release)
+	}
+
 	@Test fun rendersValueAndInvertedCaret() = runTest {
 		runMosaicTest(RenderingSnapshots(rendering)) {
 			setContent { BasicTextField("hi", {}) }
+			awaitSnapshot()
+			// The caret appears only while the field is focused.
+			focusField()
 			val frame = output(awaitSnapshot().toString())
 			assertThat(frame).contains("hi")
 			assertThat(frame).contains("\u001B[7m")
@@ -121,6 +139,12 @@ class BasicTextFieldTest {
 			setContent { BasicTextField(text, onValueChange = { text = it }) }
 			awaitSnapshot()
 
+			// An unfocused field ignores input: a 'x' typed before focusing never lands. The
+			// focus change itself is the observable recomposition that settles the next snapshot.
+			sendKeyEvent(KeyboardEvent('x'.code, text = "x"))
+			focusField()
+			assertThat(awaitSnapshot()).doesNotContain("x")
+
 			sendKeyEvent(KeyboardEvent('a'.code, text = "a"))
 			assertThat(awaitSnapshot()).contains("a")
 			sendKeyEvent(KeyboardEvent('b'.code, text = "b"))
@@ -129,14 +153,20 @@ class BasicTextFieldTest {
 	}
 
 	@Test fun ctrlCombinationIsNotInserted() = runTest {
-		runMosaicTest(NodeSnapshots) {
-			val node = setContentAndSnapshot { BasicTextField("hi", {}) }
-			val before = node.draw().render(AnsiLevel.NONE, false)
-			assertThat(before).contains("hi")
+		runMosaicTest {
+			var text by mutableStateOf("")
+			setContent { BasicTextField(text, onValueChange = { text = it }) }
+			awaitSnapshot()
+			focusField()
+			awaitSnapshot()
 
-			// Ctrl combinations stay unhandled, so nothing recomposes: draw the unchanged tree.
+			// Ctrl combinations stay unhandled (no insertion). A following plain character
+			// settles an observable frame; had the ctrl key inserted, the value would be "ab".
 			sendKeyEvent(KeyboardEvent('a'.code, modifiers = KeyboardEvent.ModifierCtrl, text = "a"))
-			assertThat(node.draw().render(AnsiLevel.NONE, false)).isEqualTo(before)
+			sendKeyEvent(KeyboardEvent('b'.code, text = "b"))
+			val frame = awaitSnapshot().toString()
+			assertThat(frame).contains("b")
+			assertThat(frame).doesNotContain("ab")
 		}
 	}
 
@@ -144,6 +174,8 @@ class BasicTextFieldTest {
 		runMosaicTest {
 			var text by mutableStateOf("")
 			setContent { BasicTextField(text, onValueChange = { text = it }) }
+			awaitSnapshot()
+			focusField()
 			awaitSnapshot()
 
 			sendKeyEvent(KeyboardEvent('a'.code, text = "a"))
@@ -158,6 +190,8 @@ class BasicTextFieldTest {
 			var text by mutableStateOf("")
 			setContent { BasicTextField(text, onValueChange = { text = it }) }
 			awaitSnapshot()
+			focusField()
+			awaitSnapshot()
 
 			sendKeyEvent(KeyboardEvent('a'.code, text = "a"))
 			sendKeyEvent(KeyboardEvent('b'.code, text = "b"))
@@ -171,6 +205,8 @@ class BasicTextFieldTest {
 		runMosaicTest {
 			var text by mutableStateOf("")
 			setContent { BasicTextField(text, onValueChange = { text = it }) }
+			awaitSnapshot()
+			focusField()
 			awaitSnapshot()
 
 			sendPaste("你好，世界")

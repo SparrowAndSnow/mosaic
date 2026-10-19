@@ -123,6 +123,31 @@ public final class com/jakewharton/mosaic/layout/DrawStyle$Stroke : com/jakewhar
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class com/jakewharton/mosaic/layout/FocusKt {
+	public static final fun focusRequester (Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/layout/FocusRequester;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun focusable (Lcom/jakewharton/mosaic/modifier/Modifier;Z)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static synthetic fun focusable$default (Lcom/jakewharton/mosaic/modifier/Modifier;ZILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun onFocusChanged (Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
+}
+
+public final class com/jakewharton/mosaic/layout/FocusRequester {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun requestFocus ()V
+}
+
+public final class com/jakewharton/mosaic/layout/FocusState {
+	public static final field $stable I
+	public fun <init> (ZZZ)V
+	public synthetic fun <init> (ZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHasFocus ()Z
+	public fun hashCode ()I
+	public final fun isCaptured ()Z
+	public final fun isFocused ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/jakewharton/mosaic/layout/IntrinsicKt {
 	public static final fun height (Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/layout/IntrinsicSize;)Lcom/jakewharton/mosaic/modifier/Modifier;
 	public static final fun requiredHeight (Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/layout/IntrinsicSize;)Lcom/jakewharton/mosaic/modifier/Modifier;

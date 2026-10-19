@@ -122,7 +122,15 @@ internal class PointerState {
 		val path = ArrayList<PointerEntry>()
 		root.collectPointerEntries(event.x, event.y, path)
 		reconcileHover(path)
+		handleFocus(root, event)
 		handleClick(root, event, path)
+	}
+
+	private fun handleFocus(root: MosaicNode, event: MouseEvent) {
+		if (event.type != MouseEvent.Type.Press || event.button != MouseEvent.Button.Left) return
+		val hitPath = ArrayList<MosaicNode>()
+		root.collectFocusHitPath(event.x, event.y, hitPath)
+		root.ensureFocusManager().focusFromClick(root, hitPath)
 	}
 
 	private fun reconcileHover(path: List<PointerEntry>) {
