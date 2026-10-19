@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.16.1（`b4ff8220`）· 创建：2026-10-17 · 更新：2026-10-19
+> 分支：`refactor` · 当前 HEAD：L7.17（`108a07fa`）· 创建：2026-10-17 · 更新：2026-10-19
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -87,6 +87,7 @@
 | L7 | L7.15 | 通用滚动容器（最大布局缺口）：`ScrollState`（`value`/`maxValue` 快照态、`scrollBy`/`scrollTo` clamp、`rememberScrollState`）、`verticalScroll`/`horizontalScroll`（滚动轴无界测量 + 视口=约束 + 内容位移取负，clip 在外 offset 在内）、`clipToBounds()` + 画布裁剪矩形（逐层与外层 clip 求交）；顺带修复三处绘制问题（簇被裁后列游标不前进→整行空白 / `maxValue` 快照可观察 / 格子帧内首写重置→跨页背景残留）；滚轮内建（一格 3 行，方向镜像方向键）；showcase 新增第 6 页演示三类容器（纵向列表/横向长行/混合色块）+ 实时 `value/maxValue` + 滚动条 | `ac3e7572` | `ScrollStateTest`（4）+ `ScrollRenderingTest`（6 含滚轮）+ `ClipToBoundsTest`（4）+ `CellStyleResetTest`（1）；runtime jvmTest 635 / linuxX64Test 633，showcase jvm/native 各 4，apiCheck 通过 | ✅ 已归档 |
 | L7 | L7.16 | 惰性列表容器：`LazyColumn`（仅组合可视窗口子项，代价 O(视口) 与总数无关）+ `LazyListScope` DSL（`items(count)`/`items(List)`，多段共享全局 index）+ 窗口算法（firstVisible/lastExclusive 含 lookahead）+ 固定 `itemHeight` 槽位测量定位；复用 L7.15 裁剪/滚轮；`KeyEvent` 增 `repeat` 标志 + Page 键同键 600ms 时间窗防长按堆页（笔记本 Fn+方向键无独立 PgUp/PgDn）；showcase 新增第 7 页（500 行演示，Input 页回显补 `(repeat)` 标签） | `0a65dd39` | `LazyColumnTest`（7）+ `CompatTest` 增 repeat 断言 + `ShowcaseTest` 增 Lazy 2 条；runtime jvmTest 642 / linuxX64Test 640，showcase jvm/native 各 6，apiCheck 通过 | ✅ 已归档 |
 | L7 | L7.16.1 | `<key>~` 键事件补解析调制键与事件类型（根因修复）：`CSI <key>;<modifiers>[:<event-type>]~` 此前只取数字码，`:3~`（松开）被当成第二次按下——`Fn+PageDown` 一次按压翻两页；按游标键分支解析 payload，松开标记为 release、被 runtime（`compat.kt`）丢弃。顺带撤销 L7.16 的 Page 键 600ms 时间窗「敷衍式」兜底——改 Page 键只响应全新 press、吞 keyboard-protocol repeat（长按只翻一页）；`bin/` 构建产物入 gitignore | `b4ff8220` | `EventParserCsiTildeKeyboardEventTest`（9：PgUp/PgDn/Insert/Delete/Home/End 纯形 + `6;129:1~` press / `:3~` release / `:2~` repeat / `11;2~` Shift+F1）+ `ShowcaseTest` 改 press/repeat/release/反向 4 事件；tty-terminal jvm/native 各 +9，runtime 642/640，showcase 6/6，apiCheck 通过 | ✅ 已归档 |
+| L7 | L7.17 | 单行可编辑文本输入框：`BasicTextField(value, onValueChange, modifier, enabled, readOnly, textStyle, color, background, onDone)`——Compose 同款受控语义；光标=终端原生反显块（SGR 7，字符上反显该字素、末尾反显空格）；编辑按 UAX#29 字素移动/删除（CJK 与组合序列），IME/粘贴插光标处，Ctrl 组合不吞；`enabled=false` 惰性无光标、`readOnly` 只导航不编辑；**内部文本镜像**解决同帧连击丢字（编辑基于镜像而非旧闭包 value）；编辑器抽成纯类可单测 | `108a07fa` | `BasicTextFieldTest`（18：引擎 9 条——插入/退格/删除/导航含宽字符列宽与组合簇边界；组合层 9 条——渲染+反显光标/disabled/typing/ctrl 不插/退格/中插/粘贴，走真实事件通路）；runtime jvm 660 / native 658，showcase 各 7，apiCheck（.api/.klib.api）通过 | ✅ 已归档 |
 
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
@@ -117,6 +118,16 @@
 - **撤销 L7.16 的 600ms 时间窗**：时间窗只是掩盖解析错误的「敷衍式」兜底，根因修复后不再需要。PageUp/PageDown 改回——只响应全新 press（翻一页）、吞 `event.repeat`（键盘协议自动重复，长按只翻一页）；release 在 compat 层即消失，不进入 `onKeyEvent`。`LazyScreen` 移除 `PageKeyRepeatWindow`/`lastPageKey` 及 `TimeSource`/`TimeMark`/`milliseconds` import。
 - **测试**：新增 `EventParserCsiTildeKeyboardEventTest`（9 条，commonTest 双平台）——PgUp/PgDn/Insert/Delete/Home/End 纯形、`6;129:1~` press 带 `ModifierNumLock`、`:3~` release、`:2~` repeat、`11;2~` Shift+F1；`ShowcaseTest.lazyPagePageKeysIgnoreAutoRepeat` 改为 press→9 / repeat→仍 9 / release→仍 9 / PageUp 反向立即 0。回归：tty-terminal jvm/native 各 +9、runtime 642/640、showcase 6/6、apiCheck 全绿。
 - **杂项**：`bin/`（本地 native 构建产物目录）入 `.gitignore`，防误提交 kexe。
+
+### L7.17 单行可编辑文本输入框 `BasicTextField`（`108a07fa`）
+- **定位**：落地 todo §15「输入控件」——`BasicTextField` 等价物（单行、光标、IME、粘贴、基础编辑语义）；依赖 L5 输入 + L7.16 `KeyEvent` 已就绪。
+- **API（`ui/BasicTextField.kt`）**：`BasicTextField(value, onValueChange, modifier, enabled, readOnly, textStyle, color, background, onDone)` 受控组件（值由调用方持有，与 Compose 语义一致）。`onDone` 是末尾函数参，调用需具名 `onValueChange = { ... }`（尾随 lambda 绑定到 onDone，与 Compose 用法一致）。
+- **光标渲染**：终端原生**反显块**——在光标所在字素上以 `TextStyle.Invert` 重绘该字素、光标在末尾则反显空格；不用颜色、任何终端可见（SGR 7/27）；已启用才画光标。
+- **编辑模型（`TextEditing` 内部纯对象 + `TextEdit`）**：光标恒在字素簇边界；`clusterStartBefore`/`clusterEndAfter` 复用 `forEachGraphemeClusterRange`（完整 UAX#29）；`←/→` 一次跳一个簇（CJK/组合序列成簇移动）、`Home/End`、`Backspace/Delete` 删整个簇、IME/粘贴在光标处插入；`isEditableText` 过滤控制符、Ctrl 组合不消费（保应用快捷键）。
+- **同帧连击丢字（开发中揪出的真 bug）**：键盘事件可在同一帧预算内成批到达、重组未发生时若编辑基于闭包旧 `value`，同一批每个事件都命中旧文本 → 只剩最后字符。修复：字段持**内部文本镜像** `editableText`（`remember mutableStateOf`，快照写对后续读即时可见）+ 每事件入口**现算** `caret = cursor.coerceIn(0, editableText.length)`；父级 value 变化时对账采纳并钳制光标。这同时解决受控组件"父级忽略 onValueChange"（过滤输入）时的收敛。
+- **焦点前置说明**：键盘事件目前广播给所有节点，单屏只能放一个可编辑字段；多字段/点击聚焦依赖 §15「焦点/键盘导航原语」，另行实现。
+- **测试**：`BasicTextFieldTest`（18 条，双平台）——引擎 9 条（插入/空插/退格/删除含组合簇、导航钳制、宽字符列宽 `strWidth` 对拍）+ 组合层 9 条（渲染文本+反显光标、disabled 无光标、typing 更新受控值、ctrl 不插入、退格删除、光标中插、粘贴插入），走真实事件通路。**harness 要点**：外部受控 state 写入需先打一帧基线才重组；无变化场景用 `setContentAndSnapshot`+`draw()` 对拍而非 `awaitSnapshot`（后者等变更会超时）。
+- **showcase**：新增第 8 页 Field——可编辑字段初始 `你好，mosaic` + 实时「当前值」回显 + readOnly/disabled 展示；`1`-`8` 快捷键；pty 端到端验证 `h/i/中` 正常进字段。
 
 ### L7.14 能力探测超时降级可观测（`f1c580cf`）
 - **背景**：1s bootstrap 预算（`withTimeoutOrNull`）早已有，但无响应终端降级**全程静默**——扩展能力静默关闭、界面照常运行，用户误以为一切正常或把它当 bug 排查。
