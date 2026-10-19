@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.16（`0a65dd39`）· 创建：2026-10-17 · 更新：2026-10-18
+> 分支：`refactor` · 当前 HEAD：L7.16.1（`b4ff8220`）· 创建：2026-10-17 · 更新：2026-10-19
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -86,6 +86,7 @@
 | L7 | L7.14 | 能力探测 1s 超时降级可观测：无法响应终端不再静默——`withTimeoutOrNull` 捕获结果，超时即向 stderr 打英文提示（含卡住阶段 DA1/能力/默认查询），开 `MOSAIC_TTY_TERMINAL_DEBUG=true` 追加已确认能力清单；指标文本抽成 internal 纯函数；新增 expect/actual `stderrPrint`（JVM `System.err` flush / native posix `STDERR_FILENO`，与 L7.8 非交互提示同构） | `f1c580cf` | `TtyTerminalBootstrapTimeoutNoticeTest`（4：默认文案/调试清单/空清单/未知阶段）+ `TtyTerminalTimeoutNoticeJvmTest`（1：真实无回复终端 1s 超时 + stderr 重定向断言）；tty-terminal jvmTest 259 / linuxX64Test 258 全绿，apiCheck 通过 | ✅ 已归档 |
 | L7 | L7.15 | 通用滚动容器（最大布局缺口）：`ScrollState`（`value`/`maxValue` 快照态、`scrollBy`/`scrollTo` clamp、`rememberScrollState`）、`verticalScroll`/`horizontalScroll`（滚动轴无界测量 + 视口=约束 + 内容位移取负，clip 在外 offset 在内）、`clipToBounds()` + 画布裁剪矩形（逐层与外层 clip 求交）；顺带修复三处绘制问题（簇被裁后列游标不前进→整行空白 / `maxValue` 快照可观察 / 格子帧内首写重置→跨页背景残留）；滚轮内建（一格 3 行，方向镜像方向键）；showcase 新增第 6 页演示三类容器（纵向列表/横向长行/混合色块）+ 实时 `value/maxValue` + 滚动条 | `ac3e7572` | `ScrollStateTest`（4）+ `ScrollRenderingTest`（6 含滚轮）+ `ClipToBoundsTest`（4）+ `CellStyleResetTest`（1）；runtime jvmTest 635 / linuxX64Test 633，showcase jvm/native 各 4，apiCheck 通过 | ✅ 已归档 |
 | L7 | L7.16 | 惰性列表容器：`LazyColumn`（仅组合可视窗口子项，代价 O(视口) 与总数无关）+ `LazyListScope` DSL（`items(count)`/`items(List)`，多段共享全局 index）+ 窗口算法（firstVisible/lastExclusive 含 lookahead）+ 固定 `itemHeight` 槽位测量定位；复用 L7.15 裁剪/滚轮；`KeyEvent` 增 `repeat` 标志 + Page 键同键 600ms 时间窗防长按堆页（笔记本 Fn+方向键无独立 PgUp/PgDn）；showcase 新增第 7 页（500 行演示，Input 页回显补 `(repeat)` 标签） | `0a65dd39` | `LazyColumnTest`（7）+ `CompatTest` 增 repeat 断言 + `ShowcaseTest` 增 Lazy 2 条；runtime jvmTest 642 / linuxX64Test 640，showcase jvm/native 各 6，apiCheck 通过 | ✅ 已归档 |
+| L7 | L7.16.1 | `<key>~` 键事件补解析调制键与事件类型（根因修复）：`CSI <key>;<modifiers>[:<event-type>]~` 此前只取数字码，`:3~`（松开）被当成第二次按下——`Fn+PageDown` 一次按压翻两页；按游标键分支解析 payload，松开标记为 release、被 runtime（`compat.kt`）丢弃。顺带撤销 L7.16 的 Page 键 600ms 时间窗「敷衍式」兜底——改 Page 键只响应全新 press、吞 keyboard-protocol repeat（长按只翻一页）；`bin/` 构建产物入 gitignore | `b4ff8220` | `EventParserCsiTildeKeyboardEventTest`（9：PgUp/PgDn/Insert/Delete/Home/End 纯形 + `6;129:1~` press / `:3~` release / `:2~` repeat / `11;2~` Shift+F1）+ `ShowcaseTest` 改 press/repeat/release/反向 4 事件；tty-terminal jvm/native 各 +9，runtime 642/640，showcase 6/6，apiCheck 通过 | ✅ 已归档 |
 
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
@@ -106,9 +107,16 @@
 - **窗口算法**：`firstVisible = scroll/itemHeight - beforeLookahead`，`lastExclusive = firstVisible + viewport/itemHeight + before + after`，只组合该窗口内条目；首帧视图高用终端 rows 猜、measure 期写回快照态，父无界时整列表当视口。
 - **measure**：固定 `itemHeight` 槽位锁高测宽、取最宽子项为列宽；`LazyIndexModifier`（ParentDataModifier）把全局 index 传回 policy，`place(0, index*itemHeight - scroll)` 并 clamp；`maxValue = max(0, totalHeight - viewport)`。
 - **复用 L7.15**：`.then(ClipToBoundsElement).then(ScrollWheelMouseModifier)`；`ScrollWheelMouseModifier`/`MouseWheelLines` 由 private 改 internal。
-- **键盘 auto-repeat（笔记本无独立 PgUp/PgDn 的问题）**：`KeyEvent` 增 `repeat` 标志，`compat.kt` 按 `KeyboardEvent.eventType==Repeat` 映射（press 与 repeat 都投递、release 丢弃）；Page 键在 showcase 用「`repeat` 标志 + 同键 600ms 时间窗」双重抑制——一次物理按压只翻一页，长按按 ~1.6 页/秒缓翻而不堆页，PageUp/PageDown 交替立即生效；Input 页回显补 `(repeat)` 标签便于诊断终端是否带 repeat 标志。
+- **键盘 auto-repeat（笔记本无独立 PgUp/PgDn 的问题）**：`KeyEvent` 增 `repeat` 标志，`compat.kt` 按 `KeyboardEvent.eventType==Repeat` 映射（press 与 repeat 都投递、release 丢弃）；Page 键在 showcase 先用「`repeat` 标志 + 同键 600ms 时间窗」双重抑制（该时间窗是铺垫，L7.16.1 根因修复后已撤销，见下节）；Input 页回显补 `(repeat)` 标签便于诊断终端是否带 repeat 标志。
 - **showcase**：新增第 7 页 Lazy——500 行、↑/↓ 逐行、PageUp/PageDown ±(视口−1) 行、滚轮、实时 `offset/500` + 滚动条；与第 6 页 Scroll 的快捷键不冲突（页面自身 Box 先于外壳消费）。
 - **todo 勾销**：§15「惰性列表」；`LazyRow` 仍待办。
+
+### L7.16.1 legacy `<key>~` 键事件补解析调制键与事件类型（`b4ff8220`）
+- **根因（字节级定位）**：kitty 对一次 `Fn+↓`（PgDn）实际发送 `CSI 6;129~`（按下）+ `CSI 6;129:3~`（松开）。`EventParser` 的 `~` 分支此前 `// TODO parse rest of CSI ... ~` + `return KeyboardEvent(codepoint)`，**根本没解析 `;modifiers[:event-type]`** —— `:3~` 的松开事件被当成第二次按下 → 一次物理按压翻两页。Home/End 走 `parseCsiLegacyKeyboard` 分支正确解析并丢弃 release，所以只有 PgUp/PgDn 异常（辅助证据）。
+- **修正（`tty-terminal/EventParser.kt`）**：`~` 分支在 `delimiter != finalIndex` 时解析 `;modifiers[:event-type]`（缺省 press），逻辑与游标键分支对齐；`;129:1~`→press、`:2~`→repeat、`:3~`→release。release 进 runtime 后被 `compat.kt`（`eventType == Press/Repeat` 才投递）丢弃，Page 键不再重复翻页。
+- **撤销 L7.16 的 600ms 时间窗**：时间窗只是掩盖解析错误的「敷衍式」兜底，根因修复后不再需要。PageUp/PageDown 改回——只响应全新 press（翻一页）、吞 `event.repeat`（键盘协议自动重复，长按只翻一页）；release 在 compat 层即消失，不进入 `onKeyEvent`。`LazyScreen` 移除 `PageKeyRepeatWindow`/`lastPageKey` 及 `TimeSource`/`TimeMark`/`milliseconds` import。
+- **测试**：新增 `EventParserCsiTildeKeyboardEventTest`（9 条，commonTest 双平台）——PgUp/PgDn/Insert/Delete/Home/End 纯形、`6;129:1~` press 带 `ModifierNumLock`、`:3~` release、`:2~` repeat、`11;2~` Shift+F1；`ShowcaseTest.lazyPagePageKeysIgnoreAutoRepeat` 改为 press→9 / repeat→仍 9 / release→仍 9 / PageUp 反向立即 0。回归：tty-terminal jvm/native 各 +9、runtime 642/640、showcase 6/6、apiCheck 全绿。
+- **杂项**：`bin/`（本地 native 构建产物目录）入 `.gitignore`，防误提交 kexe。
 
 ### L7.14 能力探测超时降级可观测（`f1c580cf`）
 - **背景**：1s bootstrap 预算（`withTimeoutOrNull`）早已有，但无响应终端降级**全程静默**——扩展能力静默关闭、界面照常运行，用户误以为一切正常或把它当 bug 排查。

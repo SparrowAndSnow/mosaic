@@ -178,7 +178,7 @@
 > 决策（2026-10-17，`refactor` 分支）：这些是**最外层的组合组件**，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；当前阶段**只登记不实现**。优先级统一排在内部重构之后，具体顺序待内部核心完成后重排。实现原则：先实现 + 单元测试 + 用户确认，再归档。
 
 - [x] **滚动容器（最大布局缺口）** ✅（L7.15，`ac3e7572`）：`ScrollState`（`value`/`maxValue` 快照态 + `scrollBy`/`scrollTo` clamp + `rememberScrollState`）+ `verticalScroll`/`horizontalScroll`（滚动轴无界测量、视口=约束、内容位移取负，clip 在外 offset 在内）+ `clipToBounds()` + 画布裁剪矩形；顺带修复绘制三处（簇裁剪后续列卡死 / `maxValue` 快照可观察 / 格子首写重置消除背景残留），滚轮内建（一格 3 行）；showcase 第 6 页演示三类容器；要点见 progress §5。
-- [x] **惰性列表** ✅（L7.16，`0a65dd39`）：`LazyColumn`（仅组合可视区子项、代价 O(视口) 与总数无关）+ `LazyListScope` `items(count)`/`items(List)` + 固定 `itemHeight` 槽位；复用滚动容器/裁剪/滚轮；`KeyEvent` 增 `repeat` 标志 + Page 键同键 600ms 窗口防长按堆页；showcase 第 7 页（500 行）。`LazyRow` 仍待办；要点见 progress §5。
+- [x] **惰性列表** ✅（L7.16，`0a65dd39`；L7.16.1，`b4ff8220` 根因修复）：`LazyColumn`（仅组合可视区子项、代价 O(视口) 与总数无关）+ `LazyListScope` `items(count)`/`items(List)` + 固定 `itemHeight` 槽位；复用滚动容器/裁剪/滚轮；`KeyEvent` 增 `repeat` 标志（L7.16.1 补 `CSI <key>;<mod>:<type>~` 解析、撤销 600ms 时间窗兜底，Page 键只响应全新 press）；showcase 第 7 页（500 行）。`LazyRow` 仍待办；要点见 progress §5。
 - [ ] **输入控件**：可编辑单行输入（`BasicTextField` 等价物，含光标/IME），依赖 L5 输入（鼠标/粘贴/键盘编辑语义）落地。
 - [ ] **鼠标交互**：`clickable` / `hoverable`（鼠标事件当前**已解析但未消费**，见 todo §8），依赖 L5 把事件接到平台回调。
 - [ ] **焦点 / 键盘导航原语**：交叉引用 todo §5 已有 P3 条目。
