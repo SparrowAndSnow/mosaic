@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.20（`9dc2cb7e`） · 创建：2026-10-17 · 更新：2026-10-19
+> 分支：`refactor` · 当前 HEAD：L7.21（`e315b6b3`） · 创建：2026-10-17 · 更新：2026-10-19
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -94,6 +94,7 @@
 | L7 | L7.19 | 焦点 / 键盘导航原语：`Modifier.focusable(enabled)`（Tab/Shift+Tab 环形遍历 + 主键点击聚焦）+ `Modifier.onFocusChanged { FocusState }`（`hasFocus`=自或后代、`isFocused`=自身、`isCaptured` 恒 false）+ `FocusRequester`（`Modifier.focusRequester` 程序化 requestFocus，配 focusable 才会生效）；每节点单个 `FocusTarget`（跨重组复用，观察者每次重建拾取新 lambda），组合根 `FocusManager` 负责焦点事务——释放旧分支（自身+非共享祖先 down）→点亮新分支（至首个已亮祖先停），每节点**一次原子通知**；Tab 仅在存在 focusable 时消耗（否则保持旧行为）、Shift+Tab 反向、`repeat` 吞掉不连滚；BasicTextField 接入：仅聚焦字段响应输入/画光标，多字段同屏；祖先 `onFocusChanged` 观察后代（hasFocus=true/isFocused=false）。showcase Field 页双字段 + 聚焦状态 + 自动聚焦首字段 | `973fdb5d` | `FocusTest`（11 条：Tab 前进/环绕、Shift+Tab 反向、单 focusable 消耗、无 focusable 不拦截、点击聚焦、点击非 focusable 不动焦点、disabled 跳过、FocusRequester 生效/对非 focusable 无效、祖先观察、Ctrl+Tab 不遍历）；`BasicTextFieldTest` 改聚焦前置；runtime jvm 683 / native 681，showcase 各 8，apiCheck 通过 | ✅ 已归档 |
 | L7 | L7.20 | 边框 / 分隔原语：`Modifier.border(width=1, color=Unspecified)`（`LayoutModifier` 按 width 四边内凹 + `DrawModifier` 画 `┌┐└┘` 角 + `─│` 边条——width>1 时边条跨整行/列实心，width=0 不画、尺寸不变；color 直通前景）/ `HorizontalDivider`（thickness=1、color、startIndent/endIndent，规则占满约束主向、次向 thickness）/ `VerticalDivider`（对称，占满高度、宽度 thickness）；showcase 第 9 页 Border 演示边框变体/内边距/嵌套/横竖分隔线 | `9dc2cb7e` | `BorderTest`（16 条：border 内容内凹+环线、单字符、border0 不画且尺寸不变、border2 边条实心、fillMaxWidth 整行、与 padding 组合、彩色 ANSI 前景、Unspecified 无前景、边框内 clickable 回归、横/竖分隔线含厚度与缩进、负参数 require）；runtime jvm 699 / native 697，showcase 各 9，apiCheck 通过 | ✅ 已归档 |
 
+| L7 | L7.21 | 动画容器（`mosaic-animation`）：`Crossfade`（水平推进语义——容器叠层裁剪，旧页向左滑出、新页从右滑入，`Transition.Crossfade` 用 `DeferredAnimation` 偏移驱动，`contentKey` 去重）+ `AnimatedVisibility`（`EnterTransition`/`ExitTransition` sealed 类型 + `EnterExitState`(PreEnter/Visible/PostExit) + `EnterTransition.None`/`+` 组合；expand/shrink 以 `IntSize` 驱动 **布局尺寸含兄弟挤压**、slide 以 `IntOffset` 驱动位移；fade/scale 因终端无 alpha/graphicsLayer 省略；退出动画结束前内容保留、结束后才从树中移除——`produceState`+`snapshotFlow{exitFinished}` 观察；`MutableTransitionState` 变体入场即动画）；showcase Animation 页增补 Crossfade 页面推进 + AnimatedVisibility 展开/收起演示 | `e315b6b3` | `CrossfadeTest`（5：初始目标/中途混合帧/切换后只剩目标/多帧动画/切回同 target 单层）+ `AnimatedVisibilityTest`（6：隐藏不渲染/即刻显示/入场多帧并最终全显/退出期间保留后移除/退出多帧/MutableTransitionState 入场动画）；mosaic-animation jvmTest / linuxX64Test 13 各全绿，showcase jvm/native 各 +1（动画冒烟），apiCheck 通过，kexe 已重链 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -481,6 +482,22 @@
 - **测试 `BorderTest`（16 条，commonTest）**：内容内凹 + 环线精确帧、单字符、`border(0)` 不画且尺寸不变、`border(2)` 边条实心、`fillMaxWidth` 整行边框、与 `padding` 组合（外 padding 顶/底各多 1 空行）、彩色边框输出 TRUECOLOR 前景 SGR、`Unspecified` 无前景 SGR、边框内 `clickable` 仍可点（界内触发/界外不触发）、横/竖分隔线厚度与缩进、负参数 `require` 抛 `IllegalArgumentException`（border 走非组合路径、divider 组合期 setContent 抛）。
 - **showcase 第 9 页 Border**：`Page.Border` + `1`-`9` 键切换 + `BorderScreen`（边框变体一行并列 / 边框+内边距 / 嵌套边框 / 横分隔线含缩进 / 竖分隔线含缩进）。
 - 验证：runtime jvm 699 / native 697，showcase jvm/native 各 9，apiCheck 通过，kexe 已重链。
+
+
+
+### L7.21 动画容器（`mosaic-animation/EnterExit.kt|AnimatedVisibility.kt|Crossfade.kt`，`e315b6b3`）
+- **定位**：落地 todo §15「动画容器」——`mosaic-animation` 此前只有核心值动画（Transition/值动画/spring/tween），缺装配层容器。
+- **终端约束 → 设计决策**：终端无 alpha 合成 / graphicsLayer / scale，故：
+  - `Crossfade` 不用淡入淡出，改「**水平推进**」：同 Layout 叠层、容器 `clipToBounds()`，旧状态层 0→-W 滑出，新状态层 +W→0 滑入（W=该层测量宽度）；每层 `createDeferredAnimation(IntOffset)` + 布局修饰器在 measure 读 `.value`（挂在 runtime 布局阶段的 `Snapshot.observe` 下 → 动画态每帧重排重绘）。
+  - `AnimatedVisibility` 用 expand/shrink（`IntSize` 驱动布局尺寸→**影响兄弟布局**）+ slide（`IntOffset` 驱动内容位移）；fade/scale/veil 省略（无 alpha），`clipToBounds` 在尺寸动画期间裁剪溢出。
+- **`EnterTransition` / `ExitTransition`**：sealed + `internal data: TransitionData(slide?, changeSize?)`；`+` 组合/优先级合并；`None` 常量。工厂：`expandIn/shrinkOut/expandVH/shrinkVH`（对齐映射 Horizontal→CenterStart/End/Center、Vertical→TopCenter/BottomCenter/Center）+ `slideIn/Out`、`slide*Horizontally/Vertically`（默认 -fullHeight/2）。KDoc 全部中性描述，无任何第三方名。
+- **`AnimatedVisibility` 装配**：`updateTransition(visible)` → `createChildTransition`（`targetEnterExit`：从未可见→PreEnter，曾可见→PostExit）→ `AnimatedEnterExitImpl` 在 `visible(current)||visible(target)` 时组合单内容 `Layout`（`AnimatedEnterExitMeasurePolicy`：取子项最大 w/h、TopStart 对齐）+ `createModifier`（trackActiveEnter/Exit 保持被中断的过渡引用；按需建 size/slide DeferredAnimation）。
+  - **退出后再移除**：Compose 有 `exitFinished` 便捷层；本仓库无——自建 `Transition<EnterExitState>.exitFinished`（current==PostExit && target==PostExit）+ `produceState { snapshotFlow { exitFinished }.collect }` 在退出完成**后一帧**才把内容从树里移除。
+  - `createModifier`/`trackActiveEnter` 参照上游算法（无源码引用，重新实现）。
+- **`Crossfade` 装配**：`currentlyVisible` 状态列表 + `contentMap`；`current==target` 时收敛回单层；target 变化时按 `contentKey` 去重重建层表（`entering = state==target` 决定滑入方向），`key(contentKey(it))` 独立槽位。
+- **测试（commonTest，新增 mosaic-testing 驱动）**：`CrossfadeTest`（5）+ `AnimatedVisibilityTest`（6）——经 `runMosaicTest`+`awaitSnapshot` 逐帧推帧；关键经验：本 runtime **空闲即超时**（`awaitSnapshot` 1s 虚拟超时 = 「已稳定」），`pump()` 捕获 `TimeoutCancellationException` 判稳定；expandVertically 单行内容在单元粒度下会「先空后显」（tween 前 ~73% 高度仍取整为 0），断言用多行内容观察中间帧；Cell 粒度下中间帧是「新旧字符同排混合」而非双串共存。
+- **showcase**：Animation 页增「4. 页面推进（Crossfade，1.5s/页）」+「5. 展开/收起（AnimatedVisibility，2s 周期）」；`samples/showcase/build.gradle` 增 `mosaicAnimation` 依赖；`ShowcaseTest` 增 1 条冒烟。
+- 验证：`mosaic-animation` jvmTest / linuxX64Test 13 各全绿；showcase jvmTest 全绿并按既有流程重链 `bin/linuxX64/showcase.kexe`；`apiDump`（.api/.klib.api）已生成新公共 API。
 
 
 ## 6. 当前状态 / 下一步候选
