@@ -8,6 +8,7 @@ internal enum class Page(
 	Text("Text"),
 	Layout("Layout"),
 	Input("Input"),
+	Field("Field"),
 	Animation("Animation"),
 	Scroll("Scroll"),
 	Lazy("Lazy"),

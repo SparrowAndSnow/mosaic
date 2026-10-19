@@ -23,6 +23,7 @@ import com.jakewharton.mosaic.ui.Row
 import com.jakewharton.mosaic.ui.Text
 import com.jakewharton.mosaic.ui.Color
 import example.screens.AnimationScreen
+import example.screens.FieldScreen
 import example.screens.InputScreen
 import example.screens.LazyScreen
 import example.screens.LayoutScreen
@@ -33,7 +34,7 @@ import kotlinx.coroutines.awaitCancellation
 
 /**
  * The showcase shell: a header naming the current page, a page area, and a clickable tab bar.
- * `←`/`→`/`Tab` or `1`-`7` switch pages, mouse press also switches, Ctrl-C exits. Each page is a
+ * `←`/`→`/`Tab` or `1`-`8` switch pages, mouse press also switches, Ctrl-C exits. Each page is a
  * plain composable so the same content doubles as snapshot-test fodder.
  */
 @Composable
@@ -72,10 +73,10 @@ internal fun ShowcaseApp() {
 						select(pageIndex + 1)
 						true
 					}
-				in listOf("1", "2", "3", "4", "5", "6", "7") -> {
-						select(event.key[0] - '1')
-						true
-					}
+				in listOf("1", "2", "3", "4", "5", "6", "7", "8") -> {
+					select(event.key[0] - '1')
+					true
+				}
 					else -> false
 				}
 			},
@@ -93,6 +94,7 @@ internal fun ShowcaseApp() {
 				Page.Text -> TextScreen()
 				Page.Layout -> LayoutScreen()
 				Page.Input -> InputScreen()
+				Page.Field -> FieldScreen()
 				Page.Animation -> AnimationScreen()
 				Page.Scroll -> ScrollScreen()
 				Page.Lazy -> LazyScreen()

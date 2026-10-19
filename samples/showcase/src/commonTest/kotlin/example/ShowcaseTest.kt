@@ -4,6 +4,7 @@ import assertk.assertThat
 import assertk.assertions.contains
 import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.terminal.KeyboardEvent
+import example.screens.FieldScreen
 import example.screens.LazyScreen
 import example.screens.ScrollScreen
 import example.screens.TextScreen
@@ -60,6 +61,16 @@ class ShowcaseTest {
 			assertThat(snapshot).contains("LazyColumn")
 			assertThat(snapshot).contains("第  0行")
 			assertThat(snapshot).contains("offset 0/500")
+		}
+	}
+
+	@Test fun fieldPageShowsEditableInputAndInertStates() = runTest {
+		runMosaicTest {
+			val snapshot = setContentAndSnapshot { FieldScreen() }
+			assertThat(snapshot).contains("BasicTextField")
+			assertThat(snapshot).contains("你好，mosaic")
+			assertThat(snapshot).contains("只读内容")
+			assertThat(snapshot).contains("禁用内容")
 		}
 	}
 

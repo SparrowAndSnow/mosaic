@@ -598,6 +598,10 @@ public abstract interface class com/jakewharton/mosaic/ui/Arrangement$Vertical {
 	public fun getSpacing ()I
 }
 
+public final class com/jakewharton/mosaic/ui/BasicTextFieldKt {
+	public static final fun BasicTextField-adflZek (Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lcom/jakewharton/mosaic/modifier/Modifier;ZZIIILkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class com/jakewharton/mosaic/ui/BiasAlignment : com/jakewharton/mosaic/ui/Alignment {
 	public static final field $stable I
 	public fun <init> (FF)V
