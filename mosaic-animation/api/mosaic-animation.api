@@ -37,6 +37,15 @@ public final class com/jakewharton/mosaic/animation/AnimateAsStateKt {
 	public static final fun animateValueAsState (Ljava/lang/Object;Lcom/jakewharton/mosaic/animation/TwoWayConverter;Lcom/jakewharton/mosaic/animation/AnimationSpec;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
 }
 
+public final class com/jakewharton/mosaic/animation/AnimatedVisibilityKt {
+	public static final fun AnimatedVisibility (Lcom/jakewharton/mosaic/animation/MutableTransitionState;Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/animation/EnterTransition;Lcom/jakewharton/mosaic/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun AnimatedVisibility (ZLcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/animation/EnterTransition;Lcom/jakewharton/mosaic/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
+public abstract interface class com/jakewharton/mosaic/animation/AnimatedVisibilityScope {
+	public abstract fun getTransition ()Lcom/jakewharton/mosaic/animation/Transition;
+}
+
 public abstract interface class com/jakewharton/mosaic/animation/Animation {
 	public abstract fun getDurationNanos ()J
 	public abstract fun getTargetValue ()Ljava/lang/Object;
@@ -216,6 +225,11 @@ public final class com/jakewharton/mosaic/animation/ArcMode$Companion {
 	public final fun getArcLinear-Cop2DzQ ()I
 }
 
+public final class com/jakewharton/mosaic/animation/CrossfadeKt {
+	public static final fun Crossfade (Lcom/jakewharton/mosaic/animation/Transition;Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Crossfade (Ljava/lang/Object;Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class com/jakewharton/mosaic/animation/CubicBezierEasing : com/jakewharton/mosaic/animation/Easing {
 	public static final field $stable I
 	public fun <init> (FFFF)V
@@ -311,6 +325,60 @@ public final class com/jakewharton/mosaic/animation/EasingKt {
 	public static final fun getFastOutSlowInEasing ()Lcom/jakewharton/mosaic/animation/Easing;
 	public static final fun getLinearEasing ()Lcom/jakewharton/mosaic/animation/Easing;
 	public static final fun getLinearOutSlowInEasing ()Lcom/jakewharton/mosaic/animation/Easing;
+}
+
+public final class com/jakewharton/mosaic/animation/EnterExitKt {
+	public static final fun expandHorizontally (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment$Horizontal;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static synthetic fun expandHorizontally$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment$Horizontal;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static final fun expandIn (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static synthetic fun expandIn$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static final fun expandVertically (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment$Vertical;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static synthetic fun expandVertically$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment$Vertical;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static final fun shrinkHorizontally (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment$Horizontal;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+	public static synthetic fun shrinkHorizontally$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment$Horizontal;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+	public static final fun shrinkOut (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+	public static synthetic fun shrinkOut$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+	public static final fun shrinkVertically (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment$Vertical;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+	public static synthetic fun shrinkVertically$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lcom/jakewharton/mosaic/ui/Alignment$Vertical;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+	public static final fun slideIn (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static synthetic fun slideIn$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static final fun slideInHorizontally (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static synthetic fun slideInHorizontally$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static final fun slideInVertically (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static synthetic fun slideInVertically$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/EnterTransition;
+	public static final fun slideOut (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+	public static synthetic fun slideOut$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+	public static final fun slideOutHorizontally (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+	public static synthetic fun slideOutHorizontally$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+	public static final fun slideOutVertically (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+	public static synthetic fun slideOutVertically$default (Lcom/jakewharton/mosaic/animation/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/animation/ExitTransition;
+}
+
+public final class com/jakewharton/mosaic/animation/EnterExitState : java/lang/Enum {
+	public static final field PostExit Lcom/jakewharton/mosaic/animation/EnterExitState;
+	public static final field PreEnter Lcom/jakewharton/mosaic/animation/EnterExitState;
+	public static final field Visible Lcom/jakewharton/mosaic/animation/EnterExitState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/jakewharton/mosaic/animation/EnterExitState;
+	public static fun values ()[Lcom/jakewharton/mosaic/animation/EnterExitState;
+}
+
+public abstract class com/jakewharton/mosaic/animation/EnterTransition {
+	public static final field $stable I
+	public static final field Companion Lcom/jakewharton/mosaic/animation/EnterTransition$Companion;
+}
+
+public final class com/jakewharton/mosaic/animation/EnterTransition$Companion {
+	public final fun getNone ()Lcom/jakewharton/mosaic/animation/EnterTransition;
+}
+
+public abstract class com/jakewharton/mosaic/animation/ExitTransition {
+	public static final field $stable I
+	public static final field Companion Lcom/jakewharton/mosaic/animation/ExitTransition$Companion;
+}
+
+public final class com/jakewharton/mosaic/animation/ExitTransition$Companion {
+	public final fun getNone ()Lcom/jakewharton/mosaic/animation/ExitTransition;
 }
 
 public abstract interface annotation class com/jakewharton/mosaic/animation/ExperimentalAnimatableApi : java/lang/annotation/Annotation {

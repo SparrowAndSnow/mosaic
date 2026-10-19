@@ -2,8 +2,9 @@ package example
 
 import assertk.assertThat
 import assertk.assertions.contains
-import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.terminal.KeyboardEvent
+import com.jakewharton.mosaic.testing.runMosaicTest
+import example.screens.AnimationScreen
 import example.screens.BorderScreen
 import example.screens.FieldScreen
 import example.screens.LazyScreen
@@ -103,6 +104,15 @@ class ShowcaseTest {
 			assertThat(snapshot).contains("│")
 			assertThat(snapshot).contains("水平分隔线")
 			assertThat(snapshot).contains("垂直分隔线")
+		}
+	}
+
+	@Test fun animationPageShowsContainers() = runTest {
+		runMosaicTest {
+			val snapshot = setContentAndSnapshot { AnimationScreen() }
+			assertThat(snapshot).contains("页面推进")
+			assertThat(snapshot).contains("展开 / 收起")
+			assertThat(snapshot).contains("tick")
 		}
 	}
 
