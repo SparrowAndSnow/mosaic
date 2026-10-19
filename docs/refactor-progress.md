@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.21（`e315b6b3`） · 创建：2026-10-17 · 更新：2026-10-19
+> 分支：`refactor` · 当前 HEAD：L7.22（`e6bd3b0b`） · 创建：2026-10-17 · 更新：2026-10-19
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -95,6 +95,8 @@
 | L7 | L7.20 | 边框 / 分隔原语：`Modifier.border(width=1, color=Unspecified)`（`LayoutModifier` 按 width 四边内凹 + `DrawModifier` 画 `┌┐└┘` 角 + `─│` 边条——width>1 时边条跨整行/列实心，width=0 不画、尺寸不变；color 直通前景）/ `HorizontalDivider`（thickness=1、color、startIndent/endIndent，规则占满约束主向、次向 thickness）/ `VerticalDivider`（对称，占满高度、宽度 thickness）；showcase 第 9 页 Border 演示边框变体/内边距/嵌套/横竖分隔线 | `9dc2cb7e` | `BorderTest`（16 条：border 内容内凹+环线、单字符、border0 不画且尺寸不变、border2 边条实心、fillMaxWidth 整行、与 padding 组合、彩色 ANSI 前景、Unspecified 无前景、边框内 clickable 回归、横/竖分隔线含厚度与缩进、负参数 require）；runtime jvm 699 / native 697，showcase 各 9，apiCheck 通过 | ✅ 已归档 |
 
 | L7 | L7.21 | 动画容器（`mosaic-animation`）：`Crossfade`（水平推进语义——容器叠层裁剪，旧页向左滑出、新页从右滑入，`Transition.Crossfade` 用 `DeferredAnimation` 偏移驱动，`contentKey` 去重）+ `AnimatedVisibility`（`EnterTransition`/`ExitTransition` sealed 类型 + `EnterExitState`(PreEnter/Visible/PostExit) + `EnterTransition.None`/`+` 组合；expand/shrink 以 `IntSize` 驱动 **布局尺寸含兄弟挤压**、slide 以 `IntOffset` 驱动位移；fade/scale 因终端无 alpha/graphicsLayer 省略；退出动画结束前内容保留、结束后才从树中移除——`produceState`+`snapshotFlow{exitFinished}` 观察；`MutableTransitionState` 变体入场即动画）；showcase Animation 页增补 Crossfade 页面推进 + AnimatedVisibility 展开/收起演示 | `e315b6b3` | `CrossfadeTest`（5：初始目标/中途混合帧/切换后只剩目标/多帧动画/切回同 target 单层）+ `AnimatedVisibilityTest`（6：隐藏不渲染/即刻显示/入场多帧并最终全显/退出期间保留后移除/退出多帧/MutableTransitionState 入场动画）；mosaic-animation jvmTest / linuxX64Test 13 各全绿，showcase jvm/native 各 +1（动画冒烟），apiCheck 通过，kexe 已重链 | ✅ 已归档 |
+
+| L7 | L7.22 | `TtyTerminal` 关停竞态修复：`close()` 在 `teardown()+closeJob.cancel()` 后**阻塞等待读取协程 `readerJob` 完全退出**（`while (!isCompleted) { runCatching{ interruptRead() }; delay(1) }`，1s 超时后 `cancel()` + 最后一次 interruptRead 兜底）才返回，保证调用方随后的 `tty.close()` 释放 fd 时读取线程已彻底离开描述符；杜绝「fd 释放当口 read 仍在阻塞」→ EBADF(9) `IOException`（读取循环无捕获 → 未捕获 → SIGABRT）或 fd 号复用后 read 永久挂起；读取循环对 `IOException` 按输入终结处理；interrupt job finally 的 `interruptRead` 加 `runCatching` | `e6bd3b0b` | `shutdownNeverRacesFdFree`（200 次精确复刻退出时序，修复前必现崩溃/挂起、修复后稳定 ~10s）；mosaic-tty / tty-terminal linuxX64Test 与 jvmTest 全绿，mosaic-runtime native 编译通过，showcase kexe 重链后 PTY 多次 Ctrl-C 退出干净 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -498,6 +500,15 @@
 - **测试（commonTest，新增 mosaic-testing 驱动）**：`CrossfadeTest`（5）+ `AnimatedVisibilityTest`（6）——经 `runMosaicTest`+`awaitSnapshot` 逐帧推帧；关键经验：本 runtime **空闲即超时**（`awaitSnapshot` 1s 虚拟超时 = 「已稳定」），`pump()` 捕获 `TimeoutCancellationException` 判稳定；expandVertically 单行内容在单元粒度下会「先空后显」（tween 前 ~73% 高度仍取整为 0），断言用多行内容观察中间帧；Cell 粒度下中间帧是「新旧字符同排混合」而非双串共存。
 - **showcase**：Animation 页增「4. 页面推进（Crossfade，1.5s/页）」+「5. 展开/收起（AnimatedVisibility，2s 周期）」；`samples/showcase/build.gradle` 增 `mosaicAnimation` 依赖；`ShowcaseTest` 增 1 条冒烟。
 - 验证：`mosaic-animation` jvmTest / linuxX64Test 13 各全绿；showcase jvmTest 全绿并按既有流程重链 `bin/linuxX64/showcase.kexe`；`apiDump`（.api/.klib.api）已生成新公共 API。
+
+
+### L7.22 TtyTerminal 关停竞态修复（`TtyTerminal.kt`，`e6bd3b0b`）
+- **现象**：native kexe 偶发退出报 `Uncaught Kotlin exception: com.jakewharton.mosaic.tty.IOException: 9` 后 SIGABRT；栈 = `EventParser#next()` → `Tty.read` 抛 EBADF。
+- **根因**：`withTerminal` 退出顺序是 `terminal.use{}`（`close()` → teardown + cancel interrupt job + **一次** interruptRead 唤醒）紧接着 `tty.use{}` 的 `tty.close()` 释放底层 fd（tty fd + 中断管道）。读取输入的事件协程（`scope.launch(Dispatchers.IO)`，阻塞在 `select()/read()`）与 fd 释放**无同步**：fd 已释放后 read 才执行 → `mosaic_utils_read` 的 `select()`/`read()` 返回 EBADF → native `Tty.read` 抛 `IOException("9")`，读取循环无捕获 → 异常逃逸 `coroutineScope` → 未捕获 → SIGABRT；更糟时序 fd 号被复用 → read 永久挂起（压力测试复现：400 次退出卡死）。
+- **修复**：把「唤醒读取协程」从一次性 interrupt 升级为**等它真正跑完**——`close()` 在 teardown 后 `runBlocking { withTimeoutOrNull(1s) { while (!readerJob.isCompleted) { runCatching{ tty.interruptRead() }; delay(1) } } }`；超时再 `readerJob.cancel()` + 最后一次 interruptRead 兜底（能解除卡在 send 的协程、或再次唤醒阻塞在原生 read 的线程）。由此 `tty.close()` 释放 fd 时读取线程已彻底离开描述符，EBADF 崩溃与 fd 复用挂起都不可能。
+- **兜底（防御层）**：读取循环对 `parser.next()` 的 `IOException`（终端关闭/hangup EIO 等）按「输入已终结」静默 break；interrupt job finally 的 `interruptRead()` 加 `runCatching`，防止个别关闭路径把正常取消变成异常。
+- **测试**：`TtyTerminalLifecycleTest` 新增 `shutdownNeverRacesFdFree`（200 次精确复刻 withTerminal 退出时序 `asTerminalIn→close→tty.close`，制造大量线程交错；修复前必现崩溃/挂起，修复后稳定全绿）。
+- **验证**：`:mosaic-tty` / `:mosaic-tty-terminal` 的 `linuxX64Test` 与 `jvmTest` 全绿；`mosaic-runtime` native 编译通过；showcase release kexe 重链后在 PTY 多次 Ctrl-C 退出均干净（exit 0），不再出现该栈。
 
 
 ## 6. 当前状态 / 下一步候选
