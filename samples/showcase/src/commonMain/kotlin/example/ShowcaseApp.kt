@@ -9,11 +9,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.jakewharton.mosaic.LocalTerminalState
 import com.jakewharton.mosaic.layout.KeyEvent
-import com.jakewharton.mosaic.layout.MouseEvent
+import com.jakewharton.mosaic.layout.clickable
 import com.jakewharton.mosaic.layout.fillMaxWidth
 import com.jakewharton.mosaic.layout.height
+import com.jakewharton.mosaic.layout.hoverable
 import com.jakewharton.mosaic.layout.onKeyEvent
-import com.jakewharton.mosaic.layout.onMouseEvent
 import com.jakewharton.mosaic.layout.padding
 import com.jakewharton.mosaic.layout.width
 import com.jakewharton.mosaic.modifier.Modifier
@@ -52,7 +52,6 @@ internal fun ShowcaseApp() {
 	// and proportional layouts derived from an unbounded max divide an infinite width.
 	val terminal = LocalTerminalState.current
 	var pageIndex by remember { mutableIntStateOf(0) }
-	var hoveredPage by remember { mutableStateOf<Page?>(null) }
 	val pages = Page.entries
 
 	fun select(index: Int) {
@@ -100,8 +99,8 @@ internal fun ShowcaseApp() {
 				Page.Lazy -> LazyScreen()
 			}
 		}
-		TabBar(pages, pageIndex, hoveredPage, onHover = { hoveredPage = it }, onSelect = ::select)
-		Text("←/→/Tab 切换  |  点击标签  |  Ctrl-C 退出", color = ShowcaseTheme.dim)
+		TabBar(pages, pageIndex, onSelect = ::select)
+		Text("←/→/Tab 切换  |  悬停/点击标签  |  Ctrl-C 退出", color = ShowcaseTheme.dim)
 	}
 }
 
@@ -118,31 +117,18 @@ private fun Header(page: Page) {
 private fun TabBar(
 	pages: List<Page>,
 	selected: Int,
-	hovered: Page?,
-	onHover: (Page?) -> Unit,
 	onSelect: (Int) -> Unit,
 ) {
 	Row(Modifier.fillMaxWidth().padding(top = 1)) {
 		pages.forEachIndexed { index, page ->
 			val active = index == selected
-			val hovering = hovered == page
+			var hovering by remember { mutableStateOf(false) }
 			Tab(
 				page = page,
 				modifier = Modifier
 					.weight(1f)
-					.onMouseEvent { event ->
-						when (event.type) {
-							MouseEvent.Type.Motion -> {
-								onHover(page)
-								true
-							}
-							MouseEvent.Type.Press -> {
-								onSelect(index)
-								true
-							}
-							else -> false
-						}
-					},
+					.clickable { onSelect(index) }
+					.hoverable { hovering = it },
 				active = active,
 				hovering = hovering,
 			)

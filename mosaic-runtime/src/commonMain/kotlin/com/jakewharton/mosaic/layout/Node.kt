@@ -129,6 +129,12 @@ internal class MosaicNode(
 	/** Snapshot states this subtree read during its most recent measurement. */
 	internal val measureDependencies = mutableScatterSetOf<Any>()
 
+	/** Pointer-input states (from hoverable/clickable elements) active on this node. */
+	internal val pointerInputs = ArrayList<PointerInputState>()
+
+	/** Cross-node pointer session, created lazily on the composition root. */
+	private var pointerState: PointerState? = null
+
 	/** Number of times an actual (non-cached) measurement ran on this node. */
 	internal var measureCount: Long = 0
 		private set
@@ -153,6 +159,7 @@ internal class MosaicNode(
 
 	fun setModifier(modifier: Modifier) {
 		invalidateLayoutVersion()
+		pointerInputs.clear()
 		topLayer = modifier.foldOut(bottomLayer) { element, nextLayer ->
 			var nextLayer = nextLayer
 			// The Modifier class can inherit from several key Modifier types
@@ -168,6 +175,9 @@ internal class MosaicNode(
 			}
 			if (element is MouseModifier) {
 				nextLayer = MouseLayer(element, nextLayer)
+			}
+			if (element is PointerInputModifier) {
+				pointerInputs += element.state
 			}
 			if (element is PasteModifier) {
 				nextLayer = PasteLayer(element, nextLayer)
@@ -234,16 +244,26 @@ internal class MosaicNode(
 	/**
 	 * Dispatches a [MouseEvent] to the top-most layout under the pointer and, if it is not
 	 * consumed, bubbles up to its ancestors. Coordinates are absolute canvas (screen cell)
-	 * coordinates, matching a node's [x]/[y] after placement.
+	 * coordinates, matching a node's [x]/[y] after placement. On the composition root this first
+	 * runs the [PointerState] pre-pass so hover enter/exit and press capture are reconciled before
+	 * the raw event is delivered.
 	 */
 	fun sendMouseEvent(event: MouseEvent): Boolean {
+		if (parent == null) {
+			val state = pointerState ?: PointerState().also { pointerState = it }
+			state.preDispatch(this, event)
+		}
+		return dispatchMouseEvent(event)
+	}
+
+	private fun dispatchMouseEvent(event: MouseEvent): Boolean {
 		if (event.x !in x until x + width || event.y !in y until y + height) {
 			return false
 		}
 		// Children draw on top of this node, so give them (in z-order, top-most first) the first
 		// chance to handle the event before this node's own modifiers.
 		for (index in children.indices.reversed()) {
-			if (children[index].sendMouseEvent(event)) {
+			if (children[index].dispatchMouseEvent(event)) {
 				return true
 			}
 		}

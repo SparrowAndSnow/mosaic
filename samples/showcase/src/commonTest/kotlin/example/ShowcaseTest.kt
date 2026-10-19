@@ -92,4 +92,40 @@ class ShowcaseTest {
 			assertThat(up).contains("offset 0/500")
 		}
 	}
+
+	@Test fun tabBarClickSwitchesPage() = runTest {
+		runMosaicTest {
+			setContentAndSnapshot { ShowcaseApp() }
+
+			val rows = com.jakewharton.mosaic.terminal.Terminal.Size.Default.rows
+			// The tab bar sits on the second-to-last row, just above the hint line. Each tab label
+			// is `" $label "` and weighted tabs keep their content width, so the x offset equals the
+			// cumulative rendered label length of the preceding tabs.
+			val tabBarY = rows - 2
+			val target = Page.Text
+			val tabStartX = Page.entries.takeWhile { it != target }.sumOf { " ${it.label} ".length }
+			val tabCenterX = tabStartX + " ${target.label} ".length / 2
+
+			sendMouseEvent(
+				com.jakewharton.mosaic.terminal.MouseEvent(
+					x = tabCenterX,
+					y = tabBarY,
+					type = com.jakewharton.mosaic.terminal.MouseEvent.Type.Press,
+					button = com.jakewharton.mosaic.terminal.MouseEvent.Button.Left,
+				),
+			)
+			sendMouseEvent(
+				com.jakewharton.mosaic.terminal.MouseEvent(
+					x = tabCenterX,
+					y = tabBarY,
+					type = com.jakewharton.mosaic.terminal.MouseEvent.Type.Release,
+					button = com.jakewharton.mosaic.terminal.MouseEvent.Button.Left,
+				),
+			)
+
+			val after = awaitSnapshot().toString()
+			assertThat(after).contains("当前页: Text")
+			assertThat(after).contains("第01行")
+		}
+	}
 }

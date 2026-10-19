@@ -305,6 +305,13 @@ public abstract interface class com/jakewharton/mosaic/layout/Placeable$Placemen
 	public fun place-2QaL3TI (Lcom/jakewharton/mosaic/layout/Placeable;J)V
 }
 
+public final class com/jakewharton/mosaic/layout/PointerInputKt {
+	public static final fun clickable (Lcom/jakewharton/mosaic/modifier/Modifier;ZLjava/lang/String;Lkotlin/jvm/functions/Function0;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static synthetic fun clickable$default (Lcom/jakewharton/mosaic/modifier/Modifier;ZLjava/lang/String;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static final fun hoverable (Lcom/jakewharton/mosaic/modifier/Modifier;ZLkotlin/jvm/functions/Function1;)Lcom/jakewharton/mosaic/modifier/Modifier;
+	public static synthetic fun hoverable$default (Lcom/jakewharton/mosaic/modifier/Modifier;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
+}
+
 public final class com/jakewharton/mosaic/layout/ScrollKt {
 	public static final fun horizontalScroll (Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/layout/ScrollState;Z)Lcom/jakewharton/mosaic/modifier/Modifier;
 	public static synthetic fun horizontalScroll$default (Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/layout/ScrollState;ZILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
