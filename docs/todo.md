@@ -168,7 +168,7 @@
 - [x] **P3 端到端 golden** ✅（L7.27，`09be4bfa`）：新增 `EndToEndGoldenTest`——组合→测量→绘制→ANSI 帧→内存 `VirtualTerminal` 回放，断言**最终屏幕状态**（用户所见），非单帧字节流。已有 4 场景（宽字符混排 / weight 槽位列 / maxLines 裁剪窗口 / 增量 diff 后屏幕）。剩余（可选）：真实 pty 快照（script/pty 回放）留待 CI。
 
 ## 14. 文档 / 发布
-- [ ] **P2 README/CHANGELOG**：随上述功能落地更新能力矩阵与已知限制（非 UTF-8 locale、DEC 2027 依赖等）。
+- [x] **P2 README/CHANGELOG** ✅（L7.28，`L7ARCHIVE`）：README 增「Capabilities & Known limitations」段（字素簇文本/增量渲染/布局/交互/动画 + 非 UTF-8、真 TTY、组合根无界测量等限制）；CHANGELOG [Unreleased] 补重构带来的用户可见能力条目。措辞全程中性（零第三方名）。
 - [ ] **P3 API 稳定性**：0.x 阶段明确 breaking 窗口；§4/§3 方案 A 涉及 `TextPixel`（internal）不破坏 public API，但 `Text`/`Modifier` 新增入口需同步 `CHANGELOG`。
 - [x] **P3 示例补齐（基础）** ✅（L7.11，`371a2b01`）：`samples/showcase`（仅公共 API）落地 Unicode / Text / Layout / Input / Animation 五页演示——鼠标 / 粘贴 / 剪贴板 / 滚动 / 自动滚动+Ellipsis / 字符串截断（Clip vs Ellipsis）/ 动画均已示例化；剩余按需补齐。
 - [x] **P2 台账同步** ✅（2026-10-18 对账）：逐条核对待办与台账/代码，勾销过时项（static 清理 L3.5、DEC 2027 L6.2、右缘/覆盖 L3.4 + L7.10、drawSolidRect 越界 L7.10、画布复用 L7.2）；后续每次归档步骤后同步 ✅ 与提交号。

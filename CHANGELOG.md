@@ -4,6 +4,16 @@
 [Unreleased]: https://github.com/JakeWharton/mosaic/compare/0.18.0...HEAD
 
 New:
+- Grapheme-cluster text: wide CJK, combining sequences, ZWJ families, flags, and variant
+  selectors now render in their true cell width (auto-enabled behind DEC 2027 when supported).
+- Cell-level incremental rendering with synchronized-output wrapping, plus a snapshot renderer.
+- Text soft wrapping, truncation, alignment, and scrolling view windows.
+- BoxWithConstraints, layout caching, and fill-fraction modifiers for proportional layouts.
+- Pointer interaction (hover/press/release/drag), bracketed paste, clipboard read/write, and the
+  kitty keyboard protocol.
+- Focus tracking with Tab/Shift+Tab traversal.
+- Border/divider primitives.
+- Animation containers (crossfade, enter/exit, animated visibility).
 - JVM support for RISC-V and s390x!
 
 Changed:

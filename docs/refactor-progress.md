@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.27（`09be4bfa`） · 创建：2026-10-17 · 更新：2026-10-20
+> 分支：`refactor` · 当前 HEAD：L7.28（`L7ARCHIVE`） · 创建：2026-10-17 · 更新：2026-10-20
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -103,6 +103,7 @@
 | L7 | L7.25 | intrinsic 复用（`layout/Node.kt`）：`MosaicNode` 增单槽 intrinsic memo——以（kind, height/width, `layoutVersion`）为键缓存最近一次 `min/maxIntrinsicWidth/Height`，命中直接返回不再重走子树；重算时经 `Snapshot.observe` 把读取的 snapshot 状态记入该节点 `measureDependencies`（与 measure 同一失效口径），并在节点**实际 measure**（缓存未命中）时丢弃 memo（防 measure 清空依赖后 memo 陈旧）；`intrinsicRecomputeCount`/`intrinsicCacheHitCount` 计数 | `a5370d97` | `IntrinsicCacheTest`（3 条：同参 3 连查只重算 1 次 / 不同参数各自重算 / 状态变更后 memo 不返回陈旧值，仅 intrinsic 读状态、measure 不读以隔离验证依赖记录）；既有 `IntrinsicTest` 回归；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 | L7 | L7.26 | ANSI 16/256 颜色约简核对（`ansi.kt` / `AnsiColorReductionTest.kt`）：`toAnsi16Code`（最高通道近似 100% → 亮色 +60；每通道过半翻转基索引位）/ `toAnsi256Code`（等通道走 232..255 灰阶、两端钳到 16/231；彩色走 6x6x6 cube，每通道 `/255*5` 取整）与参照行为逐点核对一致；清理归属 URL 注释改中性说明 | `61c082bf` | `AnsiColorReductionTest`（4 条，金表 ~60 向量：16 色黑白/亮暗/半强度翻转（127/128）/最高通道 30% 特判；256 灰阶端点 8/247/248 与内部采样；cube 纯色/二级色/取整临界（76/77、127/128）/跨通道组合）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 | L7 | L7.27 | 端到端 golden（`EndToEndGoldenTest.kt`）：组合→测量→绘制→ANSI 帧经内存 `VirtualTerminal` 回放，断言**屏幕最终状态**（用户所见）与是否残留半格 | `09be4bfa` | `EndToEndGoldenTest`（4 条：宽字符混排 / weight 槽位列（80 列 1:2:1 槽 20/40/20 @ x=0/20/60）/ `maxLines` 裁剪窗口 / 两帧增量 diff 后屏幕）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
+| L7 | L7.28 | README/S 能力矩阵（`README.md` / `CHANGELOG.md`）：README 增「Capabilities & Known limitations」——文本与 Unicode（字素簇、DEC 2027 后备）/渲染（cell 级增量、同步输出、快照）/布局（约束族、weight、fill 分数、BoxWithConstraints、布局缓存、Text 重载）/交互（键盘+kitty 协议、鼠标、paste、OSC 52、焦点）/动画（值动画+容器）；限制：非 UTF-8 locale、须真 TTY、Windows/macOS 靠 CI、**组合根无界测量→fillMaxWidth 需显式容器**。CHANGELOG [Unreleased] 补齐重构的用户可见能力。措辞中性零第三方名 | `L7ARCHIVE` | 仅文档（无代码/测试改动）；README/CHANGELOG 均无第三方库名（rg 校验） | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -562,6 +563,13 @@
   ④ 两帧增量 diff（"AAAA/BBBB"→"你好/CCCC"）→ 最终屏幕正确、无残留。
 - **踩坑记录**：测试 harness 的**组合根以无界约束测量**（内容尺寸，非终端 80×24）——① `Row(fillMaxWidth)` 在无界下宽 0、`drawTo` 跳过 0 宽子树导致整行不画，需显式 `Box(width 80)` 给权重分空间；② `Modifier.width(10)`/`requiredWidth(10)` 在内容溢出时仍报内容宽（本库无 coerced-width 层），横向容器裁剪在无界根下无法体现，故裁剪场景改走 Text 级 `maxLines`。这些是运行时真实语义，非 harness 缺陷。
 - **验证**：mosaic-runtime jvmTest 与 linuxX64Test 全绿。
+
+### L7.28 README / CHANGELOG（发布文档）
+- **定位**：todo §14 P2「README/CHANGELOG：能力矩阵与已知限制」。README 此前只有 Intro/Usage/Samples/FAQ，无能力与限制说明。
+- **README**：`Jump to` 加 Capabilities；Samples 之后、FAQ 之前新增「Capabilities」段——Text & Unicode（字素簇度量/绘制、DEC 2027 探测启用与本地后备）、Rendering（cell 级增量 diff、同步输出包裹、snapshot 渲染器）、Layout（约束族/weight/fill 分数/BoxWithConstraints/布局缓存/Text 重载）、Interactivity（键盘+kitty 协议、鼠标、paste、OSC 52、焦点）、Animation（值动画+Crossfade/进出容器）；「Known limitations」——非 UTF-8 locale 不支持、须真 TTY（非 IDE/Gradle）、Windows/macOS 靠 CI、**组合根无界测量 → `fillMaxWidth` 需显式容器**（本会话 L7.27 实证）。
+- **CHANGELOG**：`[Unreleased]` 的 New 列表补齐重构的用户可见能力（宽字符、增量渲染、Text 重载、比例布局、指针/paste/剪贴板/kitty 键盘、焦点、边框、动画容器），保留上游既有条目。
+- **红线**：全部措辞中性，未新增任何第三方库/项目名（rg 校验 Ratatui/BubbleTea/mordant/colormath/unicode-width/kotter 均无命中）。README 里上游既有的「Inspired by Ink」「rrtop 参考」等归属引用属 upstream 历史内容，归入合并 main 前统一清理项，本轮不动。
+- **验证**：仅文档（README/CHANGELOG），无代码/测试改动，不需跑测试集。
 
 ## 6. 当前状态 / 下一步候选
 

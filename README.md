@@ -9,6 +9,7 @@ Jump to:
 [Introduction](#Introduction) |
 [Usage](#Usage) |
 [Samples](#Samples) |
+[Capabilities](#Capabilities) |
 [FAQ](#FAQ) |
 [License](#License)
 
@@ -120,6 +121,48 @@ Run `./gradlew installDist` to build the sample binaries.
  * [snake](samples/snake): Snake game.
 
    `./samples/snake/build/install/snake/bin/snake`
+
+## Capabilities
+
+### Text & Unicode
+* Text is measured and painted at grapheme-cluster granularity, so combining sequences, ZWJ
+  families, flags, emoji with variant selectors, and wide CJK characters occupy their true cell
+  width instead of being split or truncated mid-cluster.
+* When the terminal reports DEC 2027 grapheme clustering, the terminal performs the cluster
+  handling itself; otherwise Mosaic falls back to its own cluster-width model.
+
+### Rendering
+* Frames are diffed cell-by-cell and only the changed regions are emitted, keeping steady-state
+  output small; synchronized-output wrapping is emitted when supported to avoid flicker.
+* A snapshot renderer produces a stable, non-diffing picture, suitable for redirected output.
+
+### Layout
+* Compose-style modifier chains: preferred/required size, size ranges, fill fractions, weighting,
+  aspect ratio, clip-to-bounds, and intrinsic sizing.
+* `Row`/`Column`/`Box` with alignment, spacing, and weight distribution; `BoxWithConstraints` for
+  proportional layouts; layout caching to skip unchanged subtrees.
+* Text overloads: soft wrapping, truncation (clip/ellipsis), horizontal/vertical alignment, and a
+  scrolling view window.
+
+### Interactivity
+* Keyboard input including named keys, repeats, and the kitty keyboard protocol when supported.
+* Pointer input: hover, press/release, and drag via `clickable`/`hoverable`-style modifiers.
+* Bracketed paste and clipboard read/write (OSC 52).
+* Focus tracking with Tab/Shift+Tab traversal, plus focus, resize, and theme change events.
+
+### Animation
+* Value animation (tween/spring), `animateXAsState`-style helpers, plus `Crossfade` and
+  enter/exit containers, all driven by the common frame clock.
+
+### Known limitations
+* The terminal is assumed to be UTF-8; running under a non-UTF-8 locale is not supported.
+* Live redraw requires a real TTY; running inside a build tool or IDE is not supported (see the
+  FAQ below).
+* Windows and macOS code paths are developed against Linux; their behavior is exercised by tests
+  run in CI.
+* The composition root is measured with unbounded constraints. Fill-relative modifiers such as
+  `fillMaxWidth` only distribute space when an ancestor supplies a bounded width or height, so an
+  app that wants to fill the whole screen should wrap its content in an explicit-size container.
 
 ## FAQ
 
