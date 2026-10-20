@@ -165,7 +165,7 @@
 - [x] **P1 `TextLayoutWidthTest`** ✅（L7.7，`f51e04ee`）：增加「测量与绘制一致」逐列对拍断言——按测量 `LineMeasure` 逐列核对绘制（簇头列文本 / 宽簇 placeholder 续列 / 右沿 == totalWidth / `layout.width` == 最宽行），覆盖 ascii/cjk/ZWJ/flags/keycap/VS16/内嵌空格/softWrap/Clip/Ellipsis/scroll/Annotated。
 - [x] **P2 快照体系扩展** ✅（L7.9，`c2e51cad`）：`mosaic-testing` 增加 `CapabilityMatrix`（ansiLevel × kittyUnderline × synchronizedOutput × 2027 代表性组合）+ `runMosaicTestForEach`；`TestMosaic` 补齐焦点事件注入（`sendFocusEvent` → 生命周期 ON_PAUSE/ON_RESUME）。
 - [x] **P2 性能基准** ✅（L7.1）：`samples/bench`（commonMain 单一驱动）对 render 单行 delta / 全量重建 / layout-pass / EventParser 建模，JVM+native 对照（见 `docs/benchmarks.md`）。
-- [x] **P3 端到端 golden** ✅（L7.27，`L7ARCHIVE`）：新增 `EndToEndGoldenTest`——组合→测量→绘制→ANSI 帧→内存 `VirtualTerminal` 回放，断言**最终屏幕状态**（用户所见），非单帧字节流。已有 4 场景（宽字符混排 / weight 槽位列 / maxLines 裁剪窗口 / 增量 diff 后屏幕）。剩余（可选）：真实 pty 快照（script/pty 回放）留待 CI。
+- [x] **P3 端到端 golden** ✅（L7.27，`09be4bfa`）：新增 `EndToEndGoldenTest`——组合→测量→绘制→ANSI 帧→内存 `VirtualTerminal` 回放，断言**最终屏幕状态**（用户所见），非单帧字节流。已有 4 场景（宽字符混排 / weight 槽位列 / maxLines 裁剪窗口 / 增量 diff 后屏幕）。剩余（可选）：真实 pty 快照（script/pty 回放）留待 CI。
 
 ## 14. 文档 / 发布
 - [ ] **P2 README/CHANGELOG**：随上述功能落地更新能力矩阵与已知限制（非 UTF-8 locale、DEC 2027 依赖等）。
