@@ -104,6 +104,7 @@
 | L7 | L7.26 | ANSI 16/256 颜色约简核对（`ansi.kt` / `AnsiColorReductionTest.kt`）：`toAnsi16Code`（最高通道近似 100% → 亮色 +60；每通道过半翻转基索引位）/ `toAnsi256Code`（等通道走 232..255 灰阶、两端钳到 16/231；彩色走 6x6x6 cube，每通道 `/255*5` 取整）与参照行为逐点核对一致；清理归属 URL 注释改中性说明 | `61c082bf` | `AnsiColorReductionTest`（4 条，金表 ~60 向量：16 色黑白/亮暗/半强度翻转（127/128）/最高通道 30% 特判；256 灰阶端点 8/247/248 与内部采样；cube 纯色/二级色/取整临界（76/77、127/128）/跨通道组合）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 | L7 | L7.27 | 端到端 golden（`EndToEndGoldenTest.kt`）：组合→测量→绘制→ANSI 帧经内存 `VirtualTerminal` 回放，断言**屏幕最终状态**（用户所见）与是否残留半格 | `09be4bfa` | `EndToEndGoldenTest`（4 条：宽字符混排 / weight 槽位列（80 列 1:2:1 槽 20/40/20 @ x=0/20/60）/ `maxLines` 裁剪窗口 / 两帧增量 diff 后屏幕）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 | L7 | L7.28 | README/S 能力矩阵（`README.md` / `CHANGELOG.md`）：README 增「Capabilities & Known limitations」——文本与 Unicode（字素簇、DEC 2027 后备）/渲染（cell 级增量、同步输出、快照）/布局（约束族、weight、fill 分数、BoxWithConstraints、布局缓存、Text 重载）/交互（键盘+kitty 协议、鼠标、paste、OSC 52、焦点）/动画（值动画+容器）；限制：非 UTF-8 locale、须真 TTY、Windows/macOS 靠 CI、**组合根无界测量→fillMaxWidth 需显式容器**。CHANGELOG [Unreleased] 补齐重构的用户可见能力。措辞中性零第三方名 | `5680a1a4` | 仅文档（无代码/测试改动）；README/CHANGELOG 均无第三方库名（rg 校验） | ✅ 已归档 |
+| L7 | L7.29 | 值动画/转换器族核对 + 单元测试（`mosaic-animation`）：`animate*AsState` 家族齐全（Float/Int/IntOffset/IntSize/Color，终端无 Dp/Size 需求）；`Color.VectorConverter` 走 **Oklab** 感知空间插值（黑→白向量中点 Oklab L=0.5 → sRGB≈99，对比朴素 sRGB 128 / 线性 RGB 188）——比 todo 原设想「线性 RGB」更优的动画颜色空间，维持现状；补 10 条单测覆盖 5 转换器往返 + IntSize 负值钳制 + color 端点精确收敛/finishedListener 恰一次/中途重定向 | `L7ARCHIVE` | `VectorConvertersTest`（6）+ `AnimateColorAsStateTest`（4）；mosaic-animation jvmTest 与 linuxX64Test 各 23 全绿 + apiCheck | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -570,6 +571,13 @@
 - **CHANGELOG**：`[Unreleased]` 的 New 列表补齐重构的用户可见能力（宽字符、增量渲染、Text 重载、比例布局、指针/paste/剪贴板/kitty 键盘、焦点、边框、动画容器），保留上游既有条目。
 - **红线**：全部措辞中性，未新增任何第三方库/项目名（rg 校验 Ratatui/BubbleTea/mordant/colormath/unicode-width/kotter 均无命中）。README 里上游既有的「Inspired by Ink」「rrtop 参考」等归属引用属 upstream 历史内容，归入合并 main 前统一清理项，本轮不动。
 - **验证**：仅文档（README/CHANGELOG），无代码/测试改动，不需跑测试集。
+
+
+### L7.29 值动画/转换器族核对 + 单元测试（`mosaic-animation`，无生产代码改动）
+- **定位**：todo §12 P3「API 完整性——跟踪上游 `Animatable/AnimateAsState` API 与内部 `AnimationVector` 表维护、评估新增 `animateColorAsState`（线性 RGB）等」。
+- **核对结论**：`animate*AsState` 家族已齐全（Float/Int/IntOffset/IntSize/Color + 泛型 `animateValueAsState`）；终端目标无 Dp/Size/Offset/Rect，不存在缺失变体。`Color.ValueConverter` 已落地为 **Oklab**（感知均匀空间）——黑→白向量中点 (0.5,0,0) → sRGB≈(99,99,99)，而朴素 sRGB 直接 lerp 为 128、线性 RGB lerp 为 188；Oklab 中点更符合视觉均匀，优于 todo 原设想的「线性 RGB」，维持现状不改码。
+- **测试经验（关键）**：`animateValueAsState` 返回的 `State` 的 `toString()` 是内部 `AnimationState(...)` 而非目标值——渲染/断言必须走 `state.value`（初始直接把 `Text(state.toString())` 会得到 AnimationState 字符串，解析全部错位）。测试钟按「值不变则补帧推进 timeNanos」步进，`pump(N)` 与真实秒数非线性对应；收敛断言用 `settle(fallback = frames.last())`——`pump` 已把动画推完时 settle 首帧即空闲超时返回 fallback，否则丢失最后快照。
+- **测试**：`VectorConvertersTest`（6 条：Float/Int/IntOffset/IntSize 往返 + IntSize 负值钳 0 + Color 容差往返 + Oklab 中点带 90..108 精确断言）；`AnimateColorAsStateTest`（4 条：Color 端到端走 Oklab 中灰后精确收敛 + finishedListener 恰一次 / 中途重定向 / Float·Int 收敛）。mosaic-animation jvmTest 与 linuxX64Test 各 23 全绿，apiCheck 通过。
 
 ## 6. 当前状态 / 下一步候选
 
