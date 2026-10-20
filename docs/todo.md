@@ -157,7 +157,7 @@
 
 ## 12. 动画（`mosaic-animation/`）
 - [ ] **P3 帧时钟集成**：动画走 `BroadcastFrameClock`；核对与 `delay(1)` 帧循环的节流/低电量行为。
-- [x] **P3 API 完整性** ✅（L7.29，`L7ARCHIVE`）：`Animatable/AnimateAsState/…` port 自 androidx；跟踪上游 API 与内部 `AnimationVector` 表维护；评估新增 `animateColorAsState`（线性 RGB）等——**结论：家族齐全（Float/Int/IntOffset/IntSize/Color），`Color.VectorConverter` 已用 Oklab 感知空间（黑→白中点 sRGB≈99 ≪ 朴素 128 / 线性 188），优于线性 RGB，维持现状**；`VectorConvertersTest`(6) + `AnimateColorAsStateTest`(4) 补齐单测，jvm/native 全绿。
+- [x] **P3 API 完整性** ✅（L7.29，`564caf63`）：`Animatable/AnimateAsState/…` port 自 androidx；跟踪上游 API 与内部 `AnimationVector` 表维护；评估新增 `animateColorAsState`（线性 RGB）等——**结论：家族齐全（Float/Int/IntOffset/IntSize/Color），`Color.VectorConverter` 已用 Oklab 感知空间（黑→白中点 sRGB≈99 ≪ 朴素 128 / 线性 188），优于线性 RGB，维持现状**；`VectorConvertersTest`(6) + `AnimateColorAsStateTest`(4) 补齐单测，jvm/native 全绿。
 - [ ] **P3 与渲染增量联动**：动画高频帧目前每帧整帧重建（§2 未做时），是行级增量改造的最大受益者。
 
 ## 13. 测试 / 质量
