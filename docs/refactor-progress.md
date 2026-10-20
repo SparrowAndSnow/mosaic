@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.23（`L7ARCHIVE`） · 创建：2026-10-17 · 更新：2026-10-20
+> 分支：`refactor` · 当前 HEAD：L7.23（`868751e3`） · 创建：2026-10-17 · 更新：2026-10-20
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -98,7 +98,7 @@
 
 | L7 | L7.22 | `TtyTerminal` 关停竞态修复：`close()` 在 `teardown()+closeJob.cancel()` 后**阻塞等待读取协程 `readerJob` 完全退出**（`while (!isCompleted) { runCatching{ interruptRead() }; delay(1) }`，1s 超时后 `cancel()` + 最后一次 interruptRead 兜底）才返回，保证调用方随后的 `tty.close()` 释放 fd 时读取线程已彻底离开描述符；杜绝「fd 释放当口 read 仍在阻塞」→ EBADF(9) `IOException`（读取循环无捕获 → 未捕获 → SIGABRT）或 fd 号复用后 read 永久挂起；读取循环对 `IOException` 按输入终结处理；interrupt job finally 的 `interruptRead` 加 `runCatching` | `e6bd3b0b` | `shutdownNeverRacesFdFree`（200 次精确复刻退出时序，修复前必现崩溃/挂起、修复后稳定 ~10s）；mosaic-tty / tty-terminal linuxX64Test 与 jvmTest 全绿，mosaic-runtime native 编译通过，showcase kexe 重链后 PTY 多次 Ctrl-C 退出干净 | ✅ 已归档 |
 
-| L7 | L7.23 | 首帧全屏清屏接管：`ansi.kt` `clearDisplay` 由 `CSI J`（ED 0，只清光标下方）改为 `CSI 2 J`（ED 2 全清）；`rendering.kt` 首帧绘制前追加 `clearDisplay + CSI H`（清屏归位再画首帧），后续帧仍走 cell 级差分 | `L7ARCHIVE` | 6 个渲染测试首帧断言补 `|${clearDisplay}${CSI}H` 前缀（AnsiIncremental 19 / TextScroll 3 / TextWrap 4 / TextAlign 7 / SurfaceReuse 1 / IsoControl 1，`visible()` helper 剥离前缀）；mosaic-runtime jvmTest（4s 全绿）与 linuxX64Test 全绿；counter kexe 重链后首帧带 `[2J[H`、退出后 icanon/echo 恢复 | ✅ 已归档 |
+| L7 | L7.23 | 首帧全屏清屏接管：`ansi.kt` `clearDisplay` 由 `CSI J`（ED 0，只清光标下方）改为 `CSI 2 J`（ED 2 全清）；`rendering.kt` 首帧绘制前追加 `clearDisplay + CSI H`（清屏归位再画首帧），后续帧仍走 cell 级差分 | `868751e3` | 6 个渲染测试首帧断言补 `|${clearDisplay}${CSI}H` 前缀（AnsiIncremental 19 / TextScroll 3 / TextWrap 4 / TextAlign 7 / SurfaceReuse 1 / IsoControl 1，`visible()` helper 剥离前缀）；mosaic-runtime jvmTest（4s 全绿）与 linuxX64Test 全绿；counter kexe 重链后首帧带 `[2J[H`、退出后 icanon/echo 恢复 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
