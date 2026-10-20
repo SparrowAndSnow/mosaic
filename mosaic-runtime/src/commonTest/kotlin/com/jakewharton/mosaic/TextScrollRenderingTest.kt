@@ -22,7 +22,7 @@ class TextScrollRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|c
+				|${clearDisplay}${CSI}Hc
 				|d
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
@@ -38,7 +38,7 @@ class TextScrollRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|c
+				|${clearDisplay}${CSI}Hc
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -60,7 +60,7 @@ class TextScrollRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|c
+				|${clearDisplay}${CSI}Hc
 				|d…
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),

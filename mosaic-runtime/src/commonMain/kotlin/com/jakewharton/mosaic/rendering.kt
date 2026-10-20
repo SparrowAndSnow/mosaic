@@ -126,8 +126,14 @@ internal class AnsiIncrementalRendering(
 			}
 
 			if (firstFrame) {
-				// First frame: draw everything from the top of the screen, mirroring the full
-				// redraw protocol so the initial paint is identical to the previous renderer.
+				// First frame: the app takes over the whole screen. Real terminals rarely have the
+				// cursor parked at the top-left (a shell prompt usually leaves it lower down), so
+				// clear any pre-existing content and move to the top-left before drawing; otherwise
+				// the initial paint overlaps whatever the shell left on screen. Subsequence frames
+				// then diff incrementally within the now-owned display.
+				append(clearDisplay)
+				append(CSI)
+				append('H')
 				if (static != null) {
 					append(static)
 					append("\r\n")

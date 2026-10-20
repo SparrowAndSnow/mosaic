@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.22（`e6bd3b0b`） · 创建：2026-10-17 · 更新：2026-10-19
+> 分支：`refactor` · 当前 HEAD：L7.23（`L7ARCHIVE`） · 创建：2026-10-17 · 更新：2026-10-20
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -97,6 +97,8 @@
 | L7 | L7.21 | 动画容器（`mosaic-animation`）：`Crossfade`（水平推进语义——容器叠层裁剪，旧页向左滑出、新页从右滑入，`Transition.Crossfade` 用 `DeferredAnimation` 偏移驱动，`contentKey` 去重）+ `AnimatedVisibility`（`EnterTransition`/`ExitTransition` sealed 类型 + `EnterExitState`(PreEnter/Visible/PostExit) + `EnterTransition.None`/`+` 组合；expand/shrink 以 `IntSize` 驱动 **布局尺寸含兄弟挤压**、slide 以 `IntOffset` 驱动位移；fade/scale 因终端无 alpha/graphicsLayer 省略；退出动画结束前内容保留、结束后才从树中移除——`produceState`+`snapshotFlow{exitFinished}` 观察；`MutableTransitionState` 变体入场即动画）；showcase Animation 页增补 Crossfade 页面推进 + AnimatedVisibility 展开/收起演示 | `e315b6b3` | `CrossfadeTest`（5：初始目标/中途混合帧/切换后只剩目标/多帧动画/切回同 target 单层）+ `AnimatedVisibilityTest`（6：隐藏不渲染/即刻显示/入场多帧并最终全显/退出期间保留后移除/退出多帧/MutableTransitionState 入场动画）；mosaic-animation jvmTest / linuxX64Test 13 各全绿，showcase jvm/native 各 +1（动画冒烟），apiCheck 通过，kexe 已重链 | ✅ 已归档 |
 
 | L7 | L7.22 | `TtyTerminal` 关停竞态修复：`close()` 在 `teardown()+closeJob.cancel()` 后**阻塞等待读取协程 `readerJob` 完全退出**（`while (!isCompleted) { runCatching{ interruptRead() }; delay(1) }`，1s 超时后 `cancel()` + 最后一次 interruptRead 兜底）才返回，保证调用方随后的 `tty.close()` 释放 fd 时读取线程已彻底离开描述符；杜绝「fd 释放当口 read 仍在阻塞」→ EBADF(9) `IOException`（读取循环无捕获 → 未捕获 → SIGABRT）或 fd 号复用后 read 永久挂起；读取循环对 `IOException` 按输入终结处理；interrupt job finally 的 `interruptRead` 加 `runCatching` | `e6bd3b0b` | `shutdownNeverRacesFdFree`（200 次精确复刻退出时序，修复前必现崩溃/挂起、修复后稳定 ~10s）；mosaic-tty / tty-terminal linuxX64Test 与 jvmTest 全绿，mosaic-runtime native 编译通过，showcase kexe 重链后 PTY 多次 Ctrl-C 退出干净 | ✅ 已归档 |
+
+| L7 | L7.23 | 首帧全屏清屏接管：`ansi.kt` `clearDisplay` 由 `CSI J`（ED 0，只清光标下方）改为 `CSI 2 J`（ED 2 全清）；`rendering.kt` 首帧绘制前追加 `clearDisplay + CSI H`（清屏归位再画首帧），后续帧仍走 cell 级差分 | `L7ARCHIVE` | 6 个渲染测试首帧断言补 `|${clearDisplay}${CSI}H` 前缀（AnsiIncremental 19 / TextScroll 3 / TextWrap 4 / TextAlign 7 / SurfaceReuse 1 / IsoControl 1，`visible()` helper 剥离前缀）；mosaic-runtime jvmTest（4s 全绿）与 linuxX64Test 全绿；counter kexe 重链后首帧带 `[2J[H`、退出后 icanon/echo 恢复 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -509,6 +511,15 @@
 - **兜底（防御层）**：读取循环对 `parser.next()` 的 `IOException`（终端关闭/hangup EIO 等）按「输入已终结」静默 break；interrupt job finally 的 `interruptRead()` 加 `runCatching`，防止个别关闭路径把正常取消变成异常。
 - **测试**：`TtyTerminalLifecycleTest` 新增 `shutdownNeverRacesFdFree`（200 次精确复刻 withTerminal 退出时序 `asTerminalIn→close→tty.close`，制造大量线程交错；修复前必现崩溃/挂起，修复后稳定全绿）。
 - **验证**：`:mosaic-tty` / `:mosaic-tty-terminal` 的 `linuxX64Test` 与 `jvmTest` 全绿；`mosaic-runtime` native 编译通过；showcase release kexe 重链后在 PTY 多次 Ctrl-C 退出均干净（exit 0），不再出现该栈。
+
+
+### L7.23 首帧全屏清屏接管（`ansi.kt` / `rendering.kt`）
+- **现象**：真实 TTY 下 counter / jest / snake 等示例启动后与 shell 残留重叠——「进了 raw 却没清屏」。单元测试在内存虚拟终端里跑不出（虚拟终端初始即空屏、光标在左上，真实终端光标通常停在 shell 提示符之后）。
+- **根因**：首帧全量重绘从当前光标位置起逐行绘制，位置不保证在左上；且原 `clearDisplay = CSI J`（ED 0）只清「光标以下」，清不掉上方残留。
+- **修复**：`ansi.kt` `clearDisplay` 改为 `CSI 2 J`（ED 2 全清）；`rendering.kt` 首帧在绘图前追加 `clearDisplay + CSI H`（全清 + 光标归位左上），此后帧继续走 cell 级差分，坐标以「已接管整屏」为前提不变。
+- **测试**：6 个渲染测试首帧预期统一补 `|${clearDisplay}${CSI}H` 前缀（`AnsiIncrementalRenderingTest`19 / `TextScrollRenderingTest`3 / `TextWrapRenderingTest`4 / `TextAlignRenderingTest`7 / `SurfaceReuseTest`1 / `IsoControlRenderingTest`1，前缀与首行内容同排，`visible()` helper 剥离）。无新增断言。
+- **验证**：`:mosaic-runtime` jvmTest（本次复跑 4s 全绿）与 linuxX64Test 全绿；counter kexe 重链后首帧输出带 `[2J[H`，退出后 `icanon echo` 正常恢复。
+- **rrtop 复查**：用户报的「切换 Tab 布局错乱」为旧产物未重链所致（18:18 旧 kexe）。新二进制（11:17）在多尺寸（80/140/150/160/200 列）、sync 开/关、慢速与 150ms 快速连按矩阵下，原始字节流经仓库 `VirtualTerminal` 与 xterm 系终端模拟器回放，所有页（Main/Cmd/Stat/Slow/Raw）最终画面均对齐，无残留错位。
 
 
 ## 6. 当前状态 / 下一步候选

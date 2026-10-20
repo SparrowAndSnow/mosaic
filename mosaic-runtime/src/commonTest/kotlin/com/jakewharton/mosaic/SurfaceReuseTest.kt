@@ -62,7 +62,7 @@ class SurfaceReuseTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|Alpha
+				|${clearDisplay}${CSI}HAlpha
 				|footer
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),

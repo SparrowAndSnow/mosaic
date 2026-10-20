@@ -26,7 +26,7 @@ class AnsiIncrementalRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|Hello
+				|${clearDisplay}${CSI}HHello
 				|World!
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
@@ -44,7 +44,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|Hello
+				|${clearDisplay}${CSI}HHello
 				|World!
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
@@ -72,7 +72,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|ABCDEFGHIJ
+				|${clearDisplay}${CSI}HABCDEFGHIJ
 				|KLMNOPQRST
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
@@ -97,7 +97,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|abcdefghij
+				|${clearDisplay}${CSI}Habcdefghij
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -119,7 +119,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|AAAAA
+				|${clearDisplay}${CSI}HAAAAA
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -145,7 +145,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|One
+				|${clearDisplay}${CSI}HOne
 				|Two
 				|Three
 				|
@@ -175,7 +175,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|OneTwoThree
+				|${clearDisplay}${CSI}HOneTwoThree
 				|AAAAAAAAAAA
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
@@ -200,7 +200,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|AAAAA中BBBB
+				|${clearDisplay}${CSI}HAAAAA中BBBB
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -221,7 +221,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|AAAAA中BBBB
+				|${clearDisplay}${CSI}HAAAAA中BBBB
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -243,7 +243,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|中B
+				|${clearDisplay}${CSI}H中B
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -267,7 +267,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|Hello
+				|${clearDisplay}${CSI}HHello
 				|World!
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
@@ -305,7 +305,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|Hel
+				|${clearDisplay}${CSI}HHel
 				|lo
 				|Wor
 				|ld!
@@ -341,7 +341,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|One
+				|${clearDisplay}${CSI}HOne
 				|Two
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
@@ -376,7 +376,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|S
+				|${clearDisplay}${CSI}HS
 				|A
 				|B
 				|
@@ -410,7 +410,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|A
+				|${clearDisplay}${CSI}HA
 				|B
 				|C
 				|
@@ -449,7 +449,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|A
+				|${clearDisplay}${CSI}HA
 				|B
 				|C
 				|D
@@ -486,7 +486,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|Hello
+				|${clearDisplay}${CSI}HHello
 				|World!
 				|
 				""".trimMargin().dropLast(1).replaceLineEndingsWithCRLF().wrapWithAnsiCursorHideShow(),
@@ -511,7 +511,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|ABCDEFGHIJ
+				|${clearDisplay}${CSI}HABCDEFGHIJ
 				|
 				""".trimMargin().dropLast(1).replaceLineEndingsWithCRLF().wrapWithAnsiCursorHideShow(),
 			)
@@ -535,7 +535,7 @@ class AnsiIncrementalRenderingTest {
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|Hi
+				|${clearDisplay}${CSI}HHi
 				|
 				""".trimMargin().dropLast(1).replaceLineEndingsWithCRLF(),
 			)

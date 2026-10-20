@@ -22,7 +22,7 @@ class TextWrapRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|中A
+				|${clearDisplay}${CSI}H中A
 				|中B
 				|中C
 				|
@@ -39,7 +39,7 @@ class TextWrapRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|中A中B中C
+				|${clearDisplay}${CSI}H中A中B中C
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -54,7 +54,7 @@ class TextWrapRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|中A
+				|${clearDisplay}${CSI}H中A
 				|中B
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
@@ -70,7 +70,7 @@ class TextWrapRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|中A
+				|${clearDisplay}${CSI}H中A
 				|中B…
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),

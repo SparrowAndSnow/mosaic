@@ -24,7 +24,7 @@ class TextAlignRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|  AA
+				|${clearDisplay}${CSI}H  AA
 				|   B
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
@@ -40,7 +40,7 @@ class TextAlignRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|    AB
+				|${clearDisplay}${CSI}H    AB
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -55,7 +55,7 @@ class TextAlignRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|AB
+				|${clearDisplay}${CSI}HAB
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -70,7 +70,7 @@ class TextAlignRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|AB
+				|${clearDisplay}${CSI}HAB
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -90,7 +90,7 @@ class TextAlignRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				| 中A
+				|${clearDisplay}${CSI}H 中A
 				| 中B
 				| 中C
 				|
@@ -110,7 +110,7 @@ class TextAlignRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|  AB  |
+				|${clearDisplay}${CSI}H  AB  |
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -125,7 +125,7 @@ class TextAlignRenderingTest {
 
 			assertThat(awaitSnapshot()).isEqualTo(
 				"""
-				|  AB
+				|${clearDisplay}${CSI}H  AB
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
