@@ -92,6 +92,12 @@ internal object NotMeasured : MeasureResult {
 	override fun placeChildren() = throw UnsupportedOperationException("Not measured")
 }
 
+
+private const val MIN_WIDTH = 0
+private const val MAX_WIDTH = 1
+private const val MIN_HEIGHT = 2
+private const val MAX_HEIGHT = 3
+
 internal class MosaicNode(
 	measurePolicy: MeasurePolicy,
 	var debugPolicy: DebugPolicy,
@@ -151,6 +157,40 @@ internal class MosaicNode(
 	/** Number of times a cached measurement result was reused on this node. */
 	internal var cacheHitCount: Long = 0
 		private set
+	/** Number of times an intrinsic query actually recomputed on this node. */
+	internal var intrinsicRecomputeCount: Long = 0
+		private set
+	/** Number of times a cached intrinsic result was reused on this node. */
+	internal var intrinsicCacheHitCount: Long = 0
+		private set
+
+	// Intrinsic memo: a single (kind, height/width) slot, mirroring the layout memo above.
+	// Intrinsic queries walk this node's entire subtree, so repeated queries with the same kind and
+	// parameter at the same layout version are answered from this slot without re-walking. Reads are
+	// recorded through the same snapshot observer as [measure], so state changes still invalidate
+	// the memo through the regular layout invalidation path. Dropped whenever this node actually
+	// re-measures: a measurement may observe different state than a preceding intrinsic query.
+	private var cachedIntrinsicVersion = -1L
+	private var cachedIntrinsicKind = -1
+	private var cachedIntrinsicParam = Int.MIN_VALUE
+	private var cachedIntrinsicValue = 0
+
+	private inline fun cachedIntrinsic(kind: Int, param: Int, crossinline compute: () -> Int): Int {
+		if (cachedIntrinsicVersion == layoutVersion &&
+			cachedIntrinsicKind == kind &&
+			cachedIntrinsicParam == param
+		) {
+			intrinsicCacheHitCount++
+			return cachedIntrinsicValue
+		}
+		intrinsicRecomputeCount++
+		val value = Snapshot.observe(readObserver = measureDependencies::add) { compute() }
+		cachedIntrinsicVersion = layoutVersion
+		cachedIntrinsicKind = kind
+		cachedIntrinsicParam = param
+		cachedIntrinsicValue = value
+		return value
+	}
 
 	/** Invalidates the cached layout of this node and all of its ancestors. */
 	internal fun invalidateLayoutVersion() {
@@ -236,6 +276,7 @@ internal class MosaicNode(
 			return cached
 		}
 		measureCount++
+		cachedIntrinsicVersion = -1L
 		measureDependencies.clear()
 		val result = Snapshot.observe(readObserver = measureDependencies::add) {
 			topLayer.measure(constraints)
@@ -331,19 +372,19 @@ internal class MosaicNode(
 	}
 
 	override fun minIntrinsicWidth(height: Int): Int {
-		return topLayer.minIntrinsicWidth(height)
+		return cachedIntrinsic(MIN_WIDTH, height) { topLayer.minIntrinsicWidth(height) }
 	}
 
 	override fun maxIntrinsicWidth(height: Int): Int {
-		return topLayer.maxIntrinsicWidth(height)
+		return cachedIntrinsic(MAX_WIDTH, height) { topLayer.maxIntrinsicWidth(height) }
 	}
 
 	override fun minIntrinsicHeight(width: Int): Int {
-		return topLayer.minIntrinsicHeight(width)
+		return cachedIntrinsic(MIN_HEIGHT, width) { topLayer.minIntrinsicHeight(width) }
 	}
 
 	override fun maxIntrinsicHeight(width: Int): Int {
-		return topLayer.maxIntrinsicHeight(width)
+		return cachedIntrinsic(MAX_HEIGHT, width) { topLayer.maxIntrinsicHeight(width) }
 	}
 
 	override fun toString() = debugPolicy.run { renderDebug() }

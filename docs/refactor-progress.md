@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.24（`4f500db9`） · 创建：2026-10-17 · 更新：2026-10-20
+> 分支：`refactor` · 当前 HEAD：L7.25（`L7ARCHIVE`） · 创建：2026-10-17 · 更新：2026-10-20
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -100,6 +100,7 @@
 
 | L7 | L7.23 | 首帧全屏清屏接管：`ansi.kt` `clearDisplay` 由 `CSI J`（ED 0，只清光标下方）改为 `CSI 2 J`（ED 2 全清）；`rendering.kt` 首帧绘制前追加 `clearDisplay + CSI H`（清屏归位再画首帧），后续帧仍走 cell 级差分 | `868751e3` | 6 个渲染测试首帧断言补 `|${clearDisplay}${CSI}H` 前缀（AnsiIncremental 19 / TextScroll 3 / TextWrap 4 / TextAlign 7 / SurfaceReuse 1 / IsoControl 1，`visible()` helper 剥离前缀）；mosaic-runtime jvmTest（4s 全绿）与 linuxX64Test 全绿；counter kexe 重链后首帧带 `[2J[H`、退出后 icanon/echo 恢复 | ✅ 已归档 |
 | L7 | L7.24 | `weight(fill)` 槽位记账（`ui/RowColumnMeasurementHelper.kt`）：加权重排时按子项**参与行/列尺寸与排布的尺寸**记账与放置——加权且 `fill=true` 用 granted slot，`fill=false` 与非加权用实测内容尺寸；`mainAxisPositions` 改吃槽位尺寸 → 兄弟背靠背摆放、Row/Column 总尺寸=槽位总和（`fillMaxWidth` 子项下撑满）；子节点自身宽度保持内容宽、不拉伸标签。替代被否决的框架级方案（按约束收敛报告宽会破坏溢出/越界/intrinsic 回归），定点只改 Row/Column 记账 | `4f500db9` | `WeightFillSemanticsTest`（5 条：无 weight 按内容包裹 / weight+fillMaxWidth 等分槽位行宽 100、子 x=0/34/67、子宽保持内容、间隔>内容宽 / fill=false 保持内容宽、按内容堆 / 固定 6+权重 1:2 行宽 80、x=0/6/31 / Column 等分 y=0/30）；mosaic-runtime jvmTest 全绿 | ✅ 已归档 |
+| L7 | L7.25 | intrinsic 复用（`layout/Node.kt`）：`MosaicNode` 增单槽 intrinsic memo——以（kind, height/width, `layoutVersion`）为键缓存最近一次 `min/maxIntrinsicWidth/Height`，命中直接返回不再重走子树；重算时经 `Snapshot.observe` 把读取的 snapshot 状态记入该节点 `measureDependencies`（与 measure 同一失效口径），并在节点**实际 measure**（缓存未命中）时丢弃 memo（防 measure 清空依赖后 memo 陈旧）；`intrinsicRecomputeCount`/`intrinsicCacheHitCount` 计数 | `L7ARCHIVE` | `IntrinsicCacheTest`（3 条：同参 3 连查只重算 1 次 / 不同参数各自重算 / 状态变更后 memo 不返回陈旧值，仅 intrinsic 读状态、measure 不读以隔离验证依赖记录）；既有 `IntrinsicTest` 回归；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -530,6 +531,17 @@
 - **修复**：新增 `childMainAxisSizes = IntArray(subSize)` 记录每个子项实际参与行/列尺寸与排布的尺寸——非加权用 `placeable.mainAxisSize()`；加权且 `fill=true` 用 granted slot（`childMainAxisSize`），`weightedSpace` 记账同步切换；`fill=false` 仍用 `placeable.mainAxisSize()`。`mainAxisPositions` 的 `arrange` 改吃这些「槽位尺寸」→ 兄弟按槽位背靠背摆放、Row/Column 总尺寸=槽位总和（`fillMaxWidth` 下撑满），子节点自身宽度保持内容宽（标签不被拉伸）。
 - **测试**：`WeightFillSemanticsTest`（commonTest，5 条，见台账表）。要点：用 `Spacer(Modifier.width(6))` 而非 `Text(modifier=width(6))`——`width()` 是首选尺寸、Text 忽略 min 报实测宽，Spacer 在固定约束下才真占 6。
 - **验证**：`:mosaic-runtime` jvmTest 全绿（既有 TextWrap/AspectRatio/intrinsic 与新增 5 条一并通过）。
+
+### L7.25 intrinsic 测量缓存（`layout/Node.kt` / `IntrinsicCacheTest.kt`）
+- **背景**：`min/maxIntrinsicWidth/Height` 已透传并可用，但每次查询都从查询点**重走整棵子树**（不参与布局缓存），同一「kind+参数、结构未变」的重复查询会重复计算。
+- **实现**：`MosaicNode` 增单槽 intrinsic memo（与布局缓存 L4.7 同款 LRU-of-1 风格）——以（kind, 参数, `layoutVersion`）为键；命中直接返回，不重走子树。三个正确性关键点：
+  ① **依赖记录**：重算包在 `Snapshot.observe(readObserver = measureDependencies::add)` 里 → intrinsic 读取的 snapshot 状态记入**该节点** `measureDependencies` → 状态变化照常走 `invalidateLayoutCaches` 失效，memo 不陈旧；
+  ② **实际 measure 丢弃**：节点真实 measure（缓存未命中）时置 `cachedIntrinsicVersion = -1`——measure 的 `measureDependencies.clear()` 可能冲掉仅 intrinsic 读的状态，若不丢 memo 会留陈旧条目；
+  ③ **门控共用**：memo 与布局缓存的失效完全同源（`layoutVersion` + `measureDependencies`），不新增失效路径。
+- **已知取舍**：单槽只缓存最后一个（kind,参数）；min/max 交替同参仍各自重算（不互相驱逐即可命中，留多槽作为后续可选项）。
+- **测试**：`IntrinsicCacheTest`（commonTest，3 条，用计数 `MeasurePolicy` 验证底层 intrinsic 实际调用次数）：
+  ① 同参 3 连查 → 每轮父 measure 内只重算 1 次；② 不同参数（7 与 8）→ 各自重算（参数不能互替）；③ 状态变更不陈旧——子 policy 仅 `minIntrinsicWidth` 读 `mutableStateOf`（measure 不读），改值后 `awaitSnapshot` 行宽 10→20，隔离验证「memo 的依赖记录」而非 measure 路径兜底。
+- **验证**：既有 `IntrinsicTest` 回归 + `mosaic-runtime` jvmTest / linuxX64Test 全绿（默认 configuration-cache 下 native 会因 cklib 位码任务序列化失败，native 用 `--no-configuration-cache` 且带代理）。
 
 ## 6. 当前状态 / 下一步候选
 
