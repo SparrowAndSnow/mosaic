@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.26（`61c082bf`） · 创建：2026-10-17 · 更新：2026-10-20
+> 分支：`refactor` · 当前 HEAD：L7.27（`L7ARCHIVE`） · 创建：2026-10-17 · 更新：2026-10-20
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -102,6 +102,7 @@
 | L7 | L7.24 | `weight(fill)` 槽位记账（`ui/RowColumnMeasurementHelper.kt`）：加权重排时按子项**参与行/列尺寸与排布的尺寸**记账与放置——加权且 `fill=true` 用 granted slot，`fill=false` 与非加权用实测内容尺寸；`mainAxisPositions` 改吃槽位尺寸 → 兄弟背靠背摆放、Row/Column 总尺寸=槽位总和（`fillMaxWidth` 子项下撑满）；子节点自身宽度保持内容宽、不拉伸标签。替代被否决的框架级方案（按约束收敛报告宽会破坏溢出/越界/intrinsic 回归），定点只改 Row/Column 记账 | `4f500db9` | `WeightFillSemanticsTest`（5 条：无 weight 按内容包裹 / weight+fillMaxWidth 等分槽位行宽 100、子 x=0/34/67、子宽保持内容、间隔>内容宽 / fill=false 保持内容宽、按内容堆 / 固定 6+权重 1:2 行宽 80、x=0/6/31 / Column 等分 y=0/30）；mosaic-runtime jvmTest 全绿 | ✅ 已归档 |
 | L7 | L7.25 | intrinsic 复用（`layout/Node.kt`）：`MosaicNode` 增单槽 intrinsic memo——以（kind, height/width, `layoutVersion`）为键缓存最近一次 `min/maxIntrinsicWidth/Height`，命中直接返回不再重走子树；重算时经 `Snapshot.observe` 把读取的 snapshot 状态记入该节点 `measureDependencies`（与 measure 同一失效口径），并在节点**实际 measure**（缓存未命中）时丢弃 memo（防 measure 清空依赖后 memo 陈旧）；`intrinsicRecomputeCount`/`intrinsicCacheHitCount` 计数 | `a5370d97` | `IntrinsicCacheTest`（3 条：同参 3 连查只重算 1 次 / 不同参数各自重算 / 状态变更后 memo 不返回陈旧值，仅 intrinsic 读状态、measure 不读以隔离验证依赖记录）；既有 `IntrinsicTest` 回归；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 | L7 | L7.26 | ANSI 16/256 颜色约简核对（`ansi.kt` / `AnsiColorReductionTest.kt`）：`toAnsi16Code`（最高通道近似 100% → 亮色 +60；每通道过半翻转基索引位）/ `toAnsi256Code`（等通道走 232..255 灰阶、两端钳到 16/231；彩色走 6x6x6 cube，每通道 `/255*5` 取整）与参照行为逐点核对一致；清理归属 URL 注释改中性说明 | `61c082bf` | `AnsiColorReductionTest`（4 条，金表 ~60 向量：16 色黑白/亮暗/半强度翻转（127/128）/最高通道 30% 特判；256 灰阶端点 8/247/248 与内部采样；cube 纯色/二级色/取整临界（76/77、127/128）/跨通道组合）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
+| L7 | L7.27 | 端到端 golden（`EndToEndGoldenTest.kt`）：组合→测量→绘制→ANSI 帧经内存 `VirtualTerminal` 回放，断言**屏幕最终状态**（用户所见）与是否残留半格 | `L7ARCHIVE` | `EndToEndGoldenTest`（4 条：宽字符混排 / weight 槽位列（80 列 1:2:1 槽 20/40/20 @ x=0/20/60）/ `maxLines` 裁剪窗口 / 两帧增量 diff 后屏幕）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -549,6 +550,17 @@
 - **核对方法**：用本地参考实施（仅开发期用，未进仓库）对一批向量解出权威预期值，与本实现逐点比对——16 色取整/亮色阈值、256 灰阶分段、6x6x6 cube 取整全部一致（实现即忠实移植）。
 - **实现**：仅清理 ansi.kt 归属注释、改为中性语义说明（两个函数各一段 KDoc：16 色「最高通道 ≈100% 选亮集、过半通道翻转位」；256「等通道灰阶 + 彩色 cube 每通道 `/255*5` 取整」）。无行为改动。
 - **测试**：`AnsiColorReductionTest`（commonTest，4 条，~60 向量金表）锁定语义：16 色黑白/亮暗/半强度翻转（127→30、128→37、253→31、254→91）/最高通道 30% 特判；256 灰阶端点 8→232、247→255、248→255、249→231 与内部采样；cube 纯色（255,0,0→196、0,0,255→21…）、取整临界（76→step1、77→step2；127→88、128→124；0,0,127→18、0,0,128→19）、跨通道二三级组合。
+- **验证**：mosaic-runtime jvmTest 与 linuxX64Test 全绿。
+
+### L7.27 端到端 golden（`EndToEndGoldenTest.kt`）
+- **定位**：todo §13 P3「端到端 golden」。原本计划 script/pty 真终端快照，本仓库已有内存 `VirtualTerminal`（解释增量渲染器发的 ANSI、维护屏幕网格），直接在 `runMosaicTest` 里把每帧输出回放进去，断言**最终屏幕状态**——比单帧字节流断言更贴近「用户看到的」，且确定性强、可 native/JVM 双跑。
+- **harness**：`settleInto` 循环 `awaitSnapshot()` 帧并 `feed` 进 24×80 VirtualTerminal，直到屏幕不再变化；利用 harness「空闲即 1s 虚拟超时 = 已稳定」的标准语义（捕获 `TimeoutCancellationException` 停止）。`Screen(rows, residue)`：rows = 每行右 trim 后去尾部空行，residue = `hasResidue()`（宽格半格残留检测）。
+- **场景（4 条）**：
+  ① 宽字符混排（中英/盒线字符）→ 屏幕=逻辑文本、无残留；
+  ② weight 槽位列——`Box(width 80)` 内 `Row(fillMaxWidth)` + 1:2:1 weight → 槽 20/40/20、x=0/20/60，标签保持内容宽（端到端印证 L7.24）；
+  ③ `maxLines=2` 裁剪窗口 → 只显示前两行；
+  ④ 两帧增量 diff（"AAAA/BBBB"→"你好/CCCC"）→ 最终屏幕正确、无残留。
+- **踩坑记录**：测试 harness 的**组合根以无界约束测量**（内容尺寸，非终端 80×24）——① `Row(fillMaxWidth)` 在无界下宽 0、`drawTo` 跳过 0 宽子树导致整行不画，需显式 `Box(width 80)` 给权重分空间；② `Modifier.width(10)`/`requiredWidth(10)` 在内容溢出时仍报内容宽（本库无 coerced-width 层），横向容器裁剪在无界根下无法体现，故裁剪场景改走 Text 级 `maxLines`。这些是运行时真实语义，非 harness 缺陷。
 - **验证**：mosaic-runtime jvmTest 与 linuxX64Test 全绿。
 
 ## 6. 当前状态 / 下一步候选
