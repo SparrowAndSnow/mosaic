@@ -105,6 +105,7 @@
 | L7 | L7.27 | 端到端 golden（`EndToEndGoldenTest.kt`）：组合→测量→绘制→ANSI 帧经内存 `VirtualTerminal` 回放，断言**屏幕最终状态**（用户所见）与是否残留半格 | `09be4bfa` | `EndToEndGoldenTest`（4 条：宽字符混排 / weight 槽位列（80 列 1:2:1 槽 20/40/20 @ x=0/20/60）/ `maxLines` 裁剪窗口 / 两帧增量 diff 后屏幕）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 | L7 | L7.28 | README/S 能力矩阵（`README.md` / `CHANGELOG.md`）：README 增「Capabilities & Known limitations」——文本与 Unicode（字素簇、DEC 2027 后备）/渲染（cell 级增量、同步输出、快照）/布局（约束族、weight、fill 分数、BoxWithConstraints、布局缓存、Text 重载）/交互（键盘+kitty 协议、鼠标、paste、OSC 52、焦点）/动画（值动画+容器）；限制：非 UTF-8 locale、须真 TTY、Windows/macOS 靠 CI、**组合根无界测量→fillMaxWidth 需显式容器**。CHANGELOG [Unreleased] 补齐重构的用户可见能力。措辞中性零第三方名 | `5680a1a4` | 仅文档（无代码/测试改动）；README/CHANGELOG 均无第三方库名（rg 校验） | ✅ 已归档 |
 | L7 | L7.29 | 值动画/转换器族核对 + 单元测试（`mosaic-animation`）：`animate*AsState` 家族齐全（Float/Int/IntOffset/IntSize/Color，终端无 Dp/Size 需求）；`Color.VectorConverter` 走 **Oklab** 感知空间插值（黑→白向量中点 Oklab L=0.5 → sRGB≈99，对比朴素 sRGB 128 / 线性 RGB 188）——比 todo 原设想「线性 RGB」更优的动画颜色空间，维持现状；补 10 条单测覆盖 5 转换器往返 + IntSize 负值钳制 + color 端点精确收敛/finishedListener 恰一次/中途重定向 | `564caf63` | `VectorConvertersTest`（6）+ `AnimateColorAsStateTest`（4）；mosaic-animation jvmTest 与 linuxX64Test 各 23 全绿 + apiCheck | ✅ 已归档 |
+| L7 | L7.30 | 帧时钟集成核对（审计 + 补测）：动画经 `MosaicComposition` 内部 `BroadcastFrameClock` 驱动（`startFrameListener` 逐外帧 `internalClock.sendFrame(nanos)`，时间=真实单调钟 `nanoTime()`）；`delay(1)` ~1000fps 恒发已被 L7.3 自适应两级节流取代（动画忙 `hasAwaiters`→60fps / 空闲 20fps，空闲帧不重绘）；低电量=空闲 20fps 有界轮询（输入延迟 ≤50ms 取舍，纯唤醒不渲染）；覆盖缺口「空闲期启动动画 → 切回 60fps」补 1 条测试 | `L7ARCHIVE` | `FrameThrottleTest` 增 `animationStartingAfterIdleKeepsHighFrameRate`（空闲 200ms 后起 30 帧 <1.4s，与 20fps 卡死 ~1.55s 区分）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -578,6 +579,15 @@
 - **核对结论**：`animate*AsState` 家族已齐全（Float/Int/IntOffset/IntSize/Color + 泛型 `animateValueAsState`）；终端目标无 Dp/Size/Offset/Rect，不存在缺失变体。`Color.ValueConverter` 已落地为 **Oklab**（感知均匀空间）——黑→白向量中点 (0.5,0,0) → sRGB≈(99,99,99)，而朴素 sRGB 直接 lerp 为 128、线性 RGB lerp 为 188；Oklab 中点更符合视觉均匀，优于 todo 原设想的「线性 RGB」，维持现状不改码。
 - **测试经验（关键）**：`animateValueAsState` 返回的 `State` 的 `toString()` 是内部 `AnimationState(...)` 而非目标值——渲染/断言必须走 `state.value`（初始直接把 `Text(state.toString())` 会得到 AnimationState 字符串，解析全部错位）。测试钟按「值不变则补帧推进 timeNanos」步进，`pump(N)` 与真实秒数非线性对应；收敛断言用 `settle(fallback = frames.last())`——`pump` 已把动画推完时 settle 首帧即空闲超时返回 fallback，否则丢失最后快照。
 - **测试**：`VectorConvertersTest`（6 条：Float/Int/IntOffset/IntSize 往返 + IntSize 负值钳 0 + Color 容差往返 + Oklab 中点带 90..108 精确断言）；`AnimateColorAsStateTest`（4 条：Color 端到端走 Oklab 中灰后精确收敛 + finishedListener 恰一次 / 中途重定向 / Float·Int 收敛）。mosaic-animation jvmTest 与 linuxX64Test 各 23 全绿，apiCheck 通过。
+
+### L7.30 帧时钟集成核对（`mosaic-runtime`，审计 + 补 1 条测试）
+- **定位**：todo §12 P3「帧时钟集成——动画走 BroadcastFrameClock；核对与 delay(1) 帧循环的节流/低电量行为」。
+- **核对结论**：
+  1. **动画确实走 BroadcastFrameClock**：`MosaicComposition` 在 composeContext 提供内部时钟 `internalClock`，`startFrameListener` 在每个 external 帧里 `internalClock.sendFrame(nanos)`，动画 `withFrameNanos`（`SuspendAnimation.kt`）解析到 `internalClock`；external 帧由外层 `runMosaicComposition` 循环 `clock.sendFrame(nanoTime())` 产生——动画时间 = 真实单调钟，两钟同源无漂移。
+  2. **`delay(1)` ~1000fps 已被 L7.3 自适应节流取代**：`hasPendingFrameWork()`（含 `internalClock.hasAwaiters`）为真走 16ms（~60fps），否则 50ms（~20fps）；空闲帧不触发重绘（既有 `FrameThrottleTest`）。
+  3. **低电量行为**：空闲 20fps 有界轮询 = 输入延迟 ≤50ms 的刻意取舍（每帧排空事件 + 忙碌判定一次 `sendFrame`，开销=纯唤醒无渲染）；进一步到零轮询需事件驱动全休眠（阻塞等待输入），登记为后续可选、不进本轮。
+- **补测（闭合「空闲→动画」交接缺口）**：`animationStartingAfterIdleKeepsHighFrameRate`——先让聚合空闲 200ms（落 20fps）再启动 30 帧动画，断言 <1.4s（≈50ms 尾随空闲 tick + 490ms 60fps），若空闲循环未切回主动节流则会 ~1.55s，两档可区分。jvmTest / linuxX64Test 双跑通过。
+- **验证**：mosaic-runtime jvmTest 与 linuxX64Test 全绿。
 
 ## 6. 当前状态 / 下一步候选
 
