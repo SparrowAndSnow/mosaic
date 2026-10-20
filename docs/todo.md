@@ -93,7 +93,7 @@
 - [x] **P2 Modifier 缺口** ✅（L7.13，`a3f7cc6c`）：约束便捷族早已齐备——`widthIn/heightIn/sizeIn`、`requiredWidth/Height/Size(+In)`、`fillMaxWidth/H/S(fraction)`、`wrapContent*/defaultMinSize`（`layout/Size.kt`）；真实缺口 `onGloballyPositioned` 放置回调已于 L7.13 补齐（根坐标+尺寸，仅变化时触发）。`margin` 明确不补（Compose 无 margin）。
 - [ ] **P2 intrinsic 复用**：`min/maxIntrinsicWidth/Height` 已透传，但测量重复计算；考虑缓存（与布局缓存合并）。
 - [x] **P3 焦点管理** ✅（L7.19）：`focusable`/`onFocusChanged`/`FocusRequester` + 组合级 `FocusManager`（Tab/Shift+Tab 环形遍历、点击聚焦、锚点祖先 hasFocus）。**方向键导航原语**（箭头遍历 focus 环）仍缺——Compose 无通用实现、主流 TUI 靠各自状态机，属可选项。
-- [ ] **P3 `weight(fill)` 语义核对（L7.18 顺带发现）：`weight(1f)` 平均分配剩余主轴时，子节点仍按**内容宽**报告与放置（探针：槽位 80/8=10，节点宽=标签宽 4，按内容宽顺序排布不透槽）。与 Compose `weight(fill=true)` 语义不符，影响整槽点击/均分布局的可点击面积与视觉；归 L4 布局待核查。
+- [x] **P3 `weight(fill)` 语义核对** ✅（L7.24，`L7ARCHIVE`）：`weight(fill=true)` 的加权子节点按**槽位尺寸**记账与放置（fill=false 与非加权仍用实测内容尺寸），子节点自身宽度保持内容宽不拉伸——Row/Column 总尺寸=槽位总和，等宽列不再塌缩、整槽点击区域恢复。决策见台账 L7.24：框架级「报告宽度收敛到约束」不可行，改为定点记账。
 
 ## 6. 文本 / 样式（`text/` + `ui/Text.kt`）
 - [x] **P1 测/绘口径统一** ✅（L1.2/L2.1）：`TextLayout` 与 `drawText` 已共用簇级宽度；勿在 `TextLayout` 单独加 override（会和 `©=1/☀︎=1` 锁定语义冲突）。

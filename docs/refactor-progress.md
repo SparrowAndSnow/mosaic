@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.23（`868751e3`） · 创建：2026-10-17 · 更新：2026-10-20
+> 分支：`refactor` · 当前 HEAD：L7.24（`L7ARCHIVE`） · 创建：2026-10-17 · 更新：2026-10-20
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -99,6 +99,7 @@
 | L7 | L7.22 | `TtyTerminal` 关停竞态修复：`close()` 在 `teardown()+closeJob.cancel()` 后**阻塞等待读取协程 `readerJob` 完全退出**（`while (!isCompleted) { runCatching{ interruptRead() }; delay(1) }`，1s 超时后 `cancel()` + 最后一次 interruptRead 兜底）才返回，保证调用方随后的 `tty.close()` 释放 fd 时读取线程已彻底离开描述符；杜绝「fd 释放当口 read 仍在阻塞」→ EBADF(9) `IOException`（读取循环无捕获 → 未捕获 → SIGABRT）或 fd 号复用后 read 永久挂起；读取循环对 `IOException` 按输入终结处理；interrupt job finally 的 `interruptRead` 加 `runCatching` | `e6bd3b0b` | `shutdownNeverRacesFdFree`（200 次精确复刻退出时序，修复前必现崩溃/挂起、修复后稳定 ~10s）；mosaic-tty / tty-terminal linuxX64Test 与 jvmTest 全绿，mosaic-runtime native 编译通过，showcase kexe 重链后 PTY 多次 Ctrl-C 退出干净 | ✅ 已归档 |
 
 | L7 | L7.23 | 首帧全屏清屏接管：`ansi.kt` `clearDisplay` 由 `CSI J`（ED 0，只清光标下方）改为 `CSI 2 J`（ED 2 全清）；`rendering.kt` 首帧绘制前追加 `clearDisplay + CSI H`（清屏归位再画首帧），后续帧仍走 cell 级差分 | `868751e3` | 6 个渲染测试首帧断言补 `|${clearDisplay}${CSI}H` 前缀（AnsiIncremental 19 / TextScroll 3 / TextWrap 4 / TextAlign 7 / SurfaceReuse 1 / IsoControl 1，`visible()` helper 剥离前缀）；mosaic-runtime jvmTest（4s 全绿）与 linuxX64Test 全绿；counter kexe 重链后首帧带 `[2J[H`、退出后 icanon/echo 恢复 | ✅ 已归档 |
+| L7 | L7.24 | `weight(fill)` 槽位记账（`ui/RowColumnMeasurementHelper.kt`）：加权重排时按子项**参与行/列尺寸与排布的尺寸**记账与放置——加权且 `fill=true` 用 granted slot，`fill=false` 与非加权用实测内容尺寸；`mainAxisPositions` 改吃槽位尺寸 → 兄弟背靠背摆放、Row/Column 总尺寸=槽位总和（`fillMaxWidth` 子项下撑满）；子节点自身宽度保持内容宽、不拉伸标签。替代被否决的框架级方案（按约束收敛报告宽会破坏溢出/越界/intrinsic 回归），定点只改 Row/Column 记账 | `L7ARCHIVE` | `WeightFillSemanticsTest`（5 条：无 weight 按内容包裹 / weight+fillMaxWidth 等分槽位行宽 100、子 x=0/34/67、子宽保持内容、间隔>内容宽 / fill=false 保持内容宽、按内容堆 / 固定 6+权重 1:2 行宽 80、x=0/6/31 / Column 等分 y=0/30）；mosaic-runtime jvmTest 全绿 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -521,6 +522,14 @@
 - **验证**：`:mosaic-runtime` jvmTest（本次复跑 4s 全绿）与 linuxX64Test 全绿；counter kexe 重链后首帧输出带 `[2J[H`，退出后 `icanon echo` 正常恢复。
 - **rrtop 复查**：用户报的「切换 Tab 布局错乱」为旧产物未重链所致（18:18 旧 kexe）。新二进制（11:17）在多尺寸（80/140/150/160/200 列）、sync 开/关、慢速与 150ms 快速连按矩阵下，原始字节流经仓库 `VirtualTerminal` 与 xterm 系终端模拟器回放，所有页（Main/Cmd/Stat/Slow/Raw）最终画面均对齐，无残留错位。
 
+
+### L7.24 `weight(fill)` 槽位语义核对（`ui/RowColumnMeasurementHelper.kt` / `WeightFillSemanticsTest.kt`）
+- **现象（L7.18 顺带发现）**：`weight(1f)` 平均分配剩余主轴时，加权子项仍按**内容宽**报告与放置——探针槽位 80/8=10 而节点宽=标签宽 4，按内容宽顺序排布不透槽。等宽列布局塌缩、整槽点击/均分的可点击区域与视觉都错。
+- **根因**：`RowColumnMeasurementHelper.measureWithoutPlacing` 对加权子项用 `placeable.mainAxisSize()`（实测内容尺寸）记账与排布；本仓库的 `Text` 不尊重 min 约束（`width()` 是首选尺寸），故 `weight(fill=true)` 时子项实测=内容宽，行/列尺寸与兄弟坐标全按内容宽累计。
+- **为何不做框架级修复（已试并回退）**：曾在 `MosaicNodeLayer.measure` 把 `coercibleWidth/Height` 收敛到 `measured.coerceIn(min,max)`——7 条既有回归失败（TextWrap 溢出被裁、AspectRatio 必须能越约束报尺寸、intrinsic `requiredSize` 同理）。原因是本库「报告的 width」决定画布尺寸、而绘制/溢出按实测尺寸走，两者分离（对比参考实现中 `Placeable.width` 是 coerced 的，且其绘制同样用 coerced 后的值）；直接收敛会把「文本溢出依赖实测」的语义破坏。故改为**定点记账**。
+- **修复**：新增 `childMainAxisSizes = IntArray(subSize)` 记录每个子项实际参与行/列尺寸与排布的尺寸——非加权用 `placeable.mainAxisSize()`；加权且 `fill=true` 用 granted slot（`childMainAxisSize`），`weightedSpace` 记账同步切换；`fill=false` 仍用 `placeable.mainAxisSize()`。`mainAxisPositions` 的 `arrange` 改吃这些「槽位尺寸」→ 兄弟按槽位背靠背摆放、Row/Column 总尺寸=槽位总和（`fillMaxWidth` 下撑满），子节点自身宽度保持内容宽（标签不被拉伸）。
+- **测试**：`WeightFillSemanticsTest`（commonTest，5 条，见台账表）。要点：用 `Spacer(Modifier.width(6))` 而非 `Text(modifier=width(6))`——`width()` 是首选尺寸、Text 忽略 min 报实测宽，Spacer 在固定约束下才真占 6。
+- **验证**：`:mosaic-runtime` jvmTest 全绿（既有 TextWrap/AspectRatio/intrinsic 与新增 5 条一并通过）。
 
 ## 6. 当前状态 / 下一步候选
 

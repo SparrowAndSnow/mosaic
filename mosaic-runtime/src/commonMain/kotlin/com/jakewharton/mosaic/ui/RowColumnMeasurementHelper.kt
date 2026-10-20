@@ -67,6 +67,12 @@ internal class RowColumnMeasurementHelper(
 		var weightChildrenCount = 0
 
 		val subSize = endIndex - startIndex
+		// Effective main-axis size of every child, used for both row/column sizing and placement.
+		// A weighted child with fill=true is accounted for by its granted slot, even when the child
+		// itself reports a smaller content size (for example content-width text). Without this the
+		// row/column would sum content widths and pack siblings by content, collapsing equal-column
+		// layouts. Non-weighted and fill=false children keep their measured size.
+		val childMainAxisSizes = IntArray(subSize)
 
 		// First measure children with zero weight.
 		var spaceAfterLastNoWeight = 0
@@ -100,6 +106,7 @@ internal class RowColumnMeasurementHelper(
 				fixedSpace += placeable.mainAxisSize() + spaceAfterLastNoWeight
 				crossAxisSpace = max(crossAxisSpace, placeable.crossAxisSize())
 				placeables[i] = placeable
+				childMainAxisSizes[i - startIndex] = placeable.mainAxisSize()
 			}
 		}
 
@@ -151,7 +158,14 @@ internal class RowColumnMeasurementHelper(
 							constraints.crossAxisMax,
 						).toBoxConstraints(orientation),
 					)
-					weightedSpace += placeable.mainAxisSize()
+					val effectiveMainAxisSize =
+						if (parentData.fill && childMainAxisSize != Constraints.Infinity) {
+							childMainAxisSize
+						} else {
+							placeable.mainAxisSize()
+						}
+					childMainAxisSizes[i - startIndex] = effectiveMainAxisSize
+					weightedSpace += effectiveMainAxisSize
 					crossAxisSpace = max(crossAxisSpace, placeable.crossAxisSize())
 					placeables[i] = placeable
 				}
@@ -174,9 +188,7 @@ internal class RowColumnMeasurementHelper(
 			max(crossAxisSpace, constraints.crossAxisMin)
 		}
 		val mainAxisPositions = IntArray(subSize) { 0 }
-		val childrenMainAxisSize = IntArray(subSize) { index ->
-			placeables[index + startIndex]!!.mainAxisSize()
-		}
+		val childrenMainAxisSize = childMainAxisSizes
 
 		return RowColumnMeasureHelperResult(
 			mainAxisSize = mainAxisLayoutSize,
