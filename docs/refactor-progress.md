@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.26（`L7ARCHIVE`） · 创建：2026-10-17 · 更新：2026-10-20
+> 分支：`refactor` · 当前 HEAD：L7.26（`61c082bf`） · 创建：2026-10-17 · 更新：2026-10-20
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -101,7 +101,7 @@
 | L7 | L7.23 | 首帧全屏清屏接管：`ansi.kt` `clearDisplay` 由 `CSI J`（ED 0，只清光标下方）改为 `CSI 2 J`（ED 2 全清）；`rendering.kt` 首帧绘制前追加 `clearDisplay + CSI H`（清屏归位再画首帧），后续帧仍走 cell 级差分 | `868751e3` | 6 个渲染测试首帧断言补 `|${clearDisplay}${CSI}H` 前缀（AnsiIncremental 19 / TextScroll 3 / TextWrap 4 / TextAlign 7 / SurfaceReuse 1 / IsoControl 1，`visible()` helper 剥离前缀）；mosaic-runtime jvmTest（4s 全绿）与 linuxX64Test 全绿；counter kexe 重链后首帧带 `[2J[H`、退出后 icanon/echo 恢复 | ✅ 已归档 |
 | L7 | L7.24 | `weight(fill)` 槽位记账（`ui/RowColumnMeasurementHelper.kt`）：加权重排时按子项**参与行/列尺寸与排布的尺寸**记账与放置——加权且 `fill=true` 用 granted slot，`fill=false` 与非加权用实测内容尺寸；`mainAxisPositions` 改吃槽位尺寸 → 兄弟背靠背摆放、Row/Column 总尺寸=槽位总和（`fillMaxWidth` 子项下撑满）；子节点自身宽度保持内容宽、不拉伸标签。替代被否决的框架级方案（按约束收敛报告宽会破坏溢出/越界/intrinsic 回归），定点只改 Row/Column 记账 | `4f500db9` | `WeightFillSemanticsTest`（5 条：无 weight 按内容包裹 / weight+fillMaxWidth 等分槽位行宽 100、子 x=0/34/67、子宽保持内容、间隔>内容宽 / fill=false 保持内容宽、按内容堆 / 固定 6+权重 1:2 行宽 80、x=0/6/31 / Column 等分 y=0/30）；mosaic-runtime jvmTest 全绿 | ✅ 已归档 |
 | L7 | L7.25 | intrinsic 复用（`layout/Node.kt`）：`MosaicNode` 增单槽 intrinsic memo——以（kind, height/width, `layoutVersion`）为键缓存最近一次 `min/maxIntrinsicWidth/Height`，命中直接返回不再重走子树；重算时经 `Snapshot.observe` 把读取的 snapshot 状态记入该节点 `measureDependencies`（与 measure 同一失效口径），并在节点**实际 measure**（缓存未命中）时丢弃 memo（防 measure 清空依赖后 memo 陈旧）；`intrinsicRecomputeCount`/`intrinsicCacheHitCount` 计数 | `a5370d97` | `IntrinsicCacheTest`（3 条：同参 3 连查只重算 1 次 / 不同参数各自重算 / 状态变更后 memo 不返回陈旧值，仅 intrinsic 读状态、measure 不读以隔离验证依赖记录）；既有 `IntrinsicTest` 回归；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
-| L7 | L7.26 | ANSI 16/256 颜色约简核对（`ansi.kt` / `AnsiColorReductionTest.kt`）：`toAnsi16Code`（最高通道近似 100% → 亮色 +60；每通道过半翻转基索引位）/ `toAnsi256Code`（等通道走 232..255 灰阶、两端钳到 16/231；彩色走 6x6x6 cube，每通道 `/255*5` 取整）与参照行为逐点核对一致；清理归属 URL 注释改中性说明 | `L7ARCHIVE` | `AnsiColorReductionTest`（4 条，金表 ~60 向量：16 色黑白/亮暗/半强度翻转（127/128）/最高通道 30% 特判；256 灰阶端点 8/247/248 与内部采样；cube 纯色/二级色/取整临界（76/77、127/128）/跨通道组合）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
+| L7 | L7.26 | ANSI 16/256 颜色约简核对（`ansi.kt` / `AnsiColorReductionTest.kt`）：`toAnsi16Code`（最高通道近似 100% → 亮色 +60；每通道过半翻转基索引位）/ `toAnsi256Code`（等通道走 232..255 灰阶、两端钳到 16/231；彩色走 6x6x6 cube，每通道 `/255*5` 取整）与参照行为逐点核对一致；清理归属 URL 注释改中性说明 | `61c082bf` | `AnsiColorReductionTest`（4 条，金表 ~60 向量：16 色黑白/亮暗/半强度翻转（127/128）/最高通道 30% 特判；256 灰阶端点 8/247/248 与内部采样；cube 纯色/二级色/取整临界（76/77、127/128）/跨通道组合）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
