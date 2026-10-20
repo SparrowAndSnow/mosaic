@@ -37,8 +37,16 @@ internal const val ansiUnderlineColorSelector = 58
 internal const val ansiUnderlineColorReset = 59
 internal const val ansiUnderlineColorOffset = 0
 
-// simpler version without full conversion to HSV
-// https://github.com/ajalt/colormath/blob/4a0cc9796c743cb4965407204ee63b40aaf22fca/colormath/src/commonMain/kotlin/com/github/ajalt/colormath/model/RGB.kt#L301
+/**
+ * Maps this color to the base 16-color foreground code (30..37 plus optional 60 for the bright
+ * variant), the scheme used when the terminal only supports the basic colors.
+ *
+ * Brightness is derived from the channel having the highest value: a highest channel of roughly
+ * 100% selects the bright set (code + 60), anything below selects the regular set. The low bit of
+ * each bit position is set when the corresponding channel rounds to at least half intensity, so a
+ * color is "white" once its brighter channels cross half intensity. Black is returned for anything
+ * whose channels are all below half intensity.
+ */
 internal fun Color.toAnsi16Code(): Int {
 	val value = (maxOf(redFloat, greenFloat, blueFloat) * 100).roundToInt()
 	if (value == 30) {
@@ -53,7 +61,12 @@ internal fun Color.toAnsi16Code(): Int {
 	return if (v == 2) ansiCode + 60 else ansiCode
 }
 
-// https://github.com/ajalt/colormath/blob/4a0cc9796c743cb4965407204ee63b40aaf22fca/colormath/src/commonMain/kotlin/com/github/ajalt/colormath/model/RGB.kt#L310
+/**
+ * Maps this color to a 256-color palette index (0..255), used when the terminal supports the
+ * extended palette. Grays (equal channels) map onto the 24-step gray ramp 232..255 (with the
+ * near-black/near-white ends clamped to 16/231); all other colors map onto the 6x6x6 color cube by
+ * rounding each `channel / 255 * 5` to a cube step (index 16 + 36*r + 6*g + b).
+ */
 internal fun Color.toAnsi256Code(): Int {
 	val ri = redInt
 	val gi = greenInt

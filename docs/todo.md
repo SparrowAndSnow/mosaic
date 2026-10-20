@@ -102,7 +102,7 @@
 - [ ] **P3 widget 补齐**：Ratatui 有 Block/Border/Chart/Gauge/List/Table/Tabs/Scrollbar 等内建；Mosaic 目前靠 Box/Row/Column/Text 拼装——确定是否做第一方 widget 集（影响发布节奏）。
 
 ## 7. 颜色（`ansi.kt` / `Color.kt`）
-- [ ] **P3 `toAnsi16Code/toAnsi256Code`**：从 colormath 移植的约简算法，核对与 colormath/终端行为一致性（ANSI 256 灰阶分段、16 色取整）。
+- [x] **P3 `toAnsi16Code/toAnsi256Code`** ✅（L7.26，`L7ARCHIVE`）：约简算法已与参考行为逐点核对一致并清掉归属注释；语义用金表测试锁定（16 色取整/亮色判定、256 灰阶分段 232..255、6x6x6 cube 每通道 `/255*5` 取整及其临界点 76/77、127/128 等）。
 - [ ] **P3 探测增强**：`detectAnsiLevel` 现为 env 启发式（`COLORTERM/TERM/WT_SESSION/ConEmuANSI`）；可加 colorprofile 式 `TERM_PROGRAM` 特判与 **OSC 4 调色板查询**（染主题色），并统一 16/256 判定。
 - [ ] **P3 主题/调色板**：`SystemThemeEvent` 已解析；可提供 `LocalTerminalState.theme` 驱动的默认样式容器（另见 §10）。
 
