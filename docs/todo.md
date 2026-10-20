@@ -156,7 +156,7 @@
 - [ ] **P3 静态日志**：`StaticEffect`/`static()` 与整帧渲染并发写 stdout 的原子性（`rendering.kt` 已考虑 `clearDisplay` 兜底）。
 
 ## 12. 动画（`mosaic-animation/`）
-- [x] **P3 帧时钟集成** ✅（L7.30，`L7ARCHIVE`）：动画走内部 `BroadcastFrameClock`（`startFrameListener` 逐外帧 `internalClock.sendFrame(nanos)`，时间=单调钟）；`delay(1)` 恒发已被 L7.3 自适应节流取代（动画忙 `hasAwaiters`→60fps / 空闲 20fps、空闲帧不重绘）；低电量=空闲 20fps 有界轮询（输入延迟 ≤50ms 取舍）。补「空闲→动画切回 60fps」测试 1 条（`FrameThrottleTest`）。剩余可选：事件驱动全休眠（阻塞等输入、零轮询）。
+- [x] **P3 帧时钟集成** ✅（L7.30，`3bb44eed`）：动画走内部 `BroadcastFrameClock`（`startFrameListener` 逐外帧 `internalClock.sendFrame(nanos)`，时间=单调钟）；`delay(1)` 恒发已被 L7.3 自适应节流取代（动画忙 `hasAwaiters`→60fps / 空闲 20fps、空闲帧不重绘）；低电量=空闲 20fps 有界轮询（输入延迟 ≤50ms 取舍）。补「空闲→动画切回 60fps」测试 1 条（`FrameThrottleTest`）。剩余可选：事件驱动全休眠（阻塞等输入、零轮询）。
 - [x] **P3 API 完整性** ✅（L7.29，`564caf63`）：`Animatable/AnimateAsState/…` port 自 androidx；跟踪上游 API 与内部 `AnimationVector` 表维护；评估新增 `animateColorAsState`（线性 RGB）等——**结论：家族齐全（Float/Int/IntOffset/IntSize/Color），`Color.VectorConverter` 已用 Oklab 感知空间（黑→白中点 sRGB≈99 ≪ 朴素 128 / 线性 188），优于线性 RGB，维持现状**；`VectorConvertersTest`(6) + `AnimateColorAsStateTest`(4) 补齐单测，jvm/native 全绿。
 - [ ] **P3 与渲染增量联动**：动画高频帧目前每帧整帧重建（§2 未做时），是行级增量改造的最大受益者。
 
