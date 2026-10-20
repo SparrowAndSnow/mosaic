@@ -91,7 +91,7 @@
 - [x] **P2 布局缓存** ✅（L4.7，`9146adaa`）：`needLayout` 时不再全树重跑测量——每个节点以（Constraints, layoutVersion）为键缓存最近一次测量，命中即整子树跳过；失效覆盖结构变化与测量期读取的 snapshot 状态。单槽位 memo（LRU-of-1）已够用，缓解高频重排与同构重布局。剩余优化：apply 失效查扫改反向索引、未放置子树裁剪（台账 L4.7）。
 - [x] **P0 BoxWithConstraints 0×0 空白** ✅（L7.10，`ea2fd122`）：子组合根被量成 0×0，绘制遍历跳过零尺寸容器 → 整棵比例子树一笔不画（Layout 页第 4 节空白；节点树/尺寸均正常）。修复为对 subRoot 补一次真实 measure（结果丢弃，matchParentSize / alignment 语义不变）；回归 `BoxWithConstraintsRenderingTest`。
 - [x] **P2 Modifier 缺口** ✅（L7.13，`a3f7cc6c`）：约束便捷族早已齐备——`widthIn/heightIn/sizeIn`、`requiredWidth/Height/Size(+In)`、`fillMaxWidth/H/S(fraction)`、`wrapContent*/defaultMinSize`（`layout/Size.kt`）；真实缺口 `onGloballyPositioned` 放置回调已于 L7.13 补齐（根坐标+尺寸，仅变化时触发）。`margin` 明确不补（Compose 无 margin）。
-- [x] **P2 intrinsic 复用** ✅（L7.25，`L7ARCHIVE`）：`min/maxIntrinsicWidth/Height` 已在每个节点加**单槽 memo**（与布局缓存同 `layoutVersion` 门控、同一 snapshot 依赖口径），重复同参查询不再重走子树；实际 measure 时丢弃 memo 保证不陈旧。剩余：多槽（min/max 交替同参还未互不驱逐）。
+- [x] **P2 intrinsic 复用** ✅（L7.25，`a5370d97`）：`min/maxIntrinsicWidth/Height` 已在每个节点加**单槽 memo**（与布局缓存同 `layoutVersion` 门控、同一 snapshot 依赖口径），重复同参查询不再重走子树；实际 measure 时丢弃 memo 保证不陈旧。剩余：多槽（min/max 交替同参还未互不驱逐）。
 - [x] **P3 焦点管理** ✅（L7.19）：`focusable`/`onFocusChanged`/`FocusRequester` + 组合级 `FocusManager`（Tab/Shift+Tab 环形遍历、点击聚焦、锚点祖先 hasFocus）。**方向键导航原语**（箭头遍历 focus 环）仍缺——Compose 无通用实现、主流 TUI 靠各自状态机，属可选项。
 - [x] **P3 `weight(fill)` 语义核对** ✅（L7.24，`4f500db9`）：`weight(fill=true)` 的加权子节点按**槽位尺寸**记账与放置（fill=false 与非加权仍用实测内容尺寸），子节点自身宽度保持内容宽不拉伸——Row/Column 总尺寸=槽位总和，等宽列不再塌缩、整槽点击区域恢复。决策见台账 L7.24：框架级「报告宽度收敛到约束」不可行，改为定点记账。
 
