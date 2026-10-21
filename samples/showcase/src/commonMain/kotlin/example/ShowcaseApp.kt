@@ -48,7 +48,7 @@ internal fun ShowcaseApp() {
 	}
 
 	// The layout engine measures the root with unbounded constraints, so a full-screen app must
-	// declare its own canvas from the terminal size (the same pattern the rrtop sample uses).
+	// declare its own canvas from the terminal size (the same pattern the monitor sample uses).
 	// Without this, fillMaxWidth/weight are no-ops (everything collapses to wrap-content width)
 	// and proportional layouts derived from an unbounded max divide an infinite width.
 	val terminal = LocalTerminalState.current

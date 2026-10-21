@@ -1,7 +1,6 @@
 # Mosaic
 
 An experimental tool for building console UI in Kotlin using the Jetpack Compose compiler/runtime.
-Inspired by [Ink](https://github.com/vadimdemedes/ink).
 
 <img src="samples/jest/demo.gif">
 
@@ -114,7 +113,7 @@ Run `./gradlew installDist` to build the sample binaries.
 
    `./samples/robot/build/install/robot/bin/robot`
 
- * [rrtop](samples/rrtop): An example inspired by [rrtop](https://github.com/wojciech-zurek/rrtop).
+ * [monitor](samples/rrtop): A top-like process monitor with fake data.
 
    `./samples/rrtop/build/install/rrtop/bin/rrtop`
 

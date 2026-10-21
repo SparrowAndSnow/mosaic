@@ -201,7 +201,7 @@ mosaic {
 
 New:
 - Add `linuxArm64` target.
-- Add `rrtop` sample.
+- Add a top-like monitor sample.
 - Support true color palette.
 
 Changed:
