@@ -6,7 +6,7 @@
 > 优先级：**P0**=正确性/回归优先；**P1**=高价值优化；**P2**=增强/打磨；**P3**=长期/可选。
 > 参考基准：`docs/tui-arch-deep-comparison.md`（逐功能深挖对照）、`docs/unicode-width-research.md`。
 
-> **对账更新：2026-10-21** L7.21~L7.30 已全部归档（动画容器、关停竞态、首帧清屏、weight 记账、intrinsic 缓存、颜色约简、端到端 golden、README/CHANGELOG、动画转换器、帧时钟审计），L1~L7 主干完成；本文件余下未勾项即后续候选（P1/P2/P3），台账进度以 refactor-progress 为准。
+> **对账更新：2026-10-21** L7.21~L7.31 已全部归档（动画容器、关停竞态、首帧清屏、weight 记账、intrinsic 缓存、颜色约简、端到端 golden、README/CHANGELOG、动画转换器、帧时钟审计、硬件光标 API），L1~L7 主干完成；本文件余下未勾项即后续候选（P1/P2/P3），台账进度以 refactor-progress 为准。
 > **对账更新：2026-10-19** L7.20 边框/分隔绘制已归档（`9dc2cb7e`，见 §15）；台账进度以 refactor-progress 为准。
 > **对账更新：2026-10-18（二）** 全面对账完成（见 §14「台账同步」✅）：过时项已勾销——static 逐行清理（L3.5）、DEC 2027 探测（L6.2）、右缘裁剪/部分覆盖（L3.4 + L7.2 + L7.10）、drawSolidRect 越界（L7.10）、画布复用（L7.2）；并刷新 §0 矩阵与运行模型/tty 行。
 > **对账更新：2026-10-18（refactor 分支）** L7.10/L7.11 已归档（真实终端渲染回归 + showcase 演示样本）。
@@ -53,7 +53,7 @@
 - [x] **P2 静态输出优化** ✅（L3.5，`e2497ca3`）：static 帧改为**逐行 `clearLine` + 重写**（替代整屏 `clearDisplay` 兜底），静态/活区混合同规处理；`AnsiIncrementalRenderingTest` 增至 16 条。
 - [x] **P2 闪烁防护** ✅（L3.6，`e15497c4`）：synchronized output（DEC 2026）按能力包裹整帧；无该能力且可切换光标时改为「光标 hide/show 包裹」（帧首 `hide` / 帧尾 `show`），空帧不包裹避免闪；`cursorVisibility=false` 时退化为裸帧。启动期 hide 一次/退出恢复逻辑不变。
 - [x] **P2 输出缓冲** ✅（L3.7，`8a0d3e7c`）：`render` 结果不再 `.toString()` + 单次 `print`，改由 `FrameWriter` 增量 UTF-8 编码到固定 8KB 缓冲并分块写出（码点原子落块、代理对读前视、孤立代理替换 `?`）；JVM `System.out.write` + 每帧 flush，Native `posix.write(STDOUT)` 循环写。
-- [ ] **P3 光标 API**：运行中无自定义光标位置/形状（Ratatui `Frame::set_cursor_position`、BubbleTea `View.Cursor`）；如需 IME/输入框类 widget，需补。
+- [x] **P3 光标 API** ✅（L7.31，`fc8f0ce8`）：`Cursor(modifier, shape, blink)` 为零尺寸布局标记（`Modifier.offset` 选格，位置来自根坐标，padding/对齐/滚动自然生效）；`CursorShape`（Block/Underline/Bar × blink）→ DECSCUSR；渲染器帧尾 CUP + 形状 + show，越界不显示、宽簇续列吸附簇头、移出组合即 hide 并复位形状、退出复位默认形状；仅 `cursorVisibility` 能力下生效。限制：静态日志行未计入偏移、嵌套滚动裁剪不感知（KDoc 已写明）。`CursorRenderingTest` 10 条。
 
 ## 3. Unicode / 宽字符（原专项，含全部已知问题）
 
