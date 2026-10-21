@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.31（代码 `fc8f0ce8`） · 创建：2026-10-17 · 更新：2026-10-21
+> 分支：`refactor` · 当前 HEAD：L7.32（代码 `6cfb53b1`） · 创建：2026-10-17 · 更新：2026-10-21
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -31,7 +31,7 @@
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 完成（L6.1~L6.8 已归档） |
-| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.31 已归档；余下 P2/P3 可选） |
+| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.32 已归档；余下 P2/P3 可选） |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
 
@@ -107,6 +107,7 @@
 | L7 | L7.29 | 值动画/转换器族核对 + 单元测试（`mosaic-animation`）：`animate*AsState` 家族齐全（Float/Int/IntOffset/IntSize/Color，终端无 Dp/Size 需求）；`Color.VectorConverter` 走 **Oklab** 感知空间插值（黑→白向量中点 Oklab L=0.5 → sRGB≈99，对比朴素 sRGB 128 / 线性 RGB 188）——比 todo 原设想「线性 RGB」更优的动画颜色空间，维持现状；补 10 条单测覆盖 5 转换器往返 + IntSize 负值钳制 + color 端点精确收敛/finishedListener 恰一次/中途重定向 | `564caf63` | `VectorConvertersTest`（6）+ `AnimateColorAsStateTest`（4）；mosaic-animation jvmTest 与 linuxX64Test 各 23 全绿 + apiCheck | ✅ 已归档 |
 | L7 | L7.30 | 帧时钟集成核对（审计 + 补测）：动画经 `MosaicComposition` 内部 `BroadcastFrameClock` 驱动（`startFrameListener` 逐外帧 `internalClock.sendFrame(nanos)`，时间=真实单调钟 `nanoTime()`）；`delay(1)` ~1000fps 恒发已被 L7.3 自适应两级节流取代（动画忙 `hasAwaiters`→60fps / 空闲 20fps，空闲帧不重绘）；低电量=空闲 20fps 有界轮询（输入延迟 ≤50ms 取舍，纯唤醒不渲染）；覆盖缺口「空闲期启动动画 → 切回 60fps」补 1 条测试 | `3bb44eed` | `FrameThrottleTest` 增 `animationStartingAfterIdleKeepsHighFrameRate`（空闲 200ms 后起 30 帧 <1.4s，与 20fps 卡死 ~1.55s 区分）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 | L7 | L7.31 | 硬件光标 API（`ui/Cursor.kt` / `rendering.kt` / `ansi.kt`）：`Cursor(modifier, shape, blink)` 零尺寸标记按布局位置（`onGloballyPositioned` 根坐标）锚定真实终端光标，`CursorShape`（Block/Underline/Bar × blink）映射 DECSCUSR；`MosaicComposition.draw()` 经 `TextSurface` 携带请求（不改 `Mosaic`/`Rendering` 公共接口）；渲染器帧尾按需 CUP + 形状 + show，越界不显示、宽簇续列吸附簇头、请求消失即 hide + 复位形状、进程退出复位默认形状；仅 `cursorVisibility` 能力下生效 | `fc8f0ce8` | `CursorRenderingTest`（10 条：布局位置 / 祖先 padding / 形状编码 / 宽簇吸附 / 移除隐藏并复位 / 越界不显示 / 跨帧移动 / 同步输出 / 无光标保持旧 hide-show 框架 / 退出复位）；JVM 726 / linuxX64 724 全绿；apiDump 更新 JVM + klib | ✅ 已归档 |
+| L7 | L7.32 | TTY 三绑定一致性（`mosaic-tty`）：新增共享参数校验 `TtyArguments.checkReadWriteArguments` + `TtyContractTest`；JNI/FFM/native 统一「越界 → `IndexOutOfBoundsException`」「关闭后除 `reset`/`close` 外 → `IllegalStateException`」、offset/count、超时/中断、字节往返；JNI 回调初始化失败清理全局引用、三绑定回调「先摘除后释放」、FFM 关闭先释放原生再关回调 arena、native `reset` 错误传播、JNI/FFM 进入 raw mode 补装 POSIX 信号兜底（与 native 对齐）；修正 `TestTtyTest` stderr 假阳性 | `6cfb53b1` | `TtyContractTest`（11 条）+ 既有套件；mosaic-tty JVM 116 / linuxX64 122、FFM 分发（JDK 25）116 全绿；tty-terminal JVM 269 / linuxX64 268 回归；`:mosaic-tty:spotlessCheck` 通过 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -599,22 +600,29 @@
 - **测试**：`CursorRenderingTest` 10 条（见台账表）。用 `VirtualTerminal` 回放断言光标落点，并用 `ByteCollector` 断言退出复位序列；JVM 726 / linuxX64 724 全绿；`apiDump` 产出 JVM `.api` + `.klib.api` 增量。
 - **顺带发现（未处理）**：`spotlessCheck` 在 7 处**既有**代码上失败（`Border.kt`/`PointerInput.kt`/`BoxWithConstraints.kt` 与 4 个测试的 compose 参数顺序、`composed` 用法、可变参数、自动装箱规则），与本轮改动无关；合并前建议统一修复或逐条抑制。
 
+### L7.32 TTY 三绑定一致性（`mosaic-tty`，`6cfb53b1`）
+- **背景**：JNI（`jvmMain`）/ FFM（`jvmJdk22`）/ cinterop（`nativeMain`）共享同一 C 库，但包装层各写各的：越界区间在 JNI 会直接落到 native 内存；关闭后调用未定义（可能空指针）；回调释放顺序不一致；FFM 关闭先关回调 arena 再释放原生；native `reset` 吞错；JNI/FFM 进入 raw mode 不装信号兜底。
+- **契约测试（`TtyContractTest`，commonTest）**：越界 offset/count → `IndexOutOfBoundsException`；关闭后除 `reset()`/`close()`（幂等 no-op）外 → `IllegalStateException`；`read`/`write` 按 offset/count 精确工作；`readWithTimeout` 空闲/非阻塞返回 0、有数据返回计数；`interruptRead` 唤醒阻塞读并使下次读返回 0；0x00..0xFF 字节往返（Windows 控制台测试桩仅 ASCII，跳过该用例，注释说明）。
+- **实现对齐**：`TtyArguments.checkReadWriteArguments` 三绑定共用；每绑定 `requireOpen()`；三绑定 `setCallback` 均先 native 摘除再释放旧回调；JNI 回调初始化失败路径补 `DeleteGlobalRef`/`free`；FFM 关闭顺序改为先 `mosaic_tty_free` 再关回调 arena；native `reset` 传播错误；JNI/FFM `enableRawMode` 后调用 `mosaic_tty_enable_signal_guard`（C 侧只接管仍为默认 disposition 的信号，JVM 自有处理器不受影响；Windows 为 no-op 桩）。
+- **验证口径**：`mosaic-tty` JVM 116 / linuxX64 122（native 多 6 条 SignalGuardTest）；FFM 用 `installJvmTestDistribution` 在 JDK 25 跑完整 116 条——多版本 jar 的 `META-INF/versions/22` 生效（已用 `Tty.class` 资源路径确认）；`mosaic-tty-terminal` JVM 269 / linuxX64 268 回归；`:mosaic-tty:spotlessCheck` 通过。EINTR 由共享 C 层处理，未做信号注入。
+- **顺带修复**：`TestTtyTest.stdinErrTtySettingFalse` 原本绑定 `stderrIsTty = true` 并断言 true（假阳性），改为 false/false。
+
 ## 6. 当前状态 / 下一步候选
 
 ### 6.1 当前状态（2026-10-21）
 
-- 分支 `refactor`，HEAD `fc8f0ce8`（L7.31 硬件光标 API 归档）；工作树干净，未推送远端。
-- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.31（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
-- 回归基线（2026-10-21）：`mosaic-runtime` **JVM 726 / linuxX64 724 全绿**；`mosaic-animation` 各 23、`mosaic-tty` / `mosaic-tty-terminal` / `mosaic-terminal` / `mosaic-testing` / `samples/showcase` 双平台全绿、0 失败。
-- L7.31 之后本层无「进行中」步骤，只剩 todo 中的 P2/P3 可选项与合并前清理项。
+- 分支 `refactor`，HEAD `6cfb53b1`（L7.32 TTY 三绑定一致性归档）；工作树干净，未推送远端。
+- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.32（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
+- 回归基线（2026-10-21）：`mosaic-runtime` **JVM 726 / linuxX64 724**；`mosaic-tty` **JVM 116 / linuxX64 122**（FFM 分发 JDK 25 亦 116）；`mosaic-tty-terminal` **JVM 269 / linuxX64 268**；`mosaic-animation` 各 23；`mosaic-terminal` / `mosaic-testing` / `samples/showcase` 双平台全绿、0 失败。
+- L7.32 之后本层无「进行中」步骤，只剩 todo 中的 P2/P3 可选项与合并前清理项。
 
 ### 6.2 下一步候选（需确认后，一次一项）
 
 1. **合并 main 前红线清理（阻塞项）**：重写早期归档/调研提交（`326d5971`~`aebfb705`）的提交信息；中性化 `docs/todo.md` 与 `docs/tui-arch-deep-comparison.md` 正文中的第三方名；README 中上游既有参考引用同批处理（见 §2）。
 2. **本机可验证的功能候选**：`LazyRow`（与 L7.16 对称）、第一方 widget 集（tabs/table/chart/scrollbar，todo §6 P3）、输入侧组合字符（todo §3 P3）。
-3. **需 CI/远程环境**：macOS 特判（todo §9.2 P2）、Windows/ConPTY（§9.3 P1）、三套绑定一致性契约测试（§9.1 P1）、`linuxArm64` cinterop；本机不推进。
+3. **需 CI/远程环境**：macOS 特判（todo §9.2 P2）、Windows/ConPTY（§9.3 P1）、Windows 输入多路复用（§9.3 P1）、`linuxArm64` cinterop；本机不推进。
 4. **性能可选项（非必须）**：逐格写入本体（`writeCluster` 11 字段 + `canvas[row,col]` 边界/平移）仍占 draw-idle 大头，候选「样式打包成 primitive」或「收敛局部 cell 引用」；当前性能已远超目标，优先级低于功能与清理。
-5. **既有格式问题（非功能）**：`spotlessCheck` 当前在 7 处既有代码上失败（compose 规则：参数顺序 / `composed` 用法 / 可变参数 / 自动装箱），与 L7.31 无关；合并前统一修复或逐条抑制。
+5. **既有格式问题（非功能）**：`spotlessCheck` 当前在 7 处既有代码上失败（compose 规则：参数顺序 / `composed` 用法 / 可变参数 / 自动装箱），与上述改动无关（`mosaic-tty` 已通过）；合并前统一修复或逐条抑制。
 
 ### 6.3 历史状态 / 决策记录（2026-10-17 ~ 2026-10-20，保留供恢复上下文）
 

@@ -6,7 +6,7 @@
 > 优先级：**P0**=正确性/回归优先；**P1**=高价值优化；**P2**=增强/打磨；**P3**=长期/可选。
 > 参考基准：`docs/tui-arch-deep-comparison.md`（逐功能深挖对照）、`docs/unicode-width-research.md`。
 
-> **对账更新：2026-10-21** L7.21~L7.31 已全部归档（动画容器、关停竞态、首帧清屏、weight 记账、intrinsic 缓存、颜色约简、端到端 golden、README/CHANGELOG、动画转换器、帧时钟审计、硬件光标 API），L1~L7 主干完成；本文件余下未勾项即后续候选（P1/P2/P3），台账进度以 refactor-progress 为准。
+> **对账更新：2026-10-21** L7.21~L7.32 已全部归档（动画容器、关停竞态、首帧清屏、weight 记账、intrinsic 缓存、颜色约简、端到端 golden、README/CHANGELOG、动画转换器、帧时钟审计、硬件光标 API、TTY 三绑定契约测试），L1~L7 主干完成；本文件余下未勾项即后续候选（P1/P2/P3），台账进度以 refactor-progress 为准。
 > **对账更新：2026-10-19** L7.20 边框/分隔绘制已归档（`9dc2cb7e`，见 §15）；台账进度以 refactor-progress 为准。
 > **对账更新：2026-10-18（二）** 全面对账完成（见 §14「台账同步」✅）：过时项已勾销——static 逐行清理（L3.5）、DEC 2027 探测（L6.2）、右缘裁剪/部分覆盖（L3.4 + L7.2 + L7.10）、drawSolidRect 越界（L7.10）、画布复用（L7.2）；并刷新 §0 矩阵与运行模型/tty 行。
 > **对账更新：2026-10-18（refactor 分支）** L7.10/L7.11 已归档（真实终端渲染回归 + showcase 演示样本）。
@@ -120,7 +120,7 @@
 > （`jvmMain` **JNI**(`com_jakewharton_mosaic_tty_Jni.c`)、`jvmJdk22` **FFM/jextract**(`Libmosaic`)、`nativeMain` **cinterop**）+ Zig 0.15.1 交叉编译。
 
 ### 9.1 宿主绑定
-- [ ] **P1 三套绑定一致性**：JNI / FFM / cinterop 行为必须一致（read 超时语义、回调线程、EINTR、内存生命周期）；为每个 native 函数建立统一契约测试（可用 `TerminalTester` + C 测试桩）。
+- [x] **P1 三套绑定一致性** ✅（L7.32，`6cfb53b1`）：`TtyContractTest`（11 条）统一锁定缓冲区间（越界→`IndexOutOfBoundsException`）、关闭后调用（除 `reset`/`close` 幂等外→`IllegalStateException`）、offset/count 语义、超时/非阻塞/中断返回 0、0x00..0xFF 字节往返（Windows 控制台桩仅 ASCII，跳过）；JNI/FFM 补齐参数校验与关闭守卫、三绑定回调「先摘除后释放」、JNI 回调初始化失败清理、FFM 先释放原生再关回调 arena、native `reset` 错误传播、JNI/FFM 进入 raw mode 补装与 native 一致的 POSIX 信号兜底；修正 `TestTtyTest` stderr 断言笔误。验证：JNI 116 / native 122 / FFM 分发（JDK 25 多版本 jar）116 全绿；tty-terminal 269/268 回归；`:mosaic-tty:spotlessCheck` 通过。EINTR 由共享 C 层处理，未做信号注入。
 - [ ] **P2 JNI 维护**：`Jni.c` 1140 行手写 JNI + 回调对象生命周期（`ttyCallbackInit/Free`）；核对全局引用泄漏/线程（`setCallback` 可在任意线程触发，文档已声明）。
 - [ ] **P2 FFM (jextract) 同步**：JDK22+ 走 `Libmosaic`；`jextract.libraries.register('mosaic')` 头文件变化需重生成，构建里确认了生成物与源码同步（发布产物不漂移）。
 - [ ] **P3 Zig 工具链**：Zig 0.15.1 仅用于交叉编译 C；评估升级锁定、缓存目录（`.zig-cache`）gitignore 状态与 CI 可重复性。
