@@ -26,77 +26,93 @@ public actual class Tty internal constructor(
 
 	private var callbackPtr = 0L
 
+	private fun requireOpen(): Long {
+		val ptr = ptr
+		check(ptr != 0L) { "Tty is closed" }
+		return ptr
+	}
+
 	public actual fun setCallback(callback: Callback?) {
-		val oldCallbackPtr = callbackPtr
-		if (oldCallbackPtr != 0L) {
-			Jni.ttyCallbackFree(oldCallbackPtr)
+		val ttyPtr = requireOpen()
+		// Detach first so the native side can never invoke a callback while it is being freed.
+		Jni.ttySetCallback(ttyPtr, 0L)
+		if (callbackPtr != 0L) {
+			Jni.ttyCallbackFree(callbackPtr)
+			callbackPtr = 0
 		}
 
-		val newCallbackPtr = if (callback != null) {
-			Jni.ttyCallbackInit(callback).also { ptr ->
-				if (ptr == 0L) {
-					throw OutOfMemoryError()
-				}
+		if (callback != null) {
+			val newCallbackPtr = Jni.ttyCallbackInit(callback)
+			if (newCallbackPtr == 0L) {
+				throw OutOfMemoryError()
 			}
-		} else {
-			0L
+			callbackPtr = newCallbackPtr
+			Jni.ttySetCallback(ttyPtr, newCallbackPtr)
 		}
-
-		callbackPtr = newCallbackPtr
-		Jni.ttySetCallback(ptr, newCallbackPtr)
 	}
 
 	@Throws(IOException::class)
 	public actual fun read(buffer: ByteArray, offset: Int, count: Int): Int {
-		return Jni.ttyRead(ptr, buffer, offset, count)
+		checkReadWriteArguments(buffer, offset, count)
+		return Jni.ttyRead(requireOpen(), buffer, offset, count)
 	}
 
 	@Throws(IOException::class)
 	public actual fun readWithTimeout(buffer: ByteArray, offset: Int, count: Int, timeoutMillis: Int): Int {
-		return Jni.ttyReadWithTimeout(ptr, buffer, offset, count, timeoutMillis)
+		checkReadWriteArguments(buffer, offset, count)
+		return Jni.ttyReadWithTimeout(requireOpen(), buffer, offset, count, timeoutMillis)
 	}
 
 	@Throws(IOException::class)
 	public actual fun interruptRead() {
-		Jni.ttyInterruptRead(ptr)
+		Jni.ttyInterruptRead(requireOpen())
 	}
 
 	@Throws(IOException::class)
 	public actual fun write(buffer: ByteArray, offset: Int, count: Int): Int {
-		return Jni.ttyWrite(ptr, buffer, offset, count)
+		checkReadWriteArguments(buffer, offset, count)
+		return Jni.ttyWrite(requireOpen(), buffer, offset, count)
 	}
 
 	@Throws(IOException::class)
 	public actual fun enableRawMode() {
-		Jni.ttyEnableRawMode(ptr)
+		val ttyPtr = requireOpen()
+		Jni.ttyEnableRawMode(ttyPtr)
+		// Match cinterop: install the crash-safety net on POSIX where the signal disposition is
+		// still the default (a runtime with its own handlers is left untouched by the native side).
+		Jni.ttyEnableSignalGuard(ttyPtr)
 	}
 
 	@Throws(IOException::class)
 	public actual fun enableWindowResizeEvents() {
-		Jni.ttyEnableWindowResizeEvents(ptr)
+		Jni.ttyEnableWindowResizeEvents(requireOpen())
 	}
 
 	@Throws(IOException::class)
 	public actual fun currentSize(): IntArray {
-		return Jni.ttyCurrentSize(ptr)
+		return Jni.ttyCurrentSize(requireOpen())
 	}
 
 	@Throws(IOException::class)
 	public actual fun reset() {
-		if (ptr != 0L) {
-			Jni.ttyReset(ptr)
+		val ttyPtr = ptr
+		if (ttyPtr != 0L) {
+			Jni.ttyReset(ttyPtr)
 		}
 	}
 
 	@Throws(IOException::class)
 	actual override fun close() {
-		if (ptr != 0L) {
-			Jni.ttyFree(ptr)
+		val ttyPtr = ptr
+		if (ttyPtr != 0L) {
 			ptr = 0
-
-			if (callbackPtr != 0L) {
-				Jni.ttyCallbackFree(callbackPtr)
-				callbackPtr = 0
+			try {
+				Jni.ttyFree(ttyPtr)
+			} finally {
+				if (callbackPtr != 0L) {
+					Jni.ttyCallbackFree(callbackPtr)
+					callbackPtr = 0
+				}
 			}
 		}
 	}

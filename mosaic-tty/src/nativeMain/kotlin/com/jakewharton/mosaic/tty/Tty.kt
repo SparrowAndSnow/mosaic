@@ -40,27 +40,34 @@ public actual class Tty internal constructor(
 	private var ptr: CPointer<MosaicTty>? = ptr
 	private var callbackPtrAndRef: Pair<CPointer<MosaicTtyCallback>, StableRef<Callback>>? = null
 
+	private fun requireOpen(): CPointer<MosaicTty> {
+		return checkNotNull(ptr) { "Tty is closed" }
+	}
+
 	public actual fun setCallback(callback: Callback?) {
+		val ttyPtr = requireOpen()
+		// Detach first so the native side can never invoke a callback while it is being freed.
+		mosaic_tty_set_callback(ttyPtr, null)
 		callbackPtrAndRef?.let { (callbackPtr, callbackRef) ->
 			nativeHeap.free(callbackPtr)
 			callbackRef.dispose()
 			callbackPtrAndRef = null
 		}
 
-		val callbackPtr = callback?.let { callback ->
+		callback?.let { callback ->
 			val callbackRef = StableRef.create(callback)
 			val callbackPtr = callbackRef.toNativeAllocationIn(nativeHeap).ptr
 
 			callbackPtrAndRef = callbackPtr to callbackRef
-			callbackPtr
+			mosaic_tty_set_callback(ttyPtr, callbackPtr)
 		}
-
-		mosaic_tty_set_callback(ptr, callbackPtr)
 	}
 
 	public actual fun read(buffer: ByteArray, offset: Int, count: Int): Int {
+		checkReadWriteArguments(buffer, offset, count)
+		val ttyPtr = requireOpen()
 		buffer.asUByteArray().usePinned {
-			mosaic_tty_read(ptr, it.addressOf(offset), count).useContents {
+			mosaic_tty_read(ttyPtr, it.addressOf(offset), count).useContents {
 				if (error == 0U) return this.count
 				throwIoe(error)
 			}
@@ -68,8 +75,10 @@ public actual class Tty internal constructor(
 	}
 
 	public actual fun readWithTimeout(buffer: ByteArray, offset: Int, count: Int, timeoutMillis: Int): Int {
+		checkReadWriteArguments(buffer, offset, count)
+		val ttyPtr = requireOpen()
 		buffer.asUByteArray().usePinned {
-			mosaic_tty_read_with_timeout(ptr, it.addressOf(offset), count, timeoutMillis).useContents {
+			mosaic_tty_read_with_timeout(ttyPtr, it.addressOf(offset), count, timeoutMillis).useContents {
 				if (error == 0U) return this.count
 				throwIoe(error)
 			}
@@ -77,14 +86,16 @@ public actual class Tty internal constructor(
 	}
 
 	public actual fun interruptRead() {
-		val error = mosaic_tty_interrupt_read(ptr)
+		val error = mosaic_tty_interrupt_read(requireOpen())
 		if (error == 0U) return
 		throwIoe(error)
 	}
 
 	public actual fun write(buffer: ByteArray, offset: Int, count: Int): Int {
+		checkReadWriteArguments(buffer, offset, count)
+		val ttyPtr = requireOpen()
 		buffer.asUByteArray().usePinned {
-			mosaic_tty_write(ptr, it.addressOf(offset), count).useContents {
+			mosaic_tty_write(ttyPtr, it.addressOf(offset), count).useContents {
 				if (error == 0U) return this.count
 				throwIoe(error)
 			}
@@ -92,22 +103,23 @@ public actual class Tty internal constructor(
 	}
 
 	public actual fun enableRawMode() {
-		val error = mosaic_tty_enable_raw_mode(ptr)
+		val ttyPtr = requireOpen()
+		val error = mosaic_tty_enable_raw_mode(ttyPtr)
 		if (error != 0U) throwIoe(error)
 		// With the terminal in raw mode, install the crash/termination safety net which restores
 		// the original settings if the process is killed by an unhandled signal. Failure to
 		// install the guard is not fatal: raw mode is still active, just without the fallback.
-		mosaic_tty_enable_signal_guard(ptr)
+		mosaic_tty_enable_signal_guard(ttyPtr)
 	}
 
 	public actual fun enableWindowResizeEvents() {
-		val error = mosaic_tty_enable_window_resize_events(ptr)
+		val error = mosaic_tty_enable_window_resize_events(requireOpen())
 		if (error == 0U) return
 		throwIoe(error)
 	}
 
 	public actual fun currentSize(): IntArray {
-		mosaic_tty_current_terminal_size(ptr).useContents {
+		mosaic_tty_current_terminal_size(requireOpen()).useContents {
 			if (error == 0U) {
 				return intArrayOf(columns, rows, width, height)
 			}
@@ -116,7 +128,10 @@ public actual class Tty internal constructor(
 	}
 
 	public actual fun reset() {
-		ptr?.let { mosaic_tty_reset(it) }
+		ptr?.let { ttyPtr ->
+			val error = mosaic_tty_reset(ttyPtr)
+			if (error != 0U) throwIoe(error)
+		}
 	}
 
 	actual override fun close() {

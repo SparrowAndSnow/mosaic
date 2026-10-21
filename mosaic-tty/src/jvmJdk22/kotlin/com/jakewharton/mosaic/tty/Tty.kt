@@ -2,6 +2,7 @@ package com.jakewharton.mosaic.tty
 
 import com.jakewharton.mosaic.tty.Libmosaic.mosaic_tty_current_terminal_size
 import com.jakewharton.mosaic.tty.Libmosaic.mosaic_tty_enable_raw_mode
+import com.jakewharton.mosaic.tty.Libmosaic.mosaic_tty_enable_signal_guard
 import com.jakewharton.mosaic.tty.Libmosaic.mosaic_tty_enable_window_resize_events
 import com.jakewharton.mosaic.tty.Libmosaic.mosaic_tty_free
 import com.jakewharton.mosaic.tty.Libmosaic.mosaic_tty_init
@@ -53,18 +54,28 @@ public class Tty internal constructor(
 
 	private var callbackArena: Arena? = null
 
+	private fun requireOpen(): MemorySegment {
+		val ptr = ptr
+		check(ptr != MemorySegment.NULL) { "Tty is closed" }
+		return ptr
+	}
+
 	public fun setCallback(callback: Callback?) {
+		val ttyPtr = requireOpen()
+		// Detach first so the native side can never invoke a callback while its arena is closed.
+		mosaic_tty_set_callback(ttyPtr, MemorySegment.NULL)
 		callbackArena?.let { arena ->
-			arena.close()
 			callbackArena = null
+			arena.close()
 		}
 
-		val ttyCallback = if (callback == null) {
-			MemorySegment.NULL
-		} else {
-			val arena = Arena.ofShared()
-			callbackArena = arena
+		if (callback == null) {
+			return
+		}
 
+		val arena = Arena.ofShared()
+		callbackArena = arena
+		val ttyCallback = try {
 			MosaicTtyCallback.allocate(arena).also { ttyCallback ->
 				MosaicTtyCallback.onFocus(
 					ttyCallback,
@@ -79,13 +90,18 @@ public class Tty internal constructor(
 					}, arena),
 				)
 			}
+		} catch (t: Throwable) {
+			callbackArena = null
+			arena.close()
+			throw t
 		}
-
-		mosaic_tty_set_callback(ptr, ttyCallback)
+		mosaic_tty_set_callback(ttyPtr, ttyCallback)
 	}
 
 	@Throws(IOException::class)
 	public fun read(buffer: ByteArray, offset: Int, count: Int): Int {
+		checkReadWriteArguments(buffer, offset, count)
+		val ptr = requireOpen()
 		Arena.ofConfined().use { arena ->
 			val segment = arena.allocate(count.toLong())
 			val result = mosaic_tty_read(arena, ptr, segment, count)
@@ -101,6 +117,8 @@ public class Tty internal constructor(
 
 	@Throws(IOException::class)
 	public fun readWithTimeout(buffer: ByteArray, offset: Int, count: Int, timeoutMillis: Int): Int {
+		checkReadWriteArguments(buffer, offset, count)
+		val ptr = requireOpen()
 		Arena.ofConfined().use { arena ->
 			val segment = arena.allocate(count.toLong())
 			val result = mosaic_tty_read_with_timeout(arena, ptr, segment, count, timeoutMillis)
@@ -116,13 +134,15 @@ public class Tty internal constructor(
 
 	@Throws(IOException::class)
 	public fun interruptRead() {
-		val error = mosaic_tty_interrupt_read(ptr)
+		val error = mosaic_tty_interrupt_read(requireOpen())
 		if (error == 0) return
 		throwIoe(error)
 	}
 
 	@Throws(IOException::class)
 	public fun write(buffer: ByteArray, offset: Int, count: Int): Int {
+		checkReadWriteArguments(buffer, offset, count)
+		val ptr = requireOpen()
 		Arena.ofConfined().use { arena ->
 			val segment = arena.allocate(count.toLong())
 			MemorySegment.copy(buffer, offset, segment, ValueLayout.JAVA_BYTE, 0, count)
@@ -137,20 +157,24 @@ public class Tty internal constructor(
 
 	@Throws(IOException::class)
 	public fun enableRawMode() {
+		val ptr = requireOpen()
 		val error = mosaic_tty_enable_raw_mode(ptr)
-		if (error == 0) return
-		throwIoe(error)
+		if (error != 0) throwIoe(error)
+		// Match cinterop: install the crash-safety net where the signal disposition is still the
+		// default (a runtime with its own handlers is left untouched by the native side).
+		mosaic_tty_enable_signal_guard(ptr)
 	}
 
 	@Throws(IOException::class)
 	public fun enableWindowResizeEvents() {
-		val error = mosaic_tty_enable_window_resize_events(ptr)
+		val error = mosaic_tty_enable_window_resize_events(requireOpen())
 		if (error == 0) return
 		throwIoe(error)
 	}
 
 	@Throws(IOException::class)
 	public fun currentSize(): IntArray {
+		val ptr = requireOpen()
 		Arena.ofConfined().use { arena ->
 			val result = mosaic_tty_current_terminal_size(arena, ptr)
 			val error = MosaicTtyTerminalSizeResult.error(result)
@@ -182,10 +206,10 @@ public class Tty internal constructor(
 		if (ptr != MemorySegment.NULL) {
 			this.ptr = MemorySegment.NULL
 
+			val error = mosaic_tty_free(ptr)
 			callbackArena?.close()
 			callbackArena = null
 
-			val error = mosaic_tty_free(ptr)
 			if (error == 0) return
 			throwIoe(error)
 		}

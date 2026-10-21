@@ -457,19 +457,23 @@ Java_com_jakewharton_mosaic_tty_Jni_ttyCallbackInit(
 	}
 	jclass clazz = (*env)->FindClass(env, "com/jakewharton/mosaic/tty/Tty$Callback");
 	if (unlikely(clazz == NULL)) {
+		(*env)->DeleteGlobalRef(env, globalInstance);
 		return 0;
 	}
 	jmethodID onFocus = (*env)->GetMethodID(env, clazz, "onFocus", "(Z)V");
 	if (unlikely(onFocus == NULL)) {
+		(*env)->DeleteGlobalRef(env, globalInstance);
 		return 0;
 	}
 	jmethodID onResize = (*env)->GetMethodID(env, clazz, "onResize", "(IIII)V");
 	if (unlikely(onResize == NULL)) {
+		(*env)->DeleteGlobalRef(env, globalInstance);
 		return 0;
 	}
 
 	MosaicJniTtyCallback *jniCallback = malloc(sizeof(MosaicJniTtyCallback));
 	if (unlikely(!jniCallback)) {
+		(*env)->DeleteGlobalRef(env, globalInstance);
 		return 0;
 	}
 	jniCallback->env = env;
@@ -479,6 +483,8 @@ Java_com_jakewharton_mosaic_tty_Jni_ttyCallbackInit(
 
 	MosaicTtyCallback *callback = malloc(sizeof(MosaicTtyCallback));
 	if (unlikely(!callback)) {
+		free(jniCallback);
+		(*env)->DeleteGlobalRef(env, globalInstance);
 		return 0;
 	}
 	callback->opaque = jniCallback;
@@ -655,6 +661,16 @@ Java_com_jakewharton_mosaic_tty_Jni_ttyEnableRawMode(
 	if (unlikely(error)) {
 		throwIoe(env, error);
 	}
+}
+
+JNIEXPORT void JNICALL
+Java_com_jakewharton_mosaic_tty_Jni_ttyEnableSignalGuard(
+	JNIEnv *env UNUSED,
+	jclass type UNUSED,
+	jlong ttyOpaque
+) {
+	MosaicTty *tty = (MosaicTty *) ttyOpaque;
+	mosaic_tty_enable_signal_guard(tty);
 }
 
 JNIEXPORT void JNICALL

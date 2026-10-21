@@ -84,7 +84,7 @@ class TestTtyTest {
 	}
 
 	@Test fun stdinErrTtySettingFalse() {
-		testTerminal = TestTerminal.bind(stderrIsTty = true)
-		assertThat(testTerminal.streams.isErrorTty()).isTrue()
+		testTerminal = TestTerminal.bind(stderrIsTty = false)
+		assertThat(testTerminal.streams.isErrorTty()).isFalse()
 	}
 }

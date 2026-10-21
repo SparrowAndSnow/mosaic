@@ -27,6 +27,10 @@ Fixed:
 - Close the underlying TTY at the end of the `runMosaic*` family of functions.
 - Frame times on Linux and Windows no longer jump backwards once per second.
 - Fix arc-based animations on native targets, which built their lookup table incorrectly.
+- The JNI and FFM TTY bindings now validate read/write buffer ranges and reject operations on a
+  closed instance, matching the native binding instead of risking memory corruption or
+  platform-specific failures; all three also install the same POSIX crash-safety net when entering
+  raw mode.
 
 
 ## [0.18.0] - 2025-08-21

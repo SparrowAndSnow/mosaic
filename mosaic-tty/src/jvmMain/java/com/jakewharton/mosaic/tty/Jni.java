@@ -117,6 +117,8 @@ final class Jni {
 
 	static native void ttyEnableRawMode(long ttyPtr);
 
+	static native void ttyEnableSignalGuard(long ttyPtr);
+
 	static native void ttyEnableWindowResizeEvents(long ttyPtr);
 
 	/**
