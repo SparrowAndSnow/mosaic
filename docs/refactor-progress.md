@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.28（`5680a1a4`） · 创建：2026-10-17 · 更新：2026-10-20
+> 分支：`refactor` · 当前 HEAD：L7.30（代码 `3bb44eed`，台账记录 `285a44c8`） · 创建：2026-10-17 · 更新：2026-10-21
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/tui-arch-deep-comparison.md`、`docs/unicode-width-research.md`
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -31,7 +31,7 @@
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 完成（L6.1~L6.8 已归档） |
-| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 进行中（L7.1 基准基线就绪，待归档） |
+| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.30 已归档；余下 P2/P3 可选） |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
 
@@ -591,7 +591,23 @@
 
 ## 6. 当前状态 / 下一步候选
 
-- 进行中（2026-10-18）：**L7 性能「绘制热路径低分配」**。已落地六项（D/E/F 未归档，等确认）：
+### 6.1 当前状态（2026-10-21）
+
+- 分支 `refactor`，HEAD `285a44c8`（L7.30 归档台账记录；代码归档 `3bb44eed`）；工作树干净，未推送远端。
+- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.30（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
+- 回归基线（最近一次完整测试，2026-10-20 17:16）：`mosaic-runtime` **JVM 716 / linuxX64 714 全绿**；`mosaic-animation` 各 23、`mosaic-tty` / `mosaic-tty-terminal` / `mosaic-terminal` / `mosaic-testing` / `samples/showcase` 双平台全绿、0 失败。
+- L7.30 之后本层无「进行中」步骤，只剩 todo 中的 P2/P3 可选项与合并前清理项。
+
+### 6.2 下一步候选（需确认后，一次一项）
+
+1. **合并 main 前红线清理（阻塞项）**：重写早期归档/调研提交（`326d5971`~`aebfb705`）的提交信息；中性化 `docs/todo.md` 与 `docs/tui-arch-deep-comparison.md` 正文中的第三方名；README 中上游既有参考引用同批处理（见 §2）。
+2. **本机可验证的功能候选**：`LazyRow`（与 L7.16 对称）、第一方 widget 集（tabs/table/chart/scrollbar，todo §6 P3）、光标 API（todo §2 P3）、输入侧组合字符（todo §3 P3）。
+3. **需 CI/远程环境**：macOS 特判（todo §9.2 P2）、Windows/ConPTY（§9.3 P1）、三套绑定一致性契约测试（§9.1 P1）、`linuxArm64` cinterop；本机不推进。
+4. **性能可选项（非必须）**：逐格写入本体（`writeCluster` 11 字段 + `canvas[row,col]` 边界/平移）仍占 draw-idle 大头，候选「样式打包成 primitive」或「收敛局部 cell 引用」；当前性能已远超目标，优先级低于功能与清理。
+
+### 6.3 历史状态 / 决策记录（2026-10-17 ~ 2026-10-20，保留供恢复上下文）
+
+- 历史记录（2026-10-18）：**L7 性能「绘制热路径低分配」**（当时 12 项，后续全部归档，见 L7.2；L7.3/L7.4 亦已归档）：
   ① surface 复用（每帧不再 `new TextSurface`=4800 对象，`reset()` 复用）+ `SurfaceReuseTest`（2 条）；
   ② `strWidth` printable-ASCII 快路径（纯 ASCII 范围直接 `to-from`，跳过逐码点 Pair 分配）+ `StrWidthAsciiFastPathTest`（5 条）；
   ③ 宽度状态机 raw-Int 打包（`packResult` 打包 width+raw 单 Int，12 个 raw 版谓词直读；消除 `Pair<Int,WidthInfo>` 分配）+ `PackedWidthEquivalenceTest`（JVM，oracle 重放全等 ~560 万次）。
@@ -607,21 +623,21 @@
   **native `render-draw-idle` 510µs → ~52µs（-90%）；JVM ~209 → ~31µs（-85%）**；draw-idle 比值 2.4×→**~1.7×**。
   **native draw-idle 约为 Rust 系纯渲染参照（~224µs）的四分之一**；最坏全帧 60fps 预算余量 ~23×。
   E/F（`9d6fdd4c`）、G（`9a066233`）、H+GC 记要（`c48a5d64`）已归档；帧节流本轮归档。
-  下一步候选（需确认后做）：
+  当时候选：
   - 逐格写入本体：`writeCluster`（每格 11 字段含 5 个样式对象写）+ `canvas[row,col]` bounds-check/translation 仍占 draw-idle 大头——候选「样式 Color/TextStyle 打包成 primitive」或「遍历收敛局部 cell 引用」。
   - 或转 L7 收尾（异常安全/帧节流/示例），性能已远超既定目标。
-- 现状：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
+- 当时现状（2026-10-18）：`refactor` 分支，HEAD `9146adaa`，JVM 520 + Native 519 全绿。上面功能步骤已归档。
 - 现状（2026-10-17 归档后）：HEAD `5f438a79`，JVM 与 linuxX64 四模块（runtime/terminal/tty/tty-terminal）全绿，全 samples 编译通过，rrtop kexe 已重链（工作树演示不含提交）。**L5 输入/事件已全部完成**：L5.1 鼠标消费 / L5.2 粘贴通路 / L5.3 kitty 键盘协议开关 / L5.4 clipboard（OSC 52）/**L5.5 事件背压与 Motion 合并** / L5.6 特殊键核对与 repeat 投递。
 - 现状（2026-10-17 归档后）：**L6 tty 适配已收官（L6.1~L6.8 全归档，HEAD `53ba2ea2`）**：死回调移除 / DEC 2027 / raw 核对 / native 信号兜底 / resize 通路 / 读写缓冲 / 生命周期异常安全 / 探测清单完备性。tty / tty-terminal 两平台测试全绿。L6 余项（macOS/Windows/三套绑定一致性/`linuxArm64` cinterop）需远程环境，登记不改码。
 - 决策（2026-10-17，已归档）：**L6 按「可本机验证优先」推进**——已做 L6.2 DEC 2027（§10 P1）；剩余建议顺序：raw mode 核对（§9.2 P1）、信号处理（§9.2 P2）；Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程后做。
 - 决策（2026-10-17，已提交）：**外部组件待办整体推迟**——滚动容器 / 惰性列表 / 输入控件 / 鼠标交互 / 焦点 / 边框 / 定位回调 / 动画容器 / 第一方 widget 集属最外层组合组件，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；新增 `docs/todo.md` §15 仅登记不实现，优先级统一排在内部重构之后。
 - 决策（2026-10-17，已提交）：**布局缓存落地即完成 L4 布局层主干**——剩余可选优化（apply 失效查扫反向索引、未放置子树裁剪）留待后续需要时再做；L4 对外的下一候选是 intrinsic 复用（与布局缓存合并）或直接进入 **L5 输入**。
 - 决策（2026-10-17，已归档）：**L5 输入走"全量 opt-in + 能力探测后自动启用"**——鼠标/粘贴经 `runMosaic*` 参数显式开启；kitty 键盘协议在探测到支持后自动 push、退出 pop；repeat/release 事件解析后由 runtime 按 press-only 过滤，既有应用零行为变化。
-- 下一步候选（需用户确认后实施，建议一次一项）：
+- 当时候选（需用户确认后实施，建议一次一项）：
   1. **`§9.2 P2` macOS 特判**：`TIOCGWINSZ`/termios 的 macOS 差异（`HUPCL`/`c_cc`）——需 macOS 环境，暂不可本机验证。
   2. 之后 Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程；本机可做候选见 todo §9.4/§9.5 剩余项。
 
-### L4.5 调研记录：布局“比例”的 Compose 语法（未落地，方向调整）
+### 6.4 调研记录：布局“比例”的 Compose 语法（L4.5，未落地，方向调整）
 - 背景：原计划做“约束扩展”（Row/Column 补 `percentage`/`ratio` 弹性，参照线性布局 Constraint 优先级）。
 - 调研（依据 androidx `foundation-layout` 1.10.4 源码，本地 Gradle 缓存可复核）：Compose **没有** `Modifier.percentage()`/`Modifier.ratio()` 这类“占剩余空间百分比”的 modifier；布局比例的官方语法只有三种，且 mosaic 已具备前两种：
   1. `Modifier.weight(weight, fill=true)`：Row/Column 内“扣除无 weight 子项后平分剩余主轴”的唯一一等公民；等宽列 = 每列 `weight(1f)`。
