@@ -524,7 +524,7 @@
 
 
 ### L7.23 首帧全屏清屏接管（`ansi.kt` / `rendering.kt`）
-- **现象**：真实 TTY 下 counter / jest / snake 等示例启动后与 shell 残留重叠——「进了 raw 却没清屏」。单元测试在内存虚拟终端里跑不出（虚拟终端初始即空屏、光标在左上，真实终端光标通常停在 shell 提示符之后）。
+- **现象**：真实 TTY 下多个示例启动后与 shell 残留重叠——「进了 raw 却没清屏」。单元测试在内存虚拟终端里跑不出（虚拟终端初始即空屏、光标在左上，真实终端光标通常停在 shell 提示符之后）。
 - **根因**：首帧全量重绘从当前光标位置起逐行绘制，位置不保证在左上；且原 `clearDisplay = CSI J`（ED 0）只清「光标以下」，清不掉上方残留。
 - **修复**：`ansi.kt` `clearDisplay` 改为 `CSI 2 J`（ED 2 全清）；`rendering.kt` 首帧在绘图前追加 `clearDisplay + CSI H`（全清 + 光标归位左上），此后帧继续走 cell 级差分，坐标以「已接管整屏」为前提不变。
 - **测试**：6 个渲染测试首帧预期统一补 `|${clearDisplay}${CSI}H` 前缀（`AnsiIncrementalRenderingTest`19 / `TextScrollRenderingTest`3 / `TextWrapRenderingTest`4 / `TextAlignRenderingTest`7 / `SurfaceReuseTest`1 / `IsoControlRenderingTest`1，前缀与首行内容同排，`visible()` helper 剥离）。无新增断言。
