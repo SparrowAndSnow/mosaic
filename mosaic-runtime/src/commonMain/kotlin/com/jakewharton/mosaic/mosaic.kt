@@ -24,6 +24,8 @@ import com.jakewharton.mosaic.terminal.ClipboardEvent
 import com.jakewharton.mosaic.terminal.KeyboardEvent
 import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.ui.BoxMeasurePolicy
+import com.jakewharton.mosaic.ui.CursorState
+import com.jakewharton.mosaic.ui.LocalCursor
 import com.jakewharton.mosaic.ui.platform.LocalClipboard
 import com.jakewharton.mosaic.ui.platform.TermClipboard
 import de.cketti.codepoints.appendCodePoint
@@ -130,6 +132,12 @@ internal suspend fun runMosaicComposition(
 			runCatching { mosaicComposition.cancel() }
 		}
 		throw t
+	} finally {
+		// A cursor shape is terminal state that survives the last frame, so put the terminal's own
+		// default back when the app ever used one. Visibility is restored by the terminal teardown.
+		if (rendering.usedHardwareCursor) {
+			runCatching { frameWriter.write(resetCursorShape) }
+		}
 	}
 }
 
@@ -198,6 +206,9 @@ internal class MosaicComposition(
 	private val staticLogs = Channel<Any>(UNLIMITED)
 	private val staticLogger = StaticLogger(staticLogs) { needDraw = true }
 	private val clipboard = TermClipboard(terminal)
+
+	/** Set by [com.jakewharton.mosaic.ui.Cursor] during layout/composition; consumed by [draw]. */
+	private val cursorState = CursorState { needDraw = true }
 
 	override val lifecycle = LifecycleRegistry.createUnsafe(this)
 
@@ -271,9 +282,23 @@ internal class MosaicComposition(
 
 	override fun draw(): TextCanvas {
 		readStatesOnDraw.clear()
-		return Snapshot.observe(readObserver = readStatesOnDrawObserver) {
+		val canvas = Snapshot.observe(readObserver = readStatesOnDrawObserver) {
 			rootNode.draw()
 		}
+		// A drawn frame carries its cursor request to the renderer, exactly like the static text
+		// carried by static(). An inactive cursor explicitly clears the request so a reused surface
+		// can never keep showing a cursor that left the composition.
+		if (canvas is TextSurface) {
+			if (cursorState.active) {
+				canvas.cursorColumn = cursorState.column
+				canvas.cursorRow = cursorState.row
+				canvas.cursorShape = cursorState.shape
+				canvas.cursorBlink = cursorState.blink
+			} else {
+				canvas.cursorShape = null
+			}
+		}
+		return canvas
 	}
 
 	override fun static(): String? {
@@ -476,6 +501,7 @@ internal class MosaicComposition(
 				LocalStaticLogger provides staticLogger,
 				LocalLifecycleOwner provides this,
 				LocalClipboard provides clipboard,
+				LocalCursor provides cursorState,
 				content = content,
 			)
 		}

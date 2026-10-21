@@ -772,6 +772,19 @@ public final class com/jakewharton/mosaic/ui/ComposableSingletons$SpacerKt {
 	public final fun getLambda$-294102477$mosaic_runtime ()Lkotlin/jvm/functions/Function2;
 }
 
+public final class com/jakewharton/mosaic/ui/CursorKt {
+	public static final fun Cursor (Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/ui/CursorShape;ZLandroidx/compose/runtime/Composer;II)V
+}
+
+public final class com/jakewharton/mosaic/ui/CursorShape : java/lang/Enum {
+	public static final field Bar Lcom/jakewharton/mosaic/ui/CursorShape;
+	public static final field Block Lcom/jakewharton/mosaic/ui/CursorShape;
+	public static final field Underline Lcom/jakewharton/mosaic/ui/CursorShape;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/jakewharton/mosaic/ui/CursorShape;
+	public static fun values ()[Lcom/jakewharton/mosaic/ui/CursorShape;
+}
+
 public final class com/jakewharton/mosaic/ui/FillerKt {
 	public static final fun Filler-GddN7rU (CLcom/jakewharton/mosaic/modifier/Modifier;IIILandroidx/compose/runtime/Composer;II)V
 	public static final fun Filler-GddN7rU (ILcom/jakewharton/mosaic/modifier/Modifier;IIILandroidx/compose/runtime/Composer;II)V

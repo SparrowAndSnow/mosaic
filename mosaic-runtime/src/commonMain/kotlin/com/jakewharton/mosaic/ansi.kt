@@ -1,6 +1,7 @@
 package com.jakewharton.mosaic
 
 import com.jakewharton.mosaic.ui.Color
+import com.jakewharton.mosaic.ui.CursorShape
 import kotlin.math.roundToInt
 
 internal const val ESC = "\u001B"
@@ -13,6 +14,22 @@ internal const val synchronizedOutputDisable = "$CSI?${synchronizedOutputMode}l"
 internal const val cursorMode = 25
 internal const val hideCursor = "$CSI?${cursorMode}l"
 internal const val showCursor = "$CSI?${cursorMode}h"
+
+/**
+ * DECSCUSR parameter for a cursor [shape] and blink state: 1/2 block, 3/4 underline, 5/6 bar, with
+ * the even value in each pair selecting steady (non-blinking) rendering.
+ */
+internal fun cursorShapeCode(shape: CursorShape, blink: Boolean): Int = when (shape) {
+	CursorShape.Block -> if (blink) 1 else 2
+	CursorShape.Underline -> if (blink) 3 else 4
+	CursorShape.Bar -> if (blink) 5 else 6
+}
+
+/** DECSCUSR sequence selecting the cursor shape [code] (see [cursorShapeCode]). */
+internal fun cursorShapeSequence(code: Int): String = "$CSI$code q"
+
+/** DECSCUSR 0 restores the terminal's own cursor shape. */
+internal const val resetCursorShape = "$CSI 0 q"
 
 internal const val ansiReset = "${CSI}0"
 internal const val clearLine = "${CSI}K"

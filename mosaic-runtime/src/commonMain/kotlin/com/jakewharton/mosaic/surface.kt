@@ -2,6 +2,7 @@ package com.jakewharton.mosaic
 
 import com.jakewharton.mosaic.terminal.AnsiLevel
 import com.jakewharton.mosaic.ui.Color
+import com.jakewharton.mosaic.ui.CursorShape
 import com.jakewharton.mosaic.ui.TextStyle
 import com.jakewharton.mosaic.ui.TextStyle.Companion.Bold
 import com.jakewharton.mosaic.ui.TextStyle.Companion.Dim
@@ -33,6 +34,13 @@ internal class TextSurface(
 ) : TextCanvas {
 	var translationX = 0
 	var translationY = 0
+
+	// Hardware cursor requested for this frame. The composition fills these in after the draw pass
+	// (see MosaicComposition.draw); a null shape means no cursor was requested this frame.
+	internal var cursorColumn = -1
+	internal var cursorRow = -1
+	internal var cursorShape: CursorShape? = null
+	internal var cursorBlink = true
 
 	// Active clip region in canvas (absolute, post-translation) coordinates. When [clipActive] is
 	// false, writes are bounded only by the canvas itself - the overwhelming common case. Draw
@@ -107,6 +115,7 @@ internal class TextSurface(
 		translationX = 0
 		translationY = 0
 		written.fill(false)
+		cursorShape = null
 	}
 
 	override fun appendRowTo(appendable: Appendable, row: Int, ansiLevel: AnsiLevel, supportsKittyUnderlines: Boolean) {

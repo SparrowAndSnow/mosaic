@@ -12,6 +12,8 @@ New:
 - Pointer interaction (hover/press/release/drag), bracketed paste, clipboard read/write, and the
   kitty keyboard protocol.
 - Focus tracking with Tab/Shift+Tab traversal.
+- Hardware cursor control: place the terminal's cursor by layout position with block, underline, or
+  bar shapes and optional blinking (`Cursor`); the terminal's default shape is restored on exit.
 - Border/divider primitives.
 - Animation containers (crossfade, enter/exit, animated visibility).
 - JVM support for RISC-V and s390x!

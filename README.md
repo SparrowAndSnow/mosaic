@@ -149,6 +149,8 @@ Run `./gradlew installDist` to build the sample binaries.
 * Pointer input: hover, press/release, and drag via `clickable`/`hoverable`-style modifiers.
 * Bracketed paste and clipboard read/write (OSC 52).
 * Focus tracking with Tab/Shift+Tab traversal, plus focus, resize, and theme change events.
+* Hardware cursor placement (`Cursor`) with block, underline, or bar shapes and optional blinking,
+  restored to the terminal default on exit.
 
 ### Animation
 * Value animation (tween/spring), `animateXAsState`-style helpers, plus `Crossfade` and

@@ -25,6 +25,18 @@ final enum class com.jakewharton.mosaic.layout/IntrinsicSize : kotlin/Enum<com.j
     final fun values(): kotlin/Array<com.jakewharton.mosaic.layout/IntrinsicSize> // com.jakewharton.mosaic.layout/IntrinsicSize.values|values#static(){}[0]
 }
 
+final enum class com.jakewharton.mosaic.ui/CursorShape : kotlin/Enum<com.jakewharton.mosaic.ui/CursorShape> { // com.jakewharton.mosaic.ui/CursorShape|null[0]
+    enum entry Bar // com.jakewharton.mosaic.ui/CursorShape.Bar|null[0]
+    enum entry Block // com.jakewharton.mosaic.ui/CursorShape.Block|null[0]
+    enum entry Underline // com.jakewharton.mosaic.ui/CursorShape.Underline|null[0]
+
+    final val entries // com.jakewharton.mosaic.ui/CursorShape.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.jakewharton.mosaic.ui/CursorShape> // com.jakewharton.mosaic.ui/CursorShape.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.jakewharton.mosaic.ui/CursorShape // com.jakewharton.mosaic.ui/CursorShape.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.jakewharton.mosaic.ui/CursorShape> // com.jakewharton.mosaic.ui/CursorShape.values|values#static(){}[0]
+}
+
 final enum class com.jakewharton.mosaic.ui/TextOverflow : kotlin/Enum<com.jakewharton.mosaic.ui/TextOverflow> { // com.jakewharton.mosaic.ui/TextOverflow|null[0]
     enum entry Clip // com.jakewharton.mosaic.ui/TextOverflow.Clip|null[0]
     enum entry Ellipsis // com.jakewharton.mosaic.ui/TextOverflow.Ellipsis|null[0]
@@ -974,6 +986,7 @@ final fun com.jakewharton.mosaic.ui/BoxWithConstraints(com.jakewharton.mosaic.mo
 final fun com.jakewharton.mosaic.ui/Color(kotlin/Float, kotlin/Float, kotlin/Float): com.jakewharton.mosaic.ui/Color // com.jakewharton.mosaic.ui/Color|Color(kotlin.Float;kotlin.Float;kotlin.Float){}[0]
 final fun com.jakewharton.mosaic.ui/Color(kotlin/Int, kotlin/Int, kotlin/Int): com.jakewharton.mosaic.ui/Color // com.jakewharton.mosaic.ui/Color|Color(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
 final fun com.jakewharton.mosaic.ui/Column(com.jakewharton.mosaic.modifier/Modifier?, com.jakewharton.mosaic.ui/Arrangement.Vertical?, com.jakewharton.mosaic.ui/Alignment.Horizontal?, kotlin/Function3<com.jakewharton.mosaic.ui/ColumnScope, androidx.compose.runtime/Composer, kotlin/Int, kotlin/Unit>, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // com.jakewharton.mosaic.ui/Column|Column(com.jakewharton.mosaic.modifier.Modifier?;com.jakewharton.mosaic.ui.Arrangement.Vertical?;com.jakewharton.mosaic.ui.Alignment.Horizontal?;kotlin.Function3<com.jakewharton.mosaic.ui.ColumnScope,androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
+final fun com.jakewharton.mosaic.ui/Cursor(com.jakewharton.mosaic.modifier/Modifier?, com.jakewharton.mosaic.ui/CursorShape?, kotlin/Boolean, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // com.jakewharton.mosaic.ui/Cursor|Cursor(com.jakewharton.mosaic.modifier.Modifier?;com.jakewharton.mosaic.ui.CursorShape?;kotlin.Boolean;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 final fun com.jakewharton.mosaic.ui/Filler(kotlin/Char, com.jakewharton.mosaic.modifier/Modifier?, com.jakewharton.mosaic.ui/Color, com.jakewharton.mosaic.ui/Color, com.jakewharton.mosaic.ui/TextStyle, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // com.jakewharton.mosaic.ui/Filler|Filler(kotlin.Char;com.jakewharton.mosaic.modifier.Modifier?;com.jakewharton.mosaic.ui.Color;com.jakewharton.mosaic.ui.Color;com.jakewharton.mosaic.ui.TextStyle;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 final fun com.jakewharton.mosaic.ui/Filler(kotlin/Char, com.jakewharton.mosaic.modifier/Modifier?, com.jakewharton.mosaic.ui/Color?, com.jakewharton.mosaic.ui/Color?, com.jakewharton.mosaic.ui/TextStyle?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // com.jakewharton.mosaic.ui/Filler|Filler(kotlin.Char;com.jakewharton.mosaic.modifier.Modifier?;com.jakewharton.mosaic.ui.Color?;com.jakewharton.mosaic.ui.Color?;com.jakewharton.mosaic.ui.TextStyle?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 final fun com.jakewharton.mosaic.ui/Filler(kotlin/Int, com.jakewharton.mosaic.modifier/Modifier?, com.jakewharton.mosaic.ui/Color, com.jakewharton.mosaic.ui/Color, com.jakewharton.mosaic.ui/TextStyle, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // com.jakewharton.mosaic.ui/Filler|Filler(kotlin.Int;com.jakewharton.mosaic.modifier.Modifier?;com.jakewharton.mosaic.ui.Color;com.jakewharton.mosaic.ui.Color;com.jakewharton.mosaic.ui.TextStyle;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]

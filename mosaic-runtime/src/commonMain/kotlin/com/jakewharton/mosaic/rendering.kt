@@ -6,6 +6,13 @@ import kotlin.time.TimeSource
 
 internal interface Rendering {
 	/**
+	 * Whether any frame displayed the hardware cursor. The composition uses this to restore the
+	 * terminal's default cursor shape on the way out, since the shape is terminal state that
+	 * outlives the last frame.
+	 */
+	val usedHardwareCursor: Boolean get() = false
+
+	/**
 	 * Render [node] to a single string for display.
 	 *
 	 * Note: The returned [CharSequence] is only valid until the next call to this function,
@@ -95,11 +102,42 @@ internal class AnsiIncrementalRendering(
 	private var prevCells = emptyArray<TextPixel>()
 	private var lastStatic: String? = null
 
+	// Hardware-cursor bookkeeping. Once an app requests a cursor, this renderer owns the cursor's
+	// visibility: when the request disappears the cursor stays hidden instead of being parked at
+	// the renderer's usual resting position. Apps that never request a cursor keep the old behavior.
+	private var cursorManaged = false
+	private var cursorUsed = false
+	private var cursorShown = false
+	private var cursorRow = -1
+	private var cursorColumn = -1
+	private var lastCursorShapeCode = 0
+
+	override val usedHardwareCursor: Boolean get() = cursorUsed
+
 	override fun render(mosaic: Mosaic): CharSequence {
 		val surface = mosaic.draw() as TextSurface
 		val static = mosaic.static()
 		val width = surface.width
 		val height = surface.height
+
+		val cursorShape = if (capabilities.cursorVisibility) surface.cursorShape else null
+		val cursorBlink = surface.cursorBlink
+		val cursorRequested = cursorShape != null
+		if (cursorRequested) {
+			cursorManaged = true
+		}
+		var targetRow = surface.cursorRow
+		var targetColumn = surface.cursorColumn
+		val cursorTarget = cursorRequested &&
+			targetRow in 0 until height &&
+			targetColumn in 0 until width
+		if (cursorTarget) {
+			// A hardware cursor cannot sit on the continuation column of a wide cluster; snap left
+			// to the cell that owns the glyph.
+			while (targetColumn > 0 && surface.cells[targetRow * width + targetColumn].isPlaceholder) {
+				targetColumn--
+			}
+		}
 
 		val firstFrame = prevHeight == 0
 		val sizeChanged = prevWidth != width || prevHeight != height
@@ -215,10 +253,51 @@ internal class AnsiIncrementalRendering(
 				}
 			}
 
+			if (cursorManaged) {
+				if (cursorRequested && cursorTarget) {
+					val shapeCode = cursorShapeCode(cursorShape!!, cursorBlink)
+					val moved = !cursorShown || targetRow != cursorRow || targetColumn != cursorColumn
+					// The drawing pass leaves the cursor wherever the last write landed, so a frame
+					// that wrote anything must re-assert the position. In the non-synchronized path
+					// the frame is bracketed by hide/show, which also requires re-showing every time.
+					if (moved || length > contentStart || wrapCursor) {
+						append(CSI)
+						append(targetRow + 1)
+						append(';')
+						append(targetColumn + 1)
+						append('H')
+					}
+					if (shapeCode != lastCursorShapeCode) {
+						append(cursorShapeSequence(shapeCode))
+						lastCursorShapeCode = shapeCode
+					}
+					if (!cursorShown || wrapCursor) {
+						append(showCursor)
+					}
+					cursorShown = true
+					cursorUsed = true
+					cursorRow = targetRow
+					cursorColumn = targetColumn
+				} else if (cursorShown) {
+					append(hideCursor)
+					if (lastCursorShapeCode != 0) {
+						append(resetCursorShape)
+						lastCursorShapeCode = 0
+					}
+					cursorShown = false
+				}
+			}
+
 			if (sync) {
 				append(synchronizedOutputDisable)
 			} else if (wrapCursor) {
-				if (length > contentStart) {
+				if (cursorManaged) {
+					if (length == contentStart && !cursorShown) {
+						// Only the leading hide was emitted (the requested cursor is off-screen and
+						// was never shown); drop it so an empty frame never makes the cursor blink.
+						setLength(frameStart)
+					}
+				} else if (length > contentStart) {
 					append(showCursor)
 				} else {
 					// Nothing was drawn for this frame; drop the stray hide so an empty frame

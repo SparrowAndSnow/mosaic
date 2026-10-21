@@ -70,7 +70,7 @@ class FrameErrorVisibilityTest {
 }
 
 /** Accumulates the byte stream a [FrameWriter] would have written to the terminal. */
-private class ByteCollector {
+internal class ByteCollector {
 	private val bytes = ArrayList<Byte>()
 
 	fun appendBytes(buffer: ByteArray, offset: Int, count: Int) {
