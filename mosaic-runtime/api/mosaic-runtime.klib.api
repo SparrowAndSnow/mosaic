@@ -365,6 +365,23 @@ final class com.jakewharton.mosaic.layout/KeyEvent { // com.jakewharton.mosaic.l
     final fun toString(): kotlin/String // com.jakewharton.mosaic.layout/KeyEvent.toString|toString(){}[0]
 }
 
+final class com.jakewharton.mosaic.layout/MomentumScrollState { // com.jakewharton.mosaic.layout/MomentumScrollState|null[0]
+    constructor <init>(kotlin/Float = ..., kotlin/Float = ..., kotlin/Float = ...) // com.jakewharton.mosaic.layout/MomentumScrollState.<init>|<init>(kotlin.Float;kotlin.Float;kotlin.Float){}[0]
+
+    final val isMoving // com.jakewharton.mosaic.layout/MomentumScrollState.isMoving|{}isMoving[0]
+        final fun <get-isMoving>(): kotlin/Boolean // com.jakewharton.mosaic.layout/MomentumScrollState.isMoving.<get-isMoving>|<get-isMoving>(){}[0]
+
+    final var position // com.jakewharton.mosaic.layout/MomentumScrollState.position|{}position[0]
+        final fun <get-position>(): kotlin/Float // com.jakewharton.mosaic.layout/MomentumScrollState.position.<get-position>|<get-position>(){}[0]
+    final var velocity // com.jakewharton.mosaic.layout/MomentumScrollState.velocity|{}velocity[0]
+        final fun <get-velocity>(): kotlin/Float // com.jakewharton.mosaic.layout/MomentumScrollState.velocity.<get-velocity>|<get-velocity>(){}[0]
+
+    final fun advance(kotlin/Float, kotlin/Float): kotlin/Boolean // com.jakewharton.mosaic.layout/MomentumScrollState.advance|advance(kotlin.Float;kotlin.Float){}[0]
+    final fun impulse(kotlin/Int) // com.jakewharton.mosaic.layout/MomentumScrollState.impulse|impulse(kotlin.Int){}[0]
+    final fun jumpTo(kotlin/Int) // com.jakewharton.mosaic.layout/MomentumScrollState.jumpTo|jumpTo(kotlin.Int){}[0]
+    final fun toString(): kotlin/String // com.jakewharton.mosaic.layout/MomentumScrollState.toString|toString(){}[0]
+}
+
 final class com.jakewharton.mosaic.layout/MouseEvent { // com.jakewharton.mosaic.layout/MouseEvent|null[0]
     constructor <init>(kotlin/Int, kotlin/Int, com.jakewharton.mosaic.layout/MouseEvent.Type, com.jakewharton.mosaic.layout/MouseEvent.Button = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.jakewharton.mosaic.layout/MouseEvent.<init>|<init>(kotlin.Int;kotlin.Int;com.jakewharton.mosaic.layout.MouseEvent.Type;com.jakewharton.mosaic.layout.MouseEvent.Button;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 
@@ -840,6 +857,7 @@ final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusRequester$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusRequester$stableprop|#static{}com_jakewharton_mosaic_layout_FocusRequester$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusState$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusState$stableprop|#static{}com_jakewharton_mosaic_layout_FocusState$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop|#static{}com_jakewharton_mosaic_layout_KeyEvent$stableprop[0]
+final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_MomentumScrollState$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_MomentumScrollState$stableprop|#static{}com_jakewharton_mosaic_layout_MomentumScrollState$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_MouseEvent$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_MouseEvent$stableprop|#static{}com_jakewharton_mosaic_layout_MouseEvent$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_Placeable$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_Placeable$stableprop|#static{}com_jakewharton_mosaic_layout_Placeable$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_ScrollState$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_ScrollState$stableprop|#static{}com_jakewharton_mosaic_layout_ScrollState$stableprop[0]
@@ -959,6 +977,7 @@ final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusRequester$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusRequester$stableprop_getter|com_jakewharton_mosaic_layout_FocusRequester$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusState$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusState$stableprop_getter|com_jakewharton_mosaic_layout_FocusState$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_KeyEvent$stableprop_getter|com_jakewharton_mosaic_layout_KeyEvent$stableprop_getter(){}[0]
+final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_MomentumScrollState$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_MomentumScrollState$stableprop_getter|com_jakewharton_mosaic_layout_MomentumScrollState$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_MouseEvent$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_MouseEvent$stableprop_getter|com_jakewharton_mosaic_layout_MouseEvent$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_Placeable$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_Placeable$stableprop_getter|com_jakewharton_mosaic_layout_Placeable$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_ScrollState$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_ScrollState$stableprop_getter|com_jakewharton_mosaic_layout_ScrollState$stableprop_getter(){}[0]

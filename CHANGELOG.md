@@ -14,6 +14,9 @@ New:
 - Focus tracking with Tab/Shift+Tab traversal.
 - Hardware cursor control: place the terminal's cursor by layout position with block, underline, or
   bar shapes and optional blinking (`Cursor`); the terminal's default shape is restored on exit.
+- Opt-in momentum scrolling: `MomentumScrollState` turns wheel impulses into a decaying fling; the
+  application owns the frame loop, calls `advance(dt, maxPosition)` each frame, and maps `position`
+  into layout. A default wheel notch travels about three rows.
 - Optional alternate-screen support for the `runMosaic*` entry points (`alternateScreen = true`).
   The library enters the alternate screen before capability detection and leaves it during teardown,
   so applications no longer need to emit the control sequences themselves and the shell's scrollback

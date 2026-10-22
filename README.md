@@ -142,6 +142,8 @@ Run `./gradlew installDist` to build the sample binaries.
   proportional layouts; layout caching to skip unchanged subtrees.
 * Text overloads: soft wrapping, truncation (clip/ellipsis), horizontal/vertical alignment, and a
   scrolling view window.
+* Opt-in momentum scrolling (`MomentumScrollState`): the application advances the state from its own
+  frame loop and maps `position` into layout.
 
 ### Interactivity
 * Keyboard input including named keys, repeats, and the kitty keyboard protocol when supported.
