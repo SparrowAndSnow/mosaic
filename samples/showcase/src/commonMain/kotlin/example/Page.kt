@@ -5,6 +5,7 @@ internal enum class Page(
 	val label: String,
 ) {
 	Unicode("Unicode"),
+	Overlay("Overlay"),
 	Text("Text"),
 	Layout("Layout"),
 	Input("Input"),

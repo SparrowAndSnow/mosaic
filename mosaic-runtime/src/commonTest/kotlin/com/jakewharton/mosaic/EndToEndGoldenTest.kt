@@ -11,11 +11,16 @@ import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.testing.TestMosaic
 import com.jakewharton.mosaic.testing.TestTerminal
 import com.jakewharton.mosaic.testing.runMosaicTest
+import com.jakewharton.mosaic.ui.Alignment
 import com.jakewharton.mosaic.ui.Box
 import com.jakewharton.mosaic.ui.Column
+import com.jakewharton.mosaic.ui.Dialog
+import com.jakewharton.mosaic.ui.OverlayHost
+import com.jakewharton.mosaic.ui.Popup
 import com.jakewharton.mosaic.ui.Row
 import com.jakewharton.mosaic.ui.Text
 import com.jakewharton.mosaic.ui.TextOverflow
+import com.jakewharton.mosaic.ui.unit.IntOffset
 import kotlin.test.Test
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.test.runTest
@@ -128,6 +133,79 @@ internal class EndToEndGoldenTest {
 			Text("line one\nline two\nline three", maxLines = 2, overflow = TextOverflow.Clip)
 		}
 	}
+
+	@Test fun dialogBackdropErasesBaseAndCentersContent() = assertGolden(
+		listOf(
+			"",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"",
+			" ".repeat(37) + "Rename",
+		),
+	) {
+		OverlayHost(
+			overlay = {
+				Dialog(onDismissRequest = {}) {
+					Text("Rename")
+				}
+			},
+		) {
+			Column(Modifier.width(80).height(24)) {
+				Text("base content")
+			}
+		}
+	}
+
+	@Test fun popupDrawsAboveBaseAndLeavesRestVisible() = assertGolden(
+		listOf(
+			"base",
+			"  menu",
+		),
+	) {
+		OverlayHost(
+			overlay = {
+				Popup(alignment = Alignment.TopStart, offset = IntOffset(2, 1)) {
+					Text("menu")
+				}
+			},
+		) {
+			Column(Modifier.width(20).height(5)) {
+				Text("base")
+			}
+		}
+	}
+
+	@Test fun closingDialogRestoresBaseScreen() = assertGoldenAfter(
+		first = {
+			OverlayHost(
+				overlay = {
+					Dialog(onDismissRequest = {}) {
+						Text("Rename")
+					}
+				},
+			) {
+				Column(Modifier.width(40).height(10)) {
+					Text("base content")
+				}
+			}
+		},
+		second = {
+			OverlayHost {
+				Column(Modifier.width(40).height(10)) {
+					Text("base content")
+				}
+			}
+		},
+		expected = listOf("base content"),
+	)
 
 	@Test fun incrementalUpdateAdoptsNewScreen() = assertGoldenAfter(
 		first = {

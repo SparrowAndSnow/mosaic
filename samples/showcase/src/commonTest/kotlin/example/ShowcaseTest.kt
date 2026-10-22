@@ -116,6 +116,20 @@ class ShowcaseTest {
 		}
 	}
 
+	@Test fun overlayPageShowsPopupAndDialogControls() = runTest {
+		runMosaicTest {
+			setContentAndSnapshot { ShowcaseApp() }
+
+			// Overlay is the second page; the shell's number shortcuts select it.
+			sendKeyEvent(KeyboardEvent('2'.code, text = "2"))
+			val snapshot = awaitSnapshot().toString()
+			assertThat(snapshot).contains("当前页: Overlay")
+			assertThat(snapshot).contains("[打开 Popup]")
+			assertThat(snapshot).contains("[打开 Dialog]")
+			assertThat(snapshot).contains("[点击 base: 0]")
+		}
+	}
+
 	@Test fun tabBarClickSwitchesPage() = runTest {
 		runMosaicTest {
 			setContentAndSnapshot { ShowcaseApp() }
