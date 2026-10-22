@@ -11,6 +11,9 @@ New:
 - BoxWithConstraints, layout caching, and fill-fraction modifiers for proportional layouts.
 - Pointer interaction (hover/press/release/drag), bracketed paste, clipboard read/write, and the
   kitty keyboard protocol.
+- `ClickTracker`, a small helper for double-click detection: call `press(index, nowMillis)` from a
+  mouse event handler and it reports whether the same row was pressed again within a configurable
+  window, with the caller supplying the clock.
 - Focus tracking with Tab/Shift+Tab traversal.
 - Hardware cursor control: place the terminal's cursor by layout position with block, underline, or
   bar shapes and optional blinking (`Cursor`); the terminal's default shape is restored on exit.

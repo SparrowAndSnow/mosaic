@@ -79,6 +79,15 @@ public final class com/jakewharton/mosaic/layout/BorderKt {
 	public static synthetic fun border-BGVa0Zk$default (Lcom/jakewharton/mosaic/modifier/Modifier;IIILjava/lang/Object;)Lcom/jakewharton/mosaic/modifier/Modifier;
 }
 
+public final class com/jakewharton/mosaic/layout/ClickTracker {
+	public static final field $stable I
+	public fun <init> ()V
+	public fun <init> (J)V
+	public synthetic fun <init> (JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun press (IJ)Z
+	public final fun reset ()V
+}
+
 public final class com/jakewharton/mosaic/layout/ClipToBoundsKt {
 	public static final fun clipToBounds (Lcom/jakewharton/mosaic/modifier/Modifier;)Lcom/jakewharton/mosaic/modifier/Modifier;
 }

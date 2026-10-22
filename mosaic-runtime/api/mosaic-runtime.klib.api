@@ -325,6 +325,13 @@ abstract class com.jakewharton.mosaic.layout/Placeable { // com.jakewharton.mosa
     }
 }
 
+final class com.jakewharton.mosaic.layout/ClickTracker { // com.jakewharton.mosaic.layout/ClickTracker|null[0]
+    constructor <init>(kotlin/Long = ...) // com.jakewharton.mosaic.layout/ClickTracker.<init>|<init>(kotlin.Long){}[0]
+
+    final fun press(kotlin/Int, kotlin/Long): kotlin/Boolean // com.jakewharton.mosaic.layout/ClickTracker.press|press(kotlin.Int;kotlin.Long){}[0]
+    final fun reset() // com.jakewharton.mosaic.layout/ClickTracker.reset|reset(){}[0]
+}
+
 final class com.jakewharton.mosaic.layout/FocusRequester { // com.jakewharton.mosaic.layout/FocusRequester|null[0]
     constructor <init>() // com.jakewharton.mosaic.layout/FocusRequester.<init>|<init>(){}[0]
 
@@ -852,6 +859,7 @@ final const val com.jakewharton.mosaic.ui/UnspecifiedTextStyle // com.jakewharto
 final const val com.jakewharton.mosaic.ui/UnspecifiedUnderlineStyle // com.jakewharton.mosaic.ui/UnspecifiedUnderlineStyle|{}UnspecifiedUnderlineStyle[0]
     final fun <get-UnspecifiedUnderlineStyle>(): kotlin/Int // com.jakewharton.mosaic.ui/UnspecifiedUnderlineStyle.<get-UnspecifiedUnderlineStyle>|<get-UnspecifiedUnderlineStyle>(){}[0]
 
+final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_ClickTracker$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_ClickTracker$stableprop|#static{}com_jakewharton_mosaic_layout_ClickTracker$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop|#static{}com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop|#static{}com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop[0]
 final val com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusRequester$stableprop // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusRequester$stableprop|#static{}com_jakewharton_mosaic_layout_FocusRequester$stableprop[0]
@@ -972,6 +980,7 @@ final fun com.jakewharton.mosaic.layout/HorizontalDivider(kotlin/Int, com.jakewh
 final fun com.jakewharton.mosaic.layout/HorizontalDivider(kotlin/Int, com.jakewharton.mosaic.ui/Color?, kotlin/Int, kotlin/Int, com.jakewharton.mosaic.modifier/Modifier?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // com.jakewharton.mosaic.layout/HorizontalDivider|HorizontalDivider(kotlin.Int;com.jakewharton.mosaic.ui.Color?;kotlin.Int;kotlin.Int;com.jakewharton.mosaic.modifier.Modifier?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 final fun com.jakewharton.mosaic.layout/VerticalDivider(kotlin/Int, com.jakewharton.mosaic.ui/Color, kotlin/Int, kotlin/Int, com.jakewharton.mosaic.modifier/Modifier?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // com.jakewharton.mosaic.layout/VerticalDivider|VerticalDivider(kotlin.Int;com.jakewharton.mosaic.ui.Color;kotlin.Int;kotlin.Int;com.jakewharton.mosaic.modifier.Modifier?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
 final fun com.jakewharton.mosaic.layout/VerticalDivider(kotlin/Int, com.jakewharton.mosaic.ui/Color?, kotlin/Int, kotlin/Int, com.jakewharton.mosaic.modifier/Modifier?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int) // com.jakewharton.mosaic.layout/VerticalDivider|VerticalDivider(kotlin.Int;com.jakewharton.mosaic.ui.Color?;kotlin.Int;kotlin.Int;com.jakewharton.mosaic.modifier.Modifier?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
+final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_ClickTracker$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_ClickTracker$stableprop_getter|com_jakewharton_mosaic_layout_ClickTracker$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop_getter|com_jakewharton_mosaic_layout_DrawStyle_Fill$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop_getter|com_jakewharton_mosaic_layout_DrawStyle_Stroke$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusRequester$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.layout/com_jakewharton_mosaic_layout_FocusRequester$stableprop_getter|com_jakewharton_mosaic_layout_FocusRequester$stableprop_getter(){}[0]
