@@ -2,8 +2,12 @@ package example
 
 import assertk.assertThat
 import assertk.assertions.contains
+import com.jakewharton.mosaic.layout.width
+import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.terminal.KeyboardEvent
+import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.testing.runMosaicTest
+import com.jakewharton.mosaic.ui.Box
 import example.screens.AnimationScreen
 import example.screens.BorderScreen
 import example.screens.FieldScreen
@@ -23,7 +27,15 @@ class ShowcaseTest {
 
 	@Test fun unicodePageShowsWideAndEmojiContent() = runTest {
 		runMosaicTest {
-			val snapshot = setContentAndSnapshot { UnicodeScreen() }
+			// The harness measures the root with unbounded constraints. The page uses
+			// Row(fillMaxWidth) + weight for its trailing │, so give it the showcase shell's width
+			// exactly as ShowcaseApp does at runtime; otherwise the divider lands on column 0 and
+			// overwrites the first glyph.
+			val snapshot = setContentAndSnapshot {
+				Box(Modifier.width(Terminal.Size.Default.columns)) {
+					UnicodeScreen()
+				}
+			}
 			assertThat(snapshot).contains("你好，世界！")
 			assertThat(snapshot).contains("👨\u200D👩\u200D👧\u200D👦")
 			assertThat(snapshot).contains("🇨🇳")
