@@ -6,6 +6,7 @@
 > 优先级：**P0**=正确性/回归优先；**P1**=高价值优化；**P2**=增强/打磨；**P3**=长期/可选。
 > 参考基准：本仓库既有测试与台账（调研文档已在合并前移出仓库）。
 
+> **对账更新：2026-10-22（三）** L7.34 备用屏生命周期已归档（`43c85bb1`，见 §11）；`runMosaic*` 可选 `alternateScreen`，库接管进出序列并在 teardown 中幂等 leave。
 > **对账更新：2026-10-22** L7.33 `onGloballyPositioned` 内容未放置修复已归档（Row/LazyColumn 回归）；L7.21~L7.32 归档记录保持不变，L1~L7 主干完成；本文件余下未勾项即后续候选（P1/P2/P3），台账进度以 refactor-progress 为准。
 > **对账更新：2026-10-19** L7.20 边框/分隔绘制已归档（`392b7efa`，见 §15）；台账进度以 refactor-progress 为准。
 > **对账更新：2026-10-18（二）** 全面对账完成（见 §14「台账同步」✅）：过时项已勾销——static 逐行清理（L3.5）、DEC 2027 探测（L6.2）、右缘裁剪/部分覆盖（L3.4 + L7.2 + L7.10）、drawSolidRect 越界（L7.10）、画布复用（L7.2）；并刷新 §0 矩阵与运行模型/tty 行。
@@ -29,7 +30,7 @@
 | 输入 | 鼠标/粘贴/clipboard/kitty 键盘全消费（L5.1~L5.6） | 声明式 CellMotion/AllMotion 分档未做（固定 1003） | — | P3 |
 | 能力探测 | DA1 + 批量 DECRPM/DCS/OSC + 1s 兜底；DEC 2027（L6.2）+ 探测清单（L6.8） | 超时降级可观测；逐 rune 后备 | — | P3 |
 | tty 适配 | JNI/FFM/cinterop 三绑定 + C(posix/windows) + Zig；信号/resize/raw 已核对（L6） | 三套绑定一致性 / Windows 路径待环境验证 | — | **P1** |
-| 生命周期 | 异常恢复（L7.4）+ native 信号兜底（L6.4）+ 非交互提示（L7.8） | 前后台/失焦降帧联动 | — | P3 |
+| 生命周期 | 异常恢复（L7.4）+ native 信号兜底（L6.4）+ 非交互提示（L7.8）+ 备用屏（L7.34） | 前后台/失焦降帧联动 | — | P3 |
 | 动画 | mosaic-animation（Compose port） | 跟随 androidx 升级 | Compose upstream | P3 |
 | 测试 | 快照 + TestTerminal + 簇/渲染级断言 + 能力矩阵（L7.9）+ bench（L7.1） | 端到端 golden | — | P3 |
 
@@ -154,6 +155,7 @@
 ## 11. 生命周期 / 集成
 - [x] **P1 异常安全** ✅（L6.7，`d6926d77`）：teardown 提为幂等函数（`AtomicBoolean` 单次），`close()` 同步先跑再 `closeJob.cancel()`，保证先于 `tty.close()` 完成恢复；finalization hook 复用同一 teardown 兜底信号/shutdown 路径。异常/取消/信号三条路径核实全覆盖；消除对 `Unconfined` 内联续传的隐性依赖。
 - [x] **P2 非交互策略** ✅（L7.8，`b60dd5b8`）：`withTerminal` 落到 `NonInteractiveTerminal`（`Ignore` 绑定失败 / `AssumeAndIgnore`）时先向 stderr 打 `NonInteractiveNotice`（JVM `System.err` / native posix `STDERR_FILENO`），能力降级不再静默。
+- [x] **P2 备用屏生命周期** ✅（L7.34，`43c85bb1`）：`runMosaic` / `runMosaicBlocking` / `runMosaicMain` 增 `alternateScreen: Boolean = false` 并经 `withTerminal` → `Tty.asTerminalIn` 透传；真实 TTY 上在 raw mode 后、能力探测前写 enter（`CSI ?1049h`），幂等 teardown 先恢复全部被 toggle 的模式再写 leave（`CSI ?1049l`），正常 close/取消/信号收尾统一覆盖，非交互/绑定失败不发送。`ansi.kt` 集中常量；`TtyTerminalAlternateScreenTest` 3 条 + `TtyTerminalLifecycleTest` 增 2 条（幂等/取消）。已知限制：硬崩溃仅 C 级 termios 恢复、可能来不及 leave。
 - [ ] **P3 静态日志**：`StaticEffect`/`static()` 与整帧渲染并发写 stdout 的原子性（`rendering.kt` 已考虑 `clearDisplay` 兜底）。
 
 ## 12. 动画（`mosaic-animation/`）
