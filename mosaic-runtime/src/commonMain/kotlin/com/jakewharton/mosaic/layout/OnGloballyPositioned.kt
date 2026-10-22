@@ -14,7 +14,8 @@ import com.jakewharton.mosaic.ui.unit.IntSize
  * changes relative to the previous placement of this node, so a layout that does not move is not
  * reported again on every frame. This is the idiomatic way for a node to learn where it landed
  * (for example to anchor a popup, a cursor, or a tooltip to an element) without rewriting the
- * layout of its parent.
+ * layout of its parent. It never changes where the content lands: the content is placed at this
+ * layer's origin exactly like any other pass-through layout modifier.
  *
  * @param onPositioned Called with the node's top-left position in root coordinates and its size,
  *   whenever either changes after a placement.
@@ -41,6 +42,10 @@ private class OnGloballyPositionedModifier(
 	): MeasureResult {
 		val placeable = measurable.measure(constraints)
 		return layout(placeable.width, placeable.height) {
+			// This layer only observes placement; it must still place its content at its own origin,
+			// or the child (and everything below it) is left unplaced at the canvas origin and draws
+			// on top of unrelated content.
+			placeable.place(0, 0)
 			// Placement runs top-down through the cascade, so by the time this block executes the
 			// scope's x/y already include every ancestor placement: they are screen coordinates.
 			val width = placeable.width

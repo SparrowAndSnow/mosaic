@@ -19,6 +19,7 @@ import com.jakewharton.mosaic.runMosaicComposition
 import com.jakewharton.mosaic.testing.TestTerminal
 import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.ui.Box
+import com.jakewharton.mosaic.ui.LazyColumn
 import com.jakewharton.mosaic.ui.Row
 import com.jakewharton.mosaic.ui.Text
 import com.jakewharton.mosaic.ui.unit.IntOffset
@@ -74,6 +75,37 @@ class OnGloballyPositionedTest {
 		// Inside the Row the measured content starts at x=0; the leading 7-wide sibling shifts
 		// this box to column 7 in root coordinates.
 		assertThat(reports[0]).isEqualTo(IntOffset(7, 0))
+	}
+
+	@Test fun contentRemainsAtItsPlacedPosition() = runTest {
+		runMosaicTest {
+			setContent {
+				Row {
+					Text("----")
+					Box(Modifier.onGloballyPositioned { _, _ -> }) {
+						Text("X")
+					}
+				}
+			}
+			// The modifier reports placement but must also place its content; otherwise the Box
+			// (and the Text inside it) stays at the canvas origin and paints over the first dashes.
+			assertThat(awaitSnapshot()).isEqualTo("----X")
+		}
+	}
+
+	@Test fun lazyColumnRowsStayOnTheirRows() = runTest {
+		runMosaicTest {
+			setContent {
+				Box(Modifier.size(12, 4)) {
+					LazyColumn(itemHeight = 1, beforeLookahead = 0, afterLookahead = 0) {
+						items(4) { index ->
+							Text("row$index", Modifier.onGloballyPositioned { _, _ -> })
+						}
+					}
+				}
+			}
+			assertThat(awaitSnapshot()).isEqualTo("row0\nrow1\nrow2\nrow3")
+		}
 	}
 
 	@Test fun firesAgainWhenPositionChanges() = runTest {
