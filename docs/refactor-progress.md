@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`refactor` · 当前 HEAD：L7.32（代码 `65631043`） · 创建：2026-10-17 · 更新：2026-10-21
+> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.33（代码 `b8cdc33e`） · 创建：2026-10-17 · 更新：2026-10-22
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/benchmarks.md`（调研文档已在合并前移出仓库）
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -32,7 +32,7 @@
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 完成（L6.1~L6.8 已归档） |
-| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.32 已归档；余下 P2/P3 可选） |
+| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.33 已归档；余下 P2/P3 可选） |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
 
@@ -109,6 +109,7 @@
 | L7 | L7.30 | 帧时钟集成核对（审计 + 补测）：动画经 `MosaicComposition` 内部 `BroadcastFrameClock` 驱动（`startFrameListener` 逐外帧 `internalClock.sendFrame(nanos)`，时间=真实单调钟 `nanoTime()`）；`delay(1)` ~1000fps 恒发已被 L7.3 自适应两级节流取代（动画忙 `hasAwaiters`→60fps / 空闲 20fps，空闲帧不重绘）；低电量=空闲 20fps 有界轮询（输入延迟 ≤50ms 取舍，纯唤醒不渲染）；覆盖缺口「空闲期启动动画 → 切回 60fps」补 1 条测试 | `fb5d2b2b` | `FrameThrottleTest` 增 `animationStartingAfterIdleKeepsHighFrameRate`（空闲 200ms 后起 30 帧 <1.4s，与 20fps 卡死 ~1.55s 区分）；mosaic-runtime jvmTest 与 linuxX64Test 全绿 | ✅ 已归档 |
 | L7 | L7.31 | 硬件光标 API（`ui/Cursor.kt` / `rendering.kt` / `ansi.kt`）：`Cursor(modifier, shape, blink)` 零尺寸标记按布局位置（`onGloballyPositioned` 根坐标）锚定真实终端光标，`CursorShape`（Block/Underline/Bar × blink）映射 DECSCUSR；`MosaicComposition.draw()` 经 `TextSurface` 携带请求（不改 `Mosaic`/`Rendering` 公共接口）；渲染器帧尾按需 CUP + 形状 + show，越界不显示、宽簇续列吸附簇头、请求消失即 hide + 复位形状、进程退出复位默认形状；仅 `cursorVisibility` 能力下生效 | `b96a8c64` | `CursorRenderingTest`（10 条：布局位置 / 祖先 padding / 形状编码 / 宽簇吸附 / 移除隐藏并复位 / 越界不显示 / 跨帧移动 / 同步输出 / 无光标保持旧 hide-show 框架 / 退出复位）；JVM 726 / linuxX64 724 全绿；apiDump 更新 JVM + klib | ✅ 已归档 |
 | L7 | L7.32 | TTY 三绑定一致性（`mosaic-tty`）：新增共享参数校验 `TtyArguments.checkReadWriteArguments` + `TtyContractTest`；JNI/FFM/native 统一「越界 → `IndexOutOfBoundsException`」「关闭后除 `reset`/`close` 外 → `IllegalStateException`」、offset/count、超时/中断、字节往返；JNI 回调初始化失败清理全局引用、三绑定回调「先摘除后释放」、FFM 关闭先释放原生再关回调 arena、native `reset` 错误传播、JNI/FFM 进入 raw mode 补装 POSIX 信号兜底（与 native 对齐）；修正 `TestTtyTest` stderr 假阳性 | `65631043` | `TtyContractTest`（11 条）+ 既有套件；mosaic-tty JVM 116 / linuxX64 122、FFM 分发（JDK 25）116 全绿；tty-terminal JVM 269 / linuxX64 268 回归；`:mosaic-tty:spotlessCheck` 通过 | ✅ 已归档 |
+| L7 | L7.33 | `onGloballyPositioned` 内容未放置修复（`layout/OnGloballyPositioned.kt`）：measure 自建的 placement 块只回报坐标、未 `placeable.place(0,0)`，子内容与整棵子树停在 canvas 原点 → LazyColumn 各行/带该 modifier 的内容全部画到左上角重叠；补放置调用（坐标语义不变） | `b8cdc33e` | `OnGloballyPositionedTest` 7 条（原 5 + `contentRemainsAtItsPlacedPosition`（修复前 `X---` → 修复后 `----X`）+ `lazyColumnRowsStayOnTheirRows`）；mosaic-runtime JVM 728 / linuxX64 726 全绿 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -608,15 +609,22 @@
 - **验证口径**：`mosaic-tty` JVM 116 / linuxX64 122（native 多 6 条 SignalGuardTest）；FFM 用 `installJvmTestDistribution` 在 JDK 25 跑完整 116 条——多版本 jar 的 `META-INF/versions/22` 生效（已用 `Tty.class` 资源路径确认）；`mosaic-tty-terminal` JVM 269 / linuxX64 268 回归；`:mosaic-tty:spotlessCheck` 通过。EINTR 由共享 C 层处理，未做信号注入。
 - **顺带修复**：`TestTtyTest.stdinErrTtySettingFalse` 原本绑定 `stderrIsTty = true` 并断言 true（假阳性），改为 false/false。
 
+### L7.33 `onGloballyPositioned` 内容未放置修复（`layout/OnGloballyPositioned.kt`，`b8cdc33e`）
+- **现象**：给 LazyColumn 每一行加 `Modifier.onGloballyPositioned` 统计行号后，所有行都画到左上角、屏幕内容互相覆盖。
+- **根因**：该 modifier 的 `measure` 自建 `layout(w,h) { ... }`，placement 块只计算并回调坐标，**没有 `placeable.place(0,0)`**。子内容与整棵子树保持未放置状态（x/y 默认 0），绘制从 canvas 原点开始，祖先给该节点分配的偏移完全不生效；其它 pass-through `LayoutModifier` 都会在 placement 块中放置子项。
+- **修复**：placement 块先 `placeable.place(0, 0)`，再读取本层 `x/y` 回报（坐标语义不变）。
+- **回归**：`contentRemainsAtItsPlacedPosition`（Row 中 `Text("----")` + 带 modifier 的 `Box { Text("X") }`，修复前实际 `X---`，修复后 `----X`）与 `lazyColumnRowsStayOnTheirRows`（4 行 LazyColumn 各就各位）。`OnGloballyPositionedTest` 7 条全绿。
+- **验证**：mosaic-runtime JVM 728 / linuxX64 726 全绿；既有位置/尺寸/重复上报语义用例均回归通过。
+
 ## 6. 当前状态 / 下一步候选
 
-### 6.1 当前状态（2026-10-21）
+### 6.1 当前状态（2026-10-22）
 
-- 分支 `refactor`，HEAD `65631043`（L7.32 TTY 三绑定一致性归档）；工作树干净，未推送远端。
+- 分支 `main`（`refactor` 同步），HEAD `b8cdc33e`（L7.33 `onGloballyPositioned` 放置修复）；工作树干净。
 - **红线清理（2026-10-21，提交 `77b645fa`）**：5 个含第三方名的提交信息已重写（其后所有提交哈希随之变化，台账/待办中的引用已全部重映射）；3 份调研文档已移出仓库（存档于仓库外）；README/CHANGELOG 的归属引用已中性化。
-- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.32（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
-- 回归基线（2026-10-21）：`mosaic-runtime` **JVM 726 / linuxX64 724**；`mosaic-tty` **JVM 116 / linuxX64 122**（FFM 分发 JDK 25 亦 116）；`mosaic-tty-terminal` **JVM 269 / linuxX64 268**；`mosaic-animation` 各 23；`mosaic-terminal` / `mosaic-testing` / `samples/showcase` 双平台全绿、0 失败。
-- L7.32 之后本层无「进行中」步骤，只剩 todo 中的 P2/P3 可选项与合并前清理项。
+- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.33（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
+- 回归基线（2026-10-22）：`mosaic-runtime` **JVM 728 / linuxX64 726**；`mosaic-tty` **JVM 116 / linuxX64 122**（FFM 分发 JDK 25 亦 116）；`mosaic-tty-terminal` **JVM 269 / linuxX64 268**；`mosaic-animation` 各 23；`mosaic-terminal` / `mosaic-testing` / `samples/showcase` 双平台全绿、0 失败。
+- L7.33 之后本层无「进行中」步骤，只剩 todo 中的 P2/P3 可选项与合并前清理项。
 
 ### 6.2 下一步候选（需确认后，一次一项）
 
