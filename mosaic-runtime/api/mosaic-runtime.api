@@ -846,6 +846,33 @@ public final class com/jakewharton/mosaic/ui/SpacerKt {
 	public static final fun Spacer (Lcom/jakewharton/mosaic/modifier/Modifier;Landroidx/compose/runtime/Composer;II)V
 }
 
+public final class com/jakewharton/mosaic/ui/TabRowColors {
+	public static final field $stable I
+	public synthetic fun <init> (IIIIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IIIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-OrXnJU4 ()I
+	public final fun component2-OrXnJU4 ()I
+	public final fun component3-OrXnJU4 ()I
+	public final fun component4-OrXnJU4 ()I
+	public final fun component5-OrXnJU4 ()I
+	public final fun component6-OrXnJU4 ()I
+	public final fun copy-_xoXUrE (IIIIII)Lcom/jakewharton/mosaic/ui/TabRowColors;
+	public static synthetic fun copy-_xoXUrE$default (Lcom/jakewharton/mosaic/ui/TabRowColors;IIIIIIILjava/lang/Object;)Lcom/jakewharton/mosaic/ui/TabRowColors;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContainer-OrXnJU4 ()I
+	public final fun getContent-OrXnJU4 ()I
+	public final fun getDivider-OrXnJU4 ()I
+	public final fun getHoverBackground-OrXnJU4 ()I
+	public final fun getSelectedBackground-OrXnJU4 ()I
+	public final fun getSelectedContent-OrXnJU4 ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/jakewharton/mosaic/ui/TabRowKt {
+	public static final fun TabRow (Ljava/util/List;ILkotlin/jvm/functions/Function1;Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/ui/TabRowColors;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class com/jakewharton/mosaic/ui/Text {
 	public static final fun Text-ttxxx2w (Lcom/jakewharton/mosaic/text/AnnotatedString;Lcom/jakewharton/mosaic/modifier/Modifier;ZILcom/jakewharton/mosaic/ui/TextOverflow;Lcom/jakewharton/mosaic/ui/Alignment$Horizontal;IIIIIILandroidx/compose/runtime/Composer;III)V
 	public static final fun Text-ttxxx2w (Ljava/lang/String;Lcom/jakewharton/mosaic/modifier/Modifier;ZILcom/jakewharton/mosaic/ui/TextOverflow;Lcom/jakewharton/mosaic/ui/Alignment$Horizontal;IIIIIILandroidx/compose/runtime/Composer;III)V

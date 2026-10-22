@@ -17,6 +17,8 @@ New:
 - `Modifier.clickable` accepts an optional `onDoubleClick`: the first release invokes `onClick`, and
   a second release on the same element within 400 ms invokes `onDoubleClick` instead of clicking
   again.
+- `TabRow`, a palette-neutral row of clickable tabs: selected, hover, and container colors, an
+  optional one-cell divider, and a trailing `RowScope` slot for a right-aligned status hint.
 - Focus tracking with Tab/Shift+Tab traversal.
 - Hardware cursor control: place the terminal's cursor by layout position with block, underline, or
   bar shapes and optional blinking (`Cursor`); the terminal's default shape is restored on exit.
