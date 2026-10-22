@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.41（代码 `164872d1`） · 创建：2026-10-17 · 更新：2026-10-23
+> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.42（代码 `14126970`） · 创建：2026-10-17 · 更新：2026-10-23
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/benchmarks.md`（调研文档已在合并前移出仓库）
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -32,7 +32,7 @@
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 完成（L6.1~L6.8 已归档） |
-| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.41 已归档；余下 P3 可选） |
+| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.42 已归档；余下 P3 可选） |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
 
@@ -117,7 +117,8 @@
 | L7 | L7.38 | 标签栏组件（`ui/TabRow.kt`）：`TabRow(tabs, selectedIndex, onSelect, modifier, colors = TabRowColors(), divider = "│", trailing)`——每个标签为 `" label "`（左右各 1 列内边距），由 `clickable`/`hoverable` 驱动；背景优先级选中 > 悬停 > 容器，内容色选中/未选中分离，标签间可选 1 格分隔符；`trailing` 为 `RowScope` 槽位（可用 `weight` 右对齐提示）；六项配色默认 `Color.Unspecified`，不绑定应用调色板；不含选中/滚动/键盘逻辑 | `d5bf3b19` | `TabRowTest`（7 条：标签/分隔/尾部权重、选中与非选中配色、点击第二个/已选中标签、悬停背景与离开恢复、`divider=null`、空标签） | ✅ 已归档 |
 | L7 | L7.39 | 非模态浮层第一阶段（`ui/OverlayHost.kt` / `ui/Popup.kt`）：`OverlayHost(overlay, modifier, content)` 以 base 先测先画、overlay 槽 `matchParentSize` 跟随 base，直接子节点即 layer（后声明在上）；`Popup(alignment, offset, modifier, content)` 按内容尺寸测量并由槽按 base 相对 alignment + cell offset 放置，鼠标命中自顶向下、popup 内未消费事件由层内 shield 吞掉、popup 外回落 base；单组合仅允许一个 host（第二个/嵌套抛 `IllegalStateException`）；键盘/粘贴仍按树序（P2 门控）、无 modal/backdrop/焦点域/Esc（P2） | `19c291a1` | `OverlayHostTest` 6 条（null 等价 / 槽尺寸 / 0×0 base / 嵌套与第二 host 抛错 / 键盘行为锁定）+ `PopupTest` 5 条（绘制顺序 + 对齐偏移 / 双层命中 / 点内屏蔽 / 点外回落 / popup 内容优先）；定向 JVM 11/11；apiDump + apiCheck；仅 `compileKotlinLinuxX64`（时间盒跳过 linuxX64Test/全量） | ✅ 已归档 |
 | L7 | L7.40 | 弹窗/浮层 P2（模态输入门控）：`Dialog`（居中、默认 `OverlayBackdrop.Solid`、Esc 后置、backdrop 点击 + 内容 shield、焦点保存/恢复）与 `Popup(modal = true, backdrop, onDismissRequest)`；`OverlayBackdrop.None/Solid`（`Solid` 经 `TextSurface.clearRect` 清字符/前景/背景/下划线，可铺背景色）；根入口 key/mouse/paste 按层反序、modal 屏障；`FocusManager` 活动域/保存恢复/Tab 空域消费/域外 requestFocus 忽略；`PointerState` 候选 roots/按压取消/hover 清理；`OverlayHostState` 作为内部 LayoutModifier 挂到组合根，applier 变更置 dirty，layout/input 前同步 | `1149eb06` | `DialogTest` 13 + `PopupTest` 6 + `OverlayHostTest` 6 = 25 条（modal key/paste 屏障、Esc 内容优先、backdrop 点击与 press/release 跨区、Solid 清样式与背景色、None 保 base、焦点保存恢复/目标消失、Tab 域/空域、按压取消与 hover 清理、双层 LIFO、modal Popup 屏障）；全量 JVM 794/794、linuxX64 792/792；apiDump + apiCheck；compileKotlinLinuxX64 | ✅ 已归档 |
-| L7 | L7.41 | 浮层 P3 验收：`EndToEndGoldenTest` 增 3 条端到端 golden（Dialog 默认 Solid 擦除 base 且内容居中、Popup 叠加但 base 其余可见、关闭 Dialog 后增量恢复）；showcase 增 Overlay 页（shell 整体包 `OverlayHost`，非模态 Popup + 模态 Dialog + base 点击计数；页面经编号键/标签进入），页面 smoke 测试 | `164872d1` | 全量 JVM 797/797、linuxX64 795/795（含 3 条 golden）；`ShowcaseTest.overlayPageShowsPopupAndDialogControls` 通过；`:samples:showcase:compileKotlinLinuxX64` 通过；API 未变（无需 dump）；showcase 既有 `unicodePageShowsWideAndEmojiContent` 失败在 47ce4adf worktree 同样复现，与本轮无关 | ✅ 已归档 |
+| L7 | L7.41 | 浮层 P3 验收：`EndToEndGoldenTest` 增 3 条端到端 golden（Dialog 默认 Solid 擦除 base 且内容居中、Popup 叠加但 base 其余可见、关闭 Dialog 后增量恢复）；showcase 增 Overlay 页（shell 整体包 `OverlayHost`，非模态 Popup + 模态 Dialog + base 点击计数；页面经编号键/标签进入），页面 smoke 测试 | `164872d1` | 全量 JVM 797/797、linuxX64 795/795（含 3 条 golden）；`ShowcaseTest.overlayPageShowsPopupAndDialogControls` 通过；`:samples:showcase:compileKotlinLinuxX64` 通过；API 未变（无需 dump）；showcase 既有 Unicode 测试失败已由 L7.42 修复 | ✅ 已归档 |
+| L7 | L7.42 | showcase Unicode 测试夹具修复：`UnicodeScreen` 的 `Line` 用 `Row(fillMaxWidth) + weight + 尾部│`，测试直接在无界根上渲染时尾部│落在第 0 列并覆盖首字；测试改为按 shell 运行时宽度（`Terminal.Size.Default.columns`）包一层 `Box(width)` | `14126970` | `:samples:showcase:jvmTest` 11/11；`:samples:showcase:compileKotlinLinuxX64` 通过 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -712,27 +713,34 @@
   - `Page` 增加 `Overlay`（位于 Unicode 之后，便于标签可见）；`when` 分支传入回调；新增 `screens/OverlayScreen.kt` 只负责说明与按钮，不自己创建 host。
   - 页面 smoke：`ShowcaseTest.overlayPageShowsPopupAndDialogControls` 用编号键 `2` 切到 Overlay，断言 `当前页: Overlay`、`[打开 Popup]`、`[打开 Dialog]`、`[点击 base: 0]`。
 - **验证**：全量 `:mosaic-runtime:jvmTest` **797/797**、`:mosaic-runtime:linuxX64Test --no-configuration-cache` **795/795**（各含 3 条新 golden）；定向 `:samples:showcase:jvmTest --tests "example.ShowcaseTest.overlayPageShowsPopupAndDialogControls"` 通过；`:samples:showcase:compileKotlinLinuxX64` 通过；公共 API 未变，`apiCheck` 仍通过。
-- **既有失败（未处理，非本轮引入）**：`ShowcaseTest.unicodePageShowsWideAndEmojiContent` 在当前工作树失败（`你好，世界！` 被 `Row + weight + 尾部│` 的左缘裁掉首字）；用 `47ce4adf` 单独 worktree 复跑同样失败，确认与浮层改动无关。已登记为待查的既有 showcase 期望/布局问题；按「不修无关失败」的约束未改。
+- **既有失败（已由 L7.42 修复）**：`ShowcaseTest.unicodePageShowsWideAndEmojiContent` 当时失败（`你好，世界！` 左缘首字被尾部 `│` 覆盖）；用 `47ce4adf` 单独 worktree 复跑同样失败，确认与浮层无关，随后定位为测试夹具的无界根问题并在 L7.42 修复。
 - **P3 剩余**：非整屏 `Solid` 的宽字符簇边缘、关闭后 hover 重算、`Cursor` 活动域可见性、dim/invert 后处理、非 modal 点击外部关闭、子组合 host 登记、非 LIFO 焦点对齐。
+
+### L7.42 showcase Unicode 测试夹具修复（`samples/showcase/.../ShowcaseTest.kt`，`14126970`）
+- **现象**：`ShowcaseTest.unicodePageShowsWideAndEmojiContent` 的 PlainText 快照里，`你好，世界！` 变成 `│好，世界！`，每个 `Line` 的首字被尾部 `│` 覆盖；其它行同样丢首字。
+- **根因**：`UnicodeScreen.Line` 用 `Row(Modifier.fillMaxWidth()) + Text(Modifier.weight(1f)) + Text("│")` 把分隔符推到右端。测试 harness 的根按**无界约束**测量（库的既有契约），`fillMaxWidth`/weight 在无界根上没有可分配宽度：weight 内容得到 0 宽，尾部 `│` 被放在第 0 列，绘制时覆盖首字。`ShowcaseApp` 运行时会给页面 `Modifier.width(terminal.size.columns)`，所以真实终端不受影响。
+- **修复**：测试改为与 shell 运行时一致——`Box(Modifier.width(Terminal.Size.Default.columns)) { UnicodeScreen() }`，让 `fillMaxWidth`/weight 有 80 列可分配。未改 runtime、未改页面布局。
+- **验证**：`:samples:showcase:jvmTest` **11/11**（含 Unicode 与 Overlay 页）；`:samples:showcase:compileKotlinLinuxX64` 通过；新文件无 spotless 格式/lint 问题（showcase 其它既有格式违规未动）。
 
 ## 6. 当前状态 / 下一步候选
 
 ### 6.1 当前状态（2026-10-22）
 
-- 分支 `main`（`refactor` 同步），L7.41 代码提交 `164872d1`（浮层 golden + showcase Overlay 页，P3 验收）；代码提交后工作树干净，本台账变更另行提交。
+- 分支 `main`（`refactor` 同步），L7.42 代码提交 `14126970`（showcase Unicode 测试夹具修复）；代码提交后工作树干净，本台账变更另行提交。
 - **红线清理（2026-10-21，提交 `77b645fa`）**：5 个含第三方名的提交信息已重写（其后所有提交哈希随之变化，台账/待办中的引用已全部重映射）；3 份调研文档已移出仓库（存档于仓库外）；README/CHANGELOG 的归属引用已中性化。
-- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.41（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
-- 回归基线（2026-10-23）：`mosaic-runtime` **JVM 797 / linuxX64 795**；`mosaic-tty` JVM 116 / linuxX64 122（FFM 分发 JDK 25 亦 116）；`mosaic-tty-terminal` JVM 274 / linuxX64 273；`mosaic-animation` 各 23；`mosaic-terminal` / `mosaic-testing` 双平台全绿。`samples/showcase` 的 Overlay smoke 通过，但既有 `unicodePageShowsWideAndEmojiContent` 失败（47ce4adf 同样复现，待查）。
+- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.42（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
+- 回归基线（2026-10-23）：`mosaic-runtime` **JVM 797 / linuxX64 795**；`mosaic-tty` JVM 116 / linuxX64 122（FFM 分发 JDK 25 亦 116）；`mosaic-tty-terminal` JVM 274 / linuxX64 273；`mosaic-animation` 各 23；`mosaic-terminal` / `mosaic-testing` / `samples/showcase`（11/11）双平台全绿。
 - L7.38 时间盒验证：只跑新增定向 JVM 测试（`TabRowTest` 7/7）与 `:mosaic-runtime:compileKotlinLinuxX64`（`apiDump` / `apiCheck` 通过），未重跑全量 JVM/Native 套件，故上述基线数值保持不变。
 - L7.39 时间盒验证：只跑新增定向 JVM 测试（`OverlayHostTest` 6/6 + `PopupTest` 5/5 = 11/11）、`:mosaic-runtime:apiDump` → `apiCheck` 与 `:mosaic-runtime:compileKotlinLinuxX64`；按时间盒要求**跳过** `linuxX64Test` 与全量 JVM 套件，故当时基线数值仍按 745/743 记录（新增 11 条未计入全量）。
 - L7.40 验证：定向 overlay 测试 25/25（`DialogTest` 13 + `PopupTest` 6 + `OverlayHostTest` 6）、全量 `:mosaic-runtime:jvmTest` 794/794、`:mosaic-runtime:linuxX64Test --no-configuration-cache` 792/792、`:mosaic-runtime:apiDump` → `apiCheck`、`:mosaic-runtime:compileKotlinLinuxX64` 全绿。
 - L7.41 验证：全量 `:mosaic-runtime:jvmTest` 797/797、`:mosaic-runtime:linuxX64Test --no-configuration-cache` 795/795；定向 `ShowcaseTest.overlayPageShowsPopupAndDialogControls` 通过；`:samples:showcase:compileKotlinLinuxX64` 通过；API 未变。
-- L7.41 之后浮层只剩 P3 打磨（hover 重算/光标可见性、非整屏 Solid 宽簇边缘、dim/invert、非 modal 点击外部关闭、子组合 host 登记、非 LIFO 焦点对齐），见 todo §15 与设计文档 §9/§11；另有既有 showcase Unicode 测试失败待查。
+- L7.42 验证：`:samples:showcase:jvmTest` 11/11（含 Unicode 与 Overlay 页）；`:samples:showcase:compileKotlinLinuxX64` 通过；新增/修改测试文件无 spotless 格式或 lint 问题（showcase 其它既有格式违规未动）。
+- L7.42 之后浮层只剩 P3 打磨（hover 重算/光标可见性、非整屏 Solid 宽簇边缘、dim/invert、非 modal 点击外部关闭、子组合 host 登记、非 LIFO 焦点对齐），见 todo §15 与设计文档 §9/§11。
 
 ### 6.2 下一步候选（需确认后，一次一项）
 
 1. **合并收尾（待确认）**：上游示例目录标识是否重命名；7 处既有 spotless 失败是否一并修复或逐条抑制（见 §2）。
-2. **本机可验证的功能候选**：浮层 P3 剩余打磨（hover 重算/光标可见性、非整屏 `Solid` 宽簇边缘、dim/invert 后处理、非 modal 点击外部关闭、子组合 host 登记；见设计文档 §9 P3、§11 与 todo §15）、`LazyRow`（与 L7.16 对称）、第一方 widget 集（table/chart/scrollbar；tabs 已由 L7.38 完成，todo §6 P3）、输入侧组合字符（todo §3 P3）；另需查既有 showcase Unicode 用例的首字裁剪问题。
+2. **本机可验证的功能候选**：浮层 P3 剩余打磨（hover 重算/光标可见性、非整屏 `Solid` 宽簇边缘、dim/invert 后处理、非 modal 点击外部关闭、子组合 host 登记；见设计文档 §9 P3、§11 与 todo §15）、`LazyRow`（与 L7.16 对称）、第一方 widget 集（table/chart/scrollbar；tabs 已由 L7.38 完成，todo §6 P3）、输入侧组合字符（todo §3 P3）。
 3. **需 CI/远程环境**：macOS 特判（todo §9.2 P2）、Windows/ConPTY（§9.3 P1）、Windows 输入多路复用（§9.3 P1）、`linuxArm64` cinterop；本机不推进。
 4. **性能可选项（非必须）**：逐格写入本体（`writeCluster` 11 字段 + `canvas[row,col]` 边界/平移）仍占 draw-idle 大头，候选「样式打包成 primitive」或「收敛局部 cell 引用」；当前性能已远超目标，优先级低于功能与清理。
 
