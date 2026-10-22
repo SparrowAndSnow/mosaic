@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.37（代码 `a935b802`） · 创建：2026-10-17 · 更新：2026-10-22
+> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.38（代码 `d5bf3b19`） · 创建：2026-10-17 · 更新：2026-10-22
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/benchmarks.md`（调研文档已在合并前移出仓库）
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -32,7 +32,7 @@
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 完成（L6.1~L6.8 已归档） |
-| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.37 已归档；余下 P2/P3 可选） |
+| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.38 已归档；余下 P2/P3 可选） |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
 
@@ -114,6 +114,7 @@
 | L7 | L7.35 | 惯性滚动状态（`layout/MomentumScrollState.kt`）：只提供物理状态与 `advance(dt, maxPosition)`，不启动协程/帧循环；`impulse(rows)` 把滚轮格数转成 `rows × friction` 的初速度，默认参数一格 3 行约走 3 行；应用在自己的 frame loop 调 `advance` 并把 `position` 映射到布局。补齐 17 条单测，并修 `advance(dt=0)` 返回 false 但 velocity 未清的语义 bug（现返回是否仍在运动） | `8532ef1e` | `MomentumScrollStateTest`（17：默认 3 行/上限/累积/边界/越界 clamp/非法参数/快照状态/应用帧循环映射等）；mosaic-runtime JVM 745 / linuxX64 743 全绿；apiDump + apiCheck 通过 | ✅ 已归档 |
 | L7 | L7.36 | 双击检测工具（`layout/ClickTracker.kt`）：纯 Kotlin、无框架依赖；`press(index, nowMillis)` 在同一下标且与上次按下的间隔在 `0..doubleClickMillis`（默认 400ms，含边界）内返回 true，每次按下都更新基准；时钟回拨不匹配且该次按下成为新基准；`reset()` 清空。面向直接处理 `onMouseEvent` 的行选中场景，当时未接入 `Modifier.clickable`（L7.37 已接入） | `284565b6` | `ClickTrackerTest`（6：同下标窗口内/不同下标/超窗/时钟回拨/reset/负窗口拒绝）；定向 JVM 测试 6/6 通过；apiDump + apiCheck 通过；仅 `:mosaic-runtime:compileKotlinLinuxX64`（按时间盒跳过 linuxX64Test） | ✅ 已归档 |
 | L7 | L7.37 | `Modifier.clickable` 跨重组按压捕获加固 + 可选双击：按下时捕获元素 state 与**按下瞬间边界**，释放不再依赖节点实例/父链存活（消除 `isAttachedTo(root)` 在子组合中的误判）；元素移除/禁用/越界均不触发并清空双击配对。新增 `onDoubleClick`（默认 null；首个释放 `onClick`，同元素 400ms 内第二个释放仅 `onDoubleClick`，第三个重新起配对；每元素独立 `ClickTracker`；未提供时每次释放都是 `onClick`） | `a935b802` | `PointerInputTest` 23 条（原 12 + 新增 11：节点替换 ×2 / `BoxWithConstraints` / 移除 / 禁用 / 双击窗口内 / 超窗 / 三连击 / 不同元素 / 集成双击）；定向 JVM 23/23；apiDump + apiCheck 通过；仅 `:mosaic-runtime:compileKotlinLinuxX64`（按时间盒跳过 linuxX64Test） | ✅ 已归档 |
+| L7 | L7.38 | 标签栏组件（`ui/TabRow.kt`）：`TabRow(tabs, selectedIndex, onSelect, modifier, colors = TabRowColors(), divider = "│", trailing)`——每个标签为 `" label "`（左右各 1 列内边距），由 `clickable`/`hoverable` 驱动；背景优先级选中 > 悬停 > 容器，内容色选中/未选中分离，标签间可选 1 格分隔符；`trailing` 为 `RowScope` 槽位（可用 `weight` 右对齐提示）；六项配色默认 `Color.Unspecified`，不绑定应用调色板；不含选中/滚动/键盘逻辑 | `d5bf3b19` | `TabRowTest`（7 条：标签/分隔/尾部权重、选中与非选中配色、点击第二个/已选中标签、悬停背景与离开恢复、`divider=null`、空标签） | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -655,21 +656,31 @@
 - **测试**：`PointerInputTest` 23 条（原 12 + 新增 11），覆盖节点替换（集成 + 直接 state/新节点）、子组合点击、按下后移除、按下后禁用、双击窗口内/超窗/三连击/不同元素、集成双击；`BoxWithConstraints` 用例修复前失败、修复后通过。
 - **验证**：`:mosaic-runtime:jvmTest --tests "com.jakewharton.mosaic.layout.PointerInputTest"` 23/23 通过；`:mosaic-runtime:apiDump` 更新 JVM `.api` + `.klib.api` 后 `apiCheck` 通过；`:mosaic-runtime:compileKotlinLinuxX64` 通过；按时间盒要求**跳过** `linuxX64Test`。
 
+### L7.38 标签栏组件 TabRow（`ui/TabRow.kt`，`d5bf3b19`）
+- **定位**：替换应用私有的 `Row + hoverable + clickable + Text` 标签栏；组件只负责渲染与点击回调，选中状态、滚动、键盘导航仍由应用管理（无状态、可复用）。
+- **API**：
+  - `TabRowColors(container, selectedBackground, selectedContent, content, hoverBackground, divider)`：`@Immutable` 数据类，六项全部默认 `Color.Unspecified`（终端调色板中性）；`container` 只用于标签本身，行背景保持透明。
+  - `TabRow(tabs: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, colors: TabRowColors = TabRowColors(), divider: String? = "│", trailing: (@Composable RowScope.() -> Unit)? = null)`。
+- **实现**：`Row` 内逐标签输出可选分隔符 + `Text(" label ")`；`Modifier.clickable { onSelect(index) }`（已选中标签同样回调）与 `Modifier.hoverable` 复用既有指针原语，无手写命中测试；背景按「选中 > 悬停 > 容器」、内容色按「选中 > 普通」选择，分隔符只取 `colors.divider`。悬停态用单个 `hoveredIndex` 而非每标签 `remember`，避免标签增删/分隔符开关造成槽位漂移；`selectedIndex` 越界时不选中任何标签且不抛错。
+- **尾部槽位**：`trailing` 以当前 `RowScope` 调用，可直接 `Spacer(Modifier.weight(1f)) + Text(...)` 占满剩余宽度并右对齐；组件不额外包裹 `Box`、不强制权重，避免 `RowScope` 与真实父级不一致。
+- **测试**：`TabRowTest` 7 条——标签/分隔/尾部权重精确到 40 列（25 列 spacer + 4 列提示）、选中与非选中背景/内容色及分隔符色（TRUECOLOR SGR）、点击第二个标签回调 `1`、点击已选中标签仍回调 `0`、悬停非选中标签切换背景且离开恢复容器色、`divider = null` 相邻排布、空标签列表仅渲染 `trailing`（越界 `selectedIndex` 不崩）。
+- **验证**：`:mosaic-runtime:jvmTest --tests "com.jakewharton.mosaic.ui.TabRowTest"` 7/7；`:mosaic-runtime:apiDump` 分步更新 JVM `.api` + `.klib.api` 后 `apiCheck` 通过；`:mosaic-runtime:compileKotlinLinuxX64` 通过；按时间盒要求**跳过** `linuxX64Test`，未跑全量 JVM 套件；`:mosaic-runtime:spotlessKotlinCheck` 仍有既有失败，新增两文件已按格式修正（未触碰无关文件）。
+
 ## 6. 当前状态 / 下一步候选
 
 ### 6.1 当前状态（2026-10-22）
 
-- 分支 `main`（`refactor` 同步），L7.37 代码提交 `a935b802`（clickable 跨重组加固 + 可选双击）；代码提交后工作树干净，本台账变更另行提交。
+- 分支 `main`（`refactor` 同步），L7.38 代码提交 `d5bf3b19`（TabRow 标签栏组件）；代码提交后工作树干净，本台账变更另行提交。
 - **红线清理（2026-10-21，提交 `77b645fa`）**：5 个含第三方名的提交信息已重写（其后所有提交哈希随之变化，台账/待办中的引用已全部重映射）；3 份调研文档已移出仓库（存档于仓库外）；README/CHANGELOG 的归属引用已中性化。
-- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.37（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
+- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.38（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
 - 回归基线（2026-10-22）：`mosaic-runtime` **JVM 745 / linuxX64 743**；`mosaic-tty` **JVM 116 / linuxX64 122**（FFM 分发 JDK 25 亦 116）；`mosaic-tty-terminal` **JVM 274 / linuxX64 273**；`mosaic-animation` 各 23；`mosaic-terminal` / `mosaic-testing` / `samples/showcase` 双平台全绿、0 失败。
-- L7.37 时间盒验证：只跑新增/既有定向 JVM 测试（`PointerInputTest` 23/23）与 `:mosaic-runtime:compileKotlinLinuxX64`（`apiDump` / `apiCheck` 通过），未重跑全量 JVM/Native 套件，故上述基线数值保持不变。
-- L7.37 之后本层无「进行中」步骤，只剩 todo 中的 P2/P3 可选项与合并前清理项。
+- L7.38 时间盒验证：只跑新增定向 JVM 测试（`TabRowTest` 7/7）与 `:mosaic-runtime:compileKotlinLinuxX64`（`apiDump` / `apiCheck` 通过），未重跑全量 JVM/Native 套件，故上述基线数值保持不变。
+- L7.38 之后本层无「进行中」步骤，只剩 todo 中的 P2/P3 可选项与合并前清理项。
 
 ### 6.2 下一步候选（需确认后，一次一项）
 
 1. **合并收尾（待确认）**：上游示例目录标识是否重命名；7 处既有 spotless 失败是否一并修复或逐条抑制（见 §2）。
-2. **本机可验证的功能候选**：`LazyRow`（与 L7.16 对称）、第一方 widget 集（tabs/table/chart/scrollbar，todo §6 P3）、输入侧组合字符（todo §3 P3）。
+2. **本机可验证的功能候选**：`LazyRow`（与 L7.16 对称）、第一方 widget 集（table/chart/scrollbar；tabs 已由 L7.38 完成，todo §6 P3）、输入侧组合字符（todo §3 P3）。
 3. **需 CI/远程环境**：macOS 特判（todo §9.2 P2）、Windows/ConPTY（§9.3 P1）、Windows 输入多路复用（§9.3 P1）、`linuxArm64` cinterop；本机不推进。
 4. **性能可选项（非必须）**：逐格写入本体（`writeCluster` 11 字段 + `canvas[row,col]` 边界/平移）仍占 draw-idle 大头，候选「样式打包成 primitive」或「收敛局部 cell 引用」；当前性能已远超目标，优先级低于功能与清理。
 

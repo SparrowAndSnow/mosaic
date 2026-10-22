@@ -6,6 +6,7 @@
 > 优先级：**P0**=正确性/回归优先；**P1**=高价值优化；**P2**=增强/打磨；**P3**=长期/可选。
 > 参考基准：本仓库既有测试与台账（调研文档已在合并前移出仓库）。
 
+> **对账更新：2026-10-22（七）** L7.38 标签栏组件 `TabRow`（`ui/TabRow.kt`）已归档（`d5bf3b19`）：单行标签 + 可选 1 格分隔符 + `RowScope` 尾部槽位；`TabRowColors` 六色全部默认 `Color.Unspecified`，不绑定应用调色板；选中/滚动/键盘仍由应用管理。要点见 progress §5。
 > **对账更新：2026-10-22（六）** L7.37 `Modifier.clickable` 跨重组按压捕获加固 + 可选双击已归档（`a935b802`）：释放不再依赖节点实例/父链存活，修复子组合与节点替换场景的丢点击；新增 `onDoubleClick`（同元素 400ms 窗口；首击 `onClick`、次击仅 `onDoubleClick`；禁用/移除不触发）。要点见 progress §5。
 > **对账更新：2026-10-22（五）** L7.36 双击检测工具（`layout/ClickTracker.kt`）已归档；纯 Kotlin 小工具，配合既有 `onMouseEvent` 做同下标双击判定（默认 400ms 窗口），当时未引入 `Modifier.clickable`（L7.37 已接入）。
 > **对账更新：2026-10-22（四）** L7.35 惯性滚动状态（`MomentumScrollState`，`8532ef1e`）已归档；库只提供物理状态 + `advance`，应用自驱 frame loop，默认滚轮一格约 3 行。
@@ -104,7 +105,7 @@
 - [x] **P1 测/绘口径统一** ✅（L1.2/L2.1）：`TextLayout` 与 `drawText` 已共用簇级宽度；勿在 `TextLayout` 单独加 override（会和 `©=1/☀︎=1` 锁定语义冲突）。
 - [ ] **P2 `AnnotatedString` 维护**：470 行手写富文本 + `SpanStyleRange`；核对与 androidx compose ui text 语义差异（合并/覆盖规则），或评估是否足够维持现状。
 - [x] **P2 换行/截断/对齐/滚动 API** ✅（L4.1~L4.4）：`softWrap`/`maxLines`/`overflow`/`textAlign`/`scroll` 全部落地。
-- [ ] **P3 widget 补齐**：主流终端 UI 框架有 Block/Border/Chart/Gauge/List/Table/Tabs/Scrollbar 等内建；Mosaic 目前靠 Box/Row/Column/Text 拼装——确定是否做第一方 widget 集（影响发布节奏）。
+- [ ] **P3 widget 补齐**：标签栏已由 L7.38 `TabRow`（`ui/TabRow.kt`）落地——单行可点击/悬停标签、选中与悬停背景、可选 1 格分隔符、`RowScope` 尾部槽位，默认配色中性（详见 progress §5）；Chart/Gauge/Table/Scrollbar 等仍未做，确定是否继续做第一方 widget 集（影响发布节奏）。
 
 ## 7. 颜色（`ansi.kt` / `Color.kt`）
 - [x] **P3 `toAnsi16Code/toAnsi256Code`** ✅（L7.26，`27849ee1`）：约简算法已与参考行为逐点核对一致并清掉归属注释；语义用金表测试锁定（16 色取整/亮色判定、256 灰阶分段 232..255、6x6x6 cube 每通道 `/255*5` 取整及其临界点 76/77、127/128 等）。
@@ -193,5 +194,5 @@
 - [x] **边框 / 分隔绘制** ✅（L7.20，`392b7efa`）：`Modifier.border(width=1, color)`（`LayoutModifier` 内凹 + `DrawModifier` 角/边条，width>1 实心环）+ `HorizontalDivider`/`VerticalDivider`（thickness/color/startIndent/endIndent，占满约束主向）；要点见 progress §5。
 - [x] **定位回调** ✅（L7.13，`118c1a2e`）：`Modifier.onGloballyPositioned { position, size -> }`（根坐标 + 尺寸，仅变化时触发）。
 - [x] **动画容器** ✅（L7.21）：`Crossfade`（水平推进叠层：旧页左滑出 / 新页右滑入，容器裁剪）+ `AnimatedVisibility`（`EnterTransition`/`ExitTransition` + `EnterExitState`，expand/shrink 尺寸动画 + slide 位移动画，fade 因终端无 alpha 而省略，退出完成后内容才移除）+ `MutableTransitionState` 变体；showcase Animation 页增补两段演示；要点见 progress §5。
-- [ ] **第一方 widget 集**：charts / tables / tabs / scrollbars（todo §6 已有 P3 条目）。
+- [x] **第一方 widget 集（标签栏）** ✅（L7.38，`d5bf3b19`）：`TabRow` 落地（todo §6 已有 P3 条目）；charts / tables / scrollbars 仍待办。
 - [ ] 备注：`margin` **不是**缺口——Compose 没有 `margin`，间距用 `padding` 或外层间隔表达。
