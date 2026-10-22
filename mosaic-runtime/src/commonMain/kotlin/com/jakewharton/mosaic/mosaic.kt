@@ -49,31 +49,76 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 
+/**
+ * Run [content] in a Mosaic composition, blocking the calling thread until it completes.
+ *
+ * This is the entry point for `fun main()` and main-like call sites. It exits the process when no
+ * interactive terminal is available.
+ *
+ * @param mouse whether mouse button, press, and motion events are requested from the terminal.
+ * @param paste whether bracketed paste events are requested from the terminal.
+ * @param alternateScreen whether to run on the terminal's alternate screen. When true the library
+ *   enters the alternate screen after raw mode is enabled and leaves it during teardown, so the
+ *   user's scrollback is preserved. Defaults to false, which keeps the inline behavior.
+ * @param content the composable content to run.
+ */
 public fun runMosaicMain(
 	mouse: Boolean = false,
 	paste: Boolean = false,
+	alternateScreen: Boolean = false,
 	content: @Composable () -> Unit,
 ) {
-	runMosaicBlocking(mouse = mouse, paste = paste, content = content)
+	runMosaicBlocking(
+		mouse = mouse,
+		paste = paste,
+		alternateScreen = alternateScreen,
+		content = content,
+	)
 }
 
+/**
+ * Run [content] in a Mosaic composition, blocking the calling thread until it completes.
+ *
+ * @param onNonInteractive how to behave when no interactive terminal is available.
+ * @param mouse whether mouse button, press, and motion events are requested from the terminal.
+ * @param paste whether bracketed paste events are requested from the terminal.
+ * @param alternateScreen whether to run on the terminal's alternate screen. When true the library
+ *   enters the alternate screen after raw mode is enabled and leaves it during teardown, so the
+ *   user's scrollback is preserved. Defaults to false, which keeps the inline behavior.
+ * @param content the composable content to run.
+ * @return true when the composition ran, or false when [NonInteractivePolicy.Return] returned early.
+ */
 public fun runMosaicBlocking(
 	onNonInteractive: NonInteractivePolicy = Exit,
 	mouse: Boolean = false,
 	paste: Boolean = false,
+	alternateScreen: Boolean = false,
 	content: @Composable () -> Unit,
 ): Boolean {
 	return runBlocking {
-		runMosaic(onNonInteractive, mouse, paste, content)
+		runMosaic(onNonInteractive, mouse, paste, alternateScreen, content)
 	}
 }
 
+/**
+ * Run [content] in a Mosaic composition until it completes.
+ *
+ * @param onNonInteractive how to behave when no interactive terminal is available.
+ * @param mouse whether mouse button, press, and motion events are requested from the terminal.
+ * @param paste whether bracketed paste events are requested from the terminal.
+ * @param alternateScreen whether to run on the terminal's alternate screen. When true the library
+ *   enters the alternate screen after raw mode is enabled and leaves it during teardown, so the
+ *   user's scrollback is preserved. Defaults to false, which keeps the inline behavior.
+ * @param content the composable content to run.
+ * @return true when the composition ran, or false when [NonInteractivePolicy.Return] returned early.
+ */
 public suspend fun runMosaic(
 	onNonInteractive: NonInteractivePolicy = Exit,
 	mouse: Boolean = false,
 	paste: Boolean = false,
+	alternateScreen: Boolean = false,
 	content: @Composable () -> Unit,
-): Boolean = withTerminal(onNonInteractive, mouse, paste) { terminal ->
+): Boolean = withTerminal(onNonInteractive, mouse, paste, alternateScreen) { terminal ->
 	val rendering = if (env("MOSAIC_DEBUG_RENDERING") == "true") {
 		DebugRendering(terminal.capabilities)
 	} else {

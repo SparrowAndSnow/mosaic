@@ -14,11 +14,18 @@ New:
 - Focus tracking with Tab/Shift+Tab traversal.
 - Hardware cursor control: place the terminal's cursor by layout position with block, underline, or
   bar shapes and optional blinking (`Cursor`); the terminal's default shape is restored on exit.
+- Optional alternate-screen support for the `runMosaic*` entry points (`alternateScreen = true`).
+  The library enters the alternate screen before capability detection and leaves it during teardown,
+  so applications no longer need to emit the control sequences themselves and the shell's scrollback
+  is preserved, including on cancellation and signal-driven shutdown.
 - Border/divider primitives.
 - Animation containers (crossfade, enter/exit, animated visibility).
 - JVM support for RISC-V and s390x!
 
 Changed:
+- Terminal teardown now restores every mode it toggled (cursor, mouse, bracketed paste, keyboard,
+  grapheme clustering, and so on) before leaving the alternate screen, and writes nothing after the
+  leave sequence.
 - Use the AndroidX versions of the Compose runtime and lifecycle dependencies which are now fully multiplatform. Dependency constraints to the corresponding JetBrains artifacts (which are now empty) are present to prevent symbol duplication.
 - Remove support for x86 macOS targets. These have been deprecated for a bit, but support has been removed from the Compose runtime so we have no choice but to match.
 

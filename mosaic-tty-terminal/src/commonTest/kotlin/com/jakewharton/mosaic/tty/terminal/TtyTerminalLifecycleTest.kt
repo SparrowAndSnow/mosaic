@@ -2,6 +2,12 @@ package com.jakewharton.mosaic.tty.terminal
 
 import com.jakewharton.mosaic.tty.TestTerminal
 import kotlin.test.Test
+import kotlin.test.assertContains
+import kotlin.test.assertEquals
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 
@@ -49,6 +55,37 @@ class TtyTerminalLifecycleTest {
 		}
 	}
 
+	// The teardown guard makes repeated close() calls idempotent: the leave sequence is written once
+	// even though close() runs again (and the surrounding use block closes a third time).
+	@Test fun alternateScreenDoubleCloseLeavesOnce() = runBlocking {
+		TestTerminal.bind().use { testTty ->
+			coroutineScope {
+				val terminal = testTty.tty.asTerminalIn(this, alternateScreen = true)
+				terminal.close()
+				terminal.close()
+
+				val output = testTty.readAvailableOutput()
+				assertEquals(1, output.split(alternateScreenDisable).size - 1, output)
+				testTty.tty.close()
+			}
+		}
+	}
+
+	// Cancellation is the path a signal/shutdown takes: the finalization hook runs teardown (close()
+	// may never be called), and the alternate screen must still be left exactly like the normal path.
+	@Test fun alternateScreenLeavesOnScopeCancellation() = runBlocking {
+		TestTerminal.bind().use { testTty ->
+			val job = Job()
+			val scope = CoroutineScope(coroutineContext + job)
+			scope.async { testTty.tty.asTerminalIn(scope, alternateScreen = true) }.await()
+
+			job.cancelAndJoin()
+
+			assertContains(testTty.readAvailableOutput(), alternateScreenDisable)
+			testTty.tty.close()
+		}
+	}
+
 	// An exception thrown by the application must still run the teardown and free the tty without
 	// leaving the scope waiting on the reader/interrupt coroutines.
 	@Test fun exceptionInBlockStillCloses() = runBlocking {
@@ -65,5 +102,15 @@ class TtyTerminalLifecycleTest {
 				testTty.tty.close()
 			}
 		}
+	}
+}
+
+private fun TestTerminal.readAvailableOutput(): String {
+	val buffer = ByteArray(4096)
+	val output = StringBuilder()
+	while (true) {
+		val count = readTtyWithTimeout(buffer, 0, buffer.size, timeoutMillis = 25)
+		if (count <= 0) return output.toString()
+		output.append(buffer.decodeToString(0, count))
 	}
 }

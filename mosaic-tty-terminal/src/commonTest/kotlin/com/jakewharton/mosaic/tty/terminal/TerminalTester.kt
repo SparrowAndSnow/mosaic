@@ -44,6 +44,7 @@ class TerminalTester(
 	suspend fun withTerminal(
 		mouse: Boolean = false,
 		paste: Boolean = false,
+		alternateScreen: Boolean = false,
 		block: suspend Terminal.(setup: ByteString) -> Unit,
 	): ByteString {
 		expects.close()
@@ -80,24 +81,26 @@ class TerminalTester(
 		coroutineScope {
 			var readJob = launch(Dispatchers.IO) { readUntilInterrupted() }
 			try {
-				testTerminal.tty.asTerminalIn(this, mouse = mouse, paste = paste).use { terminal ->
-					testTerminal.interruptTtyRead()
-					readJob.cancelAndJoin()
+				testTerminal.tty
+					.asTerminalIn(this, mouse = mouse, paste = paste, alternateScreen = alternateScreen)
+					.use { terminal ->
+						testTerminal.interruptTtyRead()
+						readJob.cancelAndJoin()
 
-					try {
-						// Print the events parsed during setup.
-						while (true) {
-							println(terminal.events.tryReceive().getOrNull() ?: break)
+						try {
+							// Print the events parsed during setup.
+							while (true) {
+								println(terminal.events.tryReceive().getOrNull() ?: break)
+							}
+							val setup = buffer.readByteString()
+
+							assertThat(expects).isEmpty()
+
+							terminal.block(setup)
+						} finally {
+							readJob = launch(Dispatchers.IO) { readUntilInterrupted() }
 						}
-						val setup = buffer.readByteString()
-
-						assertThat(expects).isEmpty()
-
-						terminal.block(setup)
-					} finally {
-						readJob = launch(Dispatchers.IO) { readUntilInterrupted() }
 					}
-				}
 			} finally {
 				testTerminal.interruptTtyRead()
 				readJob.cancelAndJoin()

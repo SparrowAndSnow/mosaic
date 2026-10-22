@@ -13,6 +13,12 @@ internal const val cursorMode = 25
 internal const val cursorEnable = "$CSI?${cursorMode}h"
 internal const val cursorDisable = "$CSI?${cursorMode}l"
 
+// The alternate screen is a separate full-screen buffer: entering it keeps the shell's scrollback
+// intact, and leaving it restores the original screen exactly as it was before the TUI started.
+internal const val alternateScreenMode = 1049
+internal const val alternateScreenEnable = "$CSI?${alternateScreenMode}h"
+internal const val alternateScreenDisable = "$CSI?${alternateScreenMode}l"
+
 internal const val focusMode = 1004
 internal const val focusEnable = "$CSI?${focusMode}h"
 internal const val focusDisable = "$CSI?${focusMode}l"

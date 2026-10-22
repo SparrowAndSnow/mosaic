@@ -20,6 +20,7 @@ internal suspend fun withTerminal(
 	onNonInteractive: NonInteractivePolicy,
 	mouse: Boolean,
 	paste: Boolean,
+	alternateScreen: Boolean = false,
 	block: suspend (Terminal) -> Unit,
 ): Boolean = coroutineScope {
 	val tty = if (onNonInteractive != AssumeAndIgnore) {
@@ -37,7 +38,7 @@ internal suspend fun withTerminal(
 
 	tty.use {
 		val terminal = if (tty != null) {
-			tty.asTerminalIn(this, mouse = mouse, paste = paste)
+			tty.asTerminalIn(this, mouse = mouse, paste = paste, alternateScreen = alternateScreen)
 		} else {
 			warnNonInteractive()
 			NonInteractiveTerminal

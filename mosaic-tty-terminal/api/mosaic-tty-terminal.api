@@ -14,7 +14,7 @@ public final class com/jakewharton/mosaic/tty/terminal/EventParser {
 }
 
 public final class com/jakewharton/mosaic/tty/terminal/TtyTerminalKt {
-	public static final fun asTerminalIn (Lcom/jakewharton/mosaic/tty/Tty;Lkotlinx/coroutines/CoroutineScope;ZZZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun asTerminalIn$default (Lcom/jakewharton/mosaic/tty/Tty;Lkotlinx/coroutines/CoroutineScope;ZZZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun asTerminalIn (Lcom/jakewharton/mosaic/tty/Tty;Lkotlinx/coroutines/CoroutineScope;ZZZZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun asTerminalIn$default (Lcom/jakewharton/mosaic/tty/Tty;Lkotlinx/coroutines/CoroutineScope;ZZZZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 

@@ -127,10 +127,23 @@ public suspend fun Tty.asTerminalIn(
 	mouse: Boolean = false,
 	/** When true, bracketed paste mode is enabled and paste content is reported as events. */
 	paste: Boolean = false,
+	/**
+	 * When true, the terminal's alternate screen is entered after raw mode is enabled and left
+	 * during teardown. Only a real, bound TTY is ever touched; a non-interactive run never writes
+	 * these sequences.
+	 */
+	alternateScreen: Boolean = false,
 ): Terminal {
 	// Entering raw mode can fail, so perform it before any additional control sequences which change
 	// settings. We also need to be in character mode to query capabilities with control sequences.
 	enableRawMode()
+
+	// The alternate screen must be entered before the first capability probe (and therefore before
+	// any rendering), so probing and drawing never overwrite the user's scrollback even if the
+	// terminal never repaints the primary screen afterwards.
+	if (alternateScreen) {
+		write(alternateScreenEnable)
+	}
 
 	val focused = MutableStateFlow(true)
 	val theme = MutableStateFlow(Terminal.Theme.Unknown)
@@ -170,6 +183,12 @@ public suspend fun Tty.asTerminalIn(
 			if (togglePaste) write(pasteDisable)
 			if (toggleKittyKeyboard) write(kittyKeyboardPop)
 			if (toggleGraphemeClustering) write(graphemeClusteringDisable)
+			// Leave the alternate screen only after every other mode has been restored: the leave
+			// sequence itself is the final bytes we are willing to write to this terminal. Any write
+			// after it (for example re-showing a cursor) would target the restored primary screen and
+			// leave the user's scrollback in a modified state. reset() below only restores termios and
+			// signal dispositions and emits no terminal output, so it is deliberately the last step.
+			if (alternateScreen) write(alternateScreenDisable)
 			reset()
 		}
 	}
