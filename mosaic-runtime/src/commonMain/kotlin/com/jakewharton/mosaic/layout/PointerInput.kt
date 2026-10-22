@@ -1,8 +1,11 @@
 package com.jakewharton.mosaic.layout
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.modifier.composed
+import com.jakewharton.mosaic.nanoTime
 
 /**
  * Per-element state backing the pointer-driven modifiers ([hoverable], [clickable]). One instance
@@ -11,8 +14,19 @@ import com.jakewharton.mosaic.modifier.composed
  */
 internal class PointerInputState {
 	var enabled = true
+		set(value) {
+			field = value
+			if (!value) {
+				resetDoubleClick()
+			}
+		}
 	var onHoverChanged: ((Boolean) -> Unit)? = null
 	var onClick: (() -> Unit)? = null
+	var onDoubleClick: (() -> Unit)? = null
+
+	// A tracker per element. The index passed to it is constant because the element identity is
+	// this state object, so releases on different elements can never pair with one another.
+	private var doubleClickTracker: ClickTracker? = null
 
 	var isHovered = false
 		private set
@@ -44,6 +58,38 @@ internal class PointerInputState {
 			isPressed = false
 		}
 	}
+
+	/**
+	 * Invokes the click callback for a completed press/release pair at [nowMillis].
+	 *
+	 * The first release of an opted-in pair invokes [onClick]; a second release within the
+	 * [ClickTracker] window invokes [onDoubleClick] instead of a second [onClick]. A third quick
+	 * release starts a new pair. Without a double-click callback every release is a click.
+	 */
+	fun click(nowMillis: Long) {
+		val onClick = onClick ?: return
+		val onDoubleClick = onDoubleClick
+		if (onDoubleClick == null) {
+			onClick()
+			return
+		}
+		val tracker = doubleClickTracker ?: ClickTracker().also { doubleClickTracker = it }
+		if (tracker.press(index = 0, nowMillis = nowMillis)) {
+			// Start a fresh pair so a third quick release is again a single click.
+			doubleClickTracker = null
+			onDoubleClick()
+		} else {
+			onClick()
+		}
+	}
+
+	fun resetDoubleClick() {
+		doubleClickTracker = null
+	}
+
+	fun dispose() {
+		enabled = false
+	}
 }
 
 /**
@@ -68,10 +114,12 @@ public fun Modifier.hoverable(
 	enabled: Boolean = true,
 	onHoverChanged: (Boolean) -> Unit,
 ): Modifier = composed {
-	val state = remember { PointerInputState() }
+	val state = rememberPointerInputState()
 	state.enabled = enabled
 	state.onHoverChanged = onHoverChanged
 	state.onClick = null
+	state.onDoubleClick = null
+	state.resetDoubleClick()
 	then(PointerInputElement(state))
 }
 
@@ -80,17 +128,47 @@ public fun Modifier.hoverable(
  * releasing within its bounds invokes [onClick]. Pressing inside and releasing outside (or on
  * another component) cancels the click. When [enabled] is false the element neither hovers nor
  * clicks. [onClickLabel] is accepted for API compatibility and reserved for accessibility tooling.
+ *
+ * When [onDoubleClick] is non-null, a second release on the same element within the double-click
+ * window (400 milliseconds, measured between releases) invokes [onDoubleClick] instead of a second
+ * [onClick]. The first release still invokes [onClick], so a double click reports one single click
+ * followed by one double click. Releases farther apart each invoke [onClick]. A third release
+ * within the window starts a new pair. When [onDoubleClick] is null every release invokes
+ * [onClick].
+ *
+ * Detection is per element: a release on one clickable never pairs with a release on another, and
+ * disabling the element or removing it from the composition suppresses both callbacks and clears
+ * any pending pair.
+ *
+ * Press/release capture does not depend on the node instance holding the element: if layout or
+ * recomposition replaces that node while the button is held, the release still invokes the
+ * callbacks as long as the element itself is still enabled and the pointer is within the bounds
+ * captured at press time. Elements removed from the composition do not fire.
  */
 public fun Modifier.clickable(
 	enabled: Boolean = true,
 	onClickLabel: String? = null,
+	onDoubleClick: (() -> Unit)? = null,
 	onClick: () -> Unit,
 ): Modifier = composed {
-	val state = remember { PointerInputState() }
+	val state = rememberPointerInputState()
 	state.enabled = enabled
 	state.onClick = onClick
+	state.onDoubleClick = onDoubleClick
+	if (onDoubleClick == null) {
+		state.resetDoubleClick()
+	}
 	state.onHoverChanged = null
 	then(PointerInputElement(state))
+}
+
+@Composable
+private fun rememberPointerInputState(): PointerInputState {
+	val state = remember { PointerInputState() }
+	DisposableEffect(state) {
+		onDispose { state.dispose() }
+	}
+	return state
 }
 
 /**
@@ -107,13 +185,19 @@ internal class PointerEntry(
  * outlives a single node's dispatch (leave happens on later events; release can land outside the
  * pressed bounds).
  */
-internal class PointerState {
+internal class PointerState(
+	private val nowMillis: () -> Long = { nanoTime() / 1_000_000 },
+) {
 
 	private val hovered = ArrayList<PointerInputState>()
 
+	/** A captured press: the element state plus its bounds at press time. */
 	private class PressedTarget(
 		val state: PointerInputState,
-		val node: MosaicNode,
+		val left: Int,
+		val top: Int,
+		val right: Int,
+		val bottom: Int,
 	)
 	private var pressed: PressedTarget? = null
 
@@ -123,7 +207,7 @@ internal class PointerState {
 		root.collectPointerEntries(event.x, event.y, path)
 		reconcileHover(path)
 		handleFocus(root, event)
-		handleClick(root, event, path)
+		handleClick(event, path)
 	}
 
 	private fun handleFocus(root: MosaicNode, event: MouseEvent) {
@@ -154,27 +238,33 @@ internal class PointerState {
 		}
 	}
 
-	private fun handleClick(root: MosaicNode, event: MouseEvent, path: List<PointerEntry>) {
+	private fun handleClick(event: MouseEvent, path: List<PointerEntry>) {
 		when (event.type) {
 			MouseEvent.Type.Press -> {
 				if (event.button != MouseEvent.Button.Left) return
 				if (pressed != null) return
 				val target = path.firstOrNull { it.state.onClick != null && it.state.enabled } ?: return
-				pressed = PressedTarget(target.state, target.node)
+				val node = target.node
+				pressed = PressedTarget(
+					state = target.state,
+					left = node.x,
+					top = node.y,
+					right = node.x + node.width,
+					bottom = node.y + node.height,
+				)
 				target.state.press()
 			}
 			MouseEvent.Type.Release -> {
 				val target = pressed ?: return
 				pressed = null
 				target.state.release()
-				if (target.state.enabled && target.node.isAttachedTo(root)) {
-					val inBounds =
-						event.x in target.node.x until target.node.x + target.node.width &&
-							event.y in target.node.y until target.node.y + target.node.height
-					if (inBounds) {
-						target.state.onClick?.invoke()
-					}
+				val inBounds = event.x in target.left until target.right &&
+					event.y in target.top until target.bottom
+				if (!target.state.enabled || !inBounds) {
+					target.state.resetDoubleClick()
+					return
 				}
+				target.state.click(nowMillis())
 			}
 			else -> {}
 		}
