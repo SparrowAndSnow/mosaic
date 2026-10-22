@@ -6,6 +6,7 @@
 > 优先级：**P0**=正确性/回归优先；**P1**=高价值优化；**P2**=增强/打磨；**P3**=长期/可选。
 > 参考基准：本仓库既有测试与台账（调研文档已在合并前移出仓库）。
 
+> **对账更新：2026-10-23（九）** L7.40 浮层 P2 已归档（`1149eb06`）：`Dialog` + `Popup(modal = true)` + `OverlayBackdrop.None/Solid`；根入口 key/mouse/paste 按层反序与 modal 屏障；`FocusManager` 活动域/焦点保存恢复/Tab 空域消费；`PointerState` 候选 roots/按压取消/hover 清理；`Solid` 清字符+背景+下划线并可铺背景色。P3 打磨（hover 重算、光标、dim/invert、golden/示例）见 progress §5。
 > **对账更新：2026-10-22（八）** L7.39 非模态浮层 P1 已归档（`19c291a1`）：`OverlayHost`（base 先测先画 + `matchParentSize` overlay 槽、直接子节点即 layer、单组合仅一个 host）+ 非模态 `Popup`（内容尺寸、base 相对 alignment + offset、鼠标自顶向下命中与层内 shield、popup 外回落 base）。键盘/粘贴仍按树序，modal/backdrop/焦点域/Esc 明确留给 P2；要点见 progress §5。
 > **对账更新：2026-10-22（七）** L7.38 标签栏组件 `TabRow`（`ui/TabRow.kt`）已归档（`d5bf3b19`）：单行标签 + 可选 1 格分隔符 + `RowScope` 尾部槽位；`TabRowColors` 六色全部默认 `Color.Unspecified`，不绑定应用调色板；选中/滚动/键盘仍由应用管理。要点见 progress §5。
 > **对账更新：2026-10-22（六）** L7.37 `Modifier.clickable` 跨重组按压捕获加固 + 可选双击已归档（`a935b802`）：释放不再依赖节点实例/父链存活，修复子组合与节点替换场景的丢点击；新增 `onDoubleClick`（同元素 400ms 窗口；首击 `onClick`、次击仅 `onDoubleClick`；禁用/移除不触发）。要点见 progress §5。
@@ -196,5 +197,5 @@
 - [x] **定位回调** ✅（L7.13，`118c1a2e`）：`Modifier.onGloballyPositioned { position, size -> }`（根坐标 + 尺寸，仅变化时触发）。
 - [x] **动画容器** ✅（L7.21）：`Crossfade`（水平推进叠层：旧页左滑出 / 新页右滑入，容器裁剪）+ `AnimatedVisibility`（`EnterTransition`/`ExitTransition` + `EnterExitState`，expand/shrink 尺寸动画 + slide 位移动画，fade 因终端无 alpha 而省略，退出完成后内容才移除）+ `MutableTransitionState` 变体；showcase Animation 页增补两段演示；要点见 progress §5。
 - [x] **第一方 widget 集（标签栏）** ✅（L7.38，`d5bf3b19`）：`TabRow` 落地（todo §6 已有 P3 条目）；charts / tables / scrollbars 仍待办。
-- [ ] **P3 弹窗 / 浮层**：设计见 [dialog-overlay-design.md](dialog-overlay-design.md)（方案 C）。**P1 非模态已完成** ✅（L7.39，`19c291a1`）：`OverlayHost` + 非模态 `Popup`（base/overlay 槽测量绘制、层序、alignment + offset、popup 内鼠标屏蔽与外部回落、单 host 约束；键盘/粘贴仍按树序）。**P2 下一步**：`Dialog`、`Popup(modal = true)`、`OverlayBackdrop`、根入口 key/mouse/paste 门控与 modal 屏障、`FocusManager` 活动域/焦点保存恢复、Esc。**P3 打磨**：hover 屏蔽、按压捕获取消、关闭后 hover 重算、光标可见性、golden 与示例。
+- [ ] **P3 弹窗 / 浮层**：设计见 [dialog-overlay-design.md](dialog-overlay-design.md)（方案 C）。**P1 非模态已完成** ✅（L7.39，`19c291a1`）：`OverlayHost` + 非模态 `Popup`（base/overlay 槽测量绘制、层序、alignment + offset、popup 内鼠标屏蔽与外部回落、单 host 约束）。**P2 模态门控已完成** ✅（L7.40，`1149eb06`）：`Dialog`、`Popup(modal = true)`、`OverlayBackdrop.None/Solid`、根入口 key/mouse/paste 层序 + modal 屏障、`FocusManager` 活动域/焦点保存恢复/Tab 空域消费、`PointerState` 候选 roots/按压取消/hover 清理、Esc/backdrop 关闭。**P3 下一步**：非整屏 `Solid` 宽字符簇边缘、关闭后 hover 重算、光标可见性、dim/invert 后处理、非 modal 点击外部关闭、golden 与示例。
 - [ ] 备注：`margin` **不是**缺口——Compose 没有 `margin`，间距用 `padding` 或外层间隔表达。

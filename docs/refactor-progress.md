@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.39（代码 `19c291a1`） · 创建：2026-10-17 · 更新：2026-10-22
+> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.40（代码 `1149eb06`） · 创建：2026-10-17 · 更新：2026-10-23
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/benchmarks.md`（调研文档已在合并前移出仓库）
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -32,7 +32,7 @@
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 完成（L6.1~L6.8 已归档） |
-| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.39 已归档；余下 P2/P3 可选） |
+| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.40 已归档；余下 P3 可选） |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
 
@@ -116,6 +116,7 @@
 | L7 | L7.37 | `Modifier.clickable` 跨重组按压捕获加固 + 可选双击：按下时捕获元素 state 与**按下瞬间边界**，释放不再依赖节点实例/父链存活（消除 `isAttachedTo(root)` 在子组合中的误判）；元素移除/禁用/越界均不触发并清空双击配对。新增 `onDoubleClick`（默认 null；首个释放 `onClick`，同元素 400ms 内第二个释放仅 `onDoubleClick`，第三个重新起配对；每元素独立 `ClickTracker`；未提供时每次释放都是 `onClick`） | `a935b802` | `PointerInputTest` 23 条（原 12 + 新增 11：节点替换 ×2 / `BoxWithConstraints` / 移除 / 禁用 / 双击窗口内 / 超窗 / 三连击 / 不同元素 / 集成双击）；定向 JVM 23/23；apiDump + apiCheck 通过；仅 `:mosaic-runtime:compileKotlinLinuxX64`（按时间盒跳过 linuxX64Test） | ✅ 已归档 |
 | L7 | L7.38 | 标签栏组件（`ui/TabRow.kt`）：`TabRow(tabs, selectedIndex, onSelect, modifier, colors = TabRowColors(), divider = "│", trailing)`——每个标签为 `" label "`（左右各 1 列内边距），由 `clickable`/`hoverable` 驱动；背景优先级选中 > 悬停 > 容器，内容色选中/未选中分离，标签间可选 1 格分隔符；`trailing` 为 `RowScope` 槽位（可用 `weight` 右对齐提示）；六项配色默认 `Color.Unspecified`，不绑定应用调色板；不含选中/滚动/键盘逻辑 | `d5bf3b19` | `TabRowTest`（7 条：标签/分隔/尾部权重、选中与非选中配色、点击第二个/已选中标签、悬停背景与离开恢复、`divider=null`、空标签） | ✅ 已归档 |
 | L7 | L7.39 | 非模态浮层第一阶段（`ui/OverlayHost.kt` / `ui/Popup.kt`）：`OverlayHost(overlay, modifier, content)` 以 base 先测先画、overlay 槽 `matchParentSize` 跟随 base，直接子节点即 layer（后声明在上）；`Popup(alignment, offset, modifier, content)` 按内容尺寸测量并由槽按 base 相对 alignment + cell offset 放置，鼠标命中自顶向下、popup 内未消费事件由层内 shield 吞掉、popup 外回落 base；单组合仅允许一个 host（第二个/嵌套抛 `IllegalStateException`）；键盘/粘贴仍按树序（P2 门控）、无 modal/backdrop/焦点域/Esc（P2） | `19c291a1` | `OverlayHostTest` 6 条（null 等价 / 槽尺寸 / 0×0 base / 嵌套与第二 host 抛错 / 键盘行为锁定）+ `PopupTest` 5 条（绘制顺序 + 对齐偏移 / 双层命中 / 点内屏蔽 / 点外回落 / popup 内容优先）；定向 JVM 11/11；apiDump + apiCheck；仅 `compileKotlinLinuxX64`（时间盒跳过 linuxX64Test/全量） | ✅ 已归档 |
+| L7 | L7.40 | 弹窗/浮层 P2（模态输入门控）：`Dialog`（居中、默认 `OverlayBackdrop.Solid`、Esc 后置、backdrop 点击 + 内容 shield、焦点保存/恢复）与 `Popup(modal = true, backdrop, onDismissRequest)`；`OverlayBackdrop.None/Solid`（`Solid` 经 `TextSurface.clearRect` 清字符/前景/背景/下划线，可铺背景色）；根入口 key/mouse/paste 按层反序、modal 屏障；`FocusManager` 活动域/保存恢复/Tab 空域消费/域外 requestFocus 忽略；`PointerState` 候选 roots/按压取消/hover 清理；`OverlayHostState` 作为内部 LayoutModifier 挂到组合根，applier 变更置 dirty，layout/input 前同步 | `1149eb06` | `DialogTest` 13 + `PopupTest` 6 + `OverlayHostTest` 6 = 25 条（modal key/paste 屏障、Esc 内容优先、backdrop 点击与 press/release 跨区、Solid 清样式与背景色、None 保 base、焦点保存恢复/目标消失、Tab 域/空域、按压取消与 hover 清理、双层 LIFO、modal Popup 屏障）；全量 JVM 794/794、linuxX64 792/792；apiDump + apiCheck；compileKotlinLinuxX64 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -681,22 +682,39 @@
 - **验证**：`:mosaic-runtime:jvmTest --tests "...OverlayHostTest" --tests "...PopupTest"` 11/11；`:mosaic-runtime:apiDump` 后 `apiCheck` 通过（JVM `.api` + `.klib.api`）；`:mosaic-runtime:compileKotlinLinuxX64` 通过；按时间盒**跳过** `linuxX64Test` 与全量 JVM 套件。构建环境补充：原生工具链下载任务（`:mosaic-tty:zigDownload`）在本机网络下极慢，已手工经代理把所需工具链预置到 `mosaic-tty/build/zig`，并以 `-x :mosaic-tty:zigDownload` 运行验证；未改仓库构建脚本。
 - **限制**：① `PointerState` 的 hover/焦点命中仍遍历整棵树，指针停在 popup 上时 base 的 hover 仍可能 enter、按下 popup 仍可能把焦点给 base（P2 的候选 roots 一并修）；② 若 press 在 popup 外、release 在 popup 内，click 归属仍在按下时的 base 元素（P1 不做层变化时的按压重算）；③ 单 host 是「每个应用组合树（含子组合）」一次，`StaticEffect` 等子组合共享同一 registry；④ 只有带 `OverlayLayerModifier` 的层（当前仅 `Popup`）会按 alignment/offset 放置，自定义 overlay 直接子节点默认落 (0,0)。
 
+### L7.40 弹窗/浮层 P2：模态输入门控 + Dialog（`layout/OverlayHostState.kt` / `ui/Dialog.kt` / `ui/OverlayBackdrop.kt`，`1149eb06`）
+- **定位**：落地 [dialog-overlay-design.md](dialog-overlay-design.md) 方案 C 的 P2。P1 已解决「画上去、点得对」；P2 解决「modal 打开后 base 不再收到 key/mouse/paste/焦点」，并补 `Dialog`、`OverlayBackdrop`、Esc/backdrop 关闭。
+- **新增公共 API**：
+  - `Dialog(onDismissRequest, modifier, dismissOnBackdropClick = true, dismissOnBack = true, backdrop = OverlayBackdrop.Solid(), content: @Composable ColumnScope.() -> Unit)`。
+  - `Popup(alignment, offset, modifier, modal = false, backdrop = OverlayBackdrop.None, onDismissRequest = null, content: @Composable ColumnScope.() -> Unit)`（P1 四个参数不变，新增参数全部有默认值）。
+  - `OverlayBackdrop`：`None` / `Solid(background = Color.Unspecified)`。
+- **层元数据与测量**：内部 `OverlayLayerParentData(alignment, offset, modal, fillParent)` 由 `OverlayLayerModifier`（`ParentDataModifier`）携带；槽对 `fillParent` 层用 `Constraints.fixed(baseW, baseH)` 测量并放 (0,0)，其余仍按内容尺寸 + alignment/offset。`Dialog` 与 `Popup(modal = true)` 都是 fillParent + modal；`Dialog` 内部先画 backdrop、再把内容按 `Alignment.Center` 放置；modal Popup 把内容按自身 alignment + offset 放在 base 内。
+- **根入口门控**：`OverlayHostState` 同时实现 `LayoutModifier` 与内部 `OverlayHostAttach`，在 `MosaicNode.setModifier` 时拿到 host 节点，并在首次 measure 时把自身登记到组合根 `MosaicNode.overlayHost`。根 `sendKeyEvent`/`sendPasteEvent` 从后往前遍历 layer，未消费即遇到 modal 停止（不落 base），否则继续并最终到 base；`sendMouseEvent` 用 `rootsForMouse()`（顶层→…→最上层 modal，无 modal 时最后加 base）做 `PointerState.preDispatch` 与派发。没有 overlay 时完全走旧路径。
+- **同步时序**：layer 结构来自子组合作用域，host 自身不一定会重组。`MosaicNodeApplier.onBeginChanges` 把 root 上的 host 置 dirty；`MosaicComposition.performLayout` 与根 key/mouse/paste 入口在读取层前调用 `syncLayers()`。层列表变化时取消已捕获的 press（不触发 click）并清空 hover；modal 数量变化时更新焦点栈。`MosaicNodeApplier.remove` 现在清空被移除节点的 `parent`，使「modal 关闭时恢复的焦点目标已从 base 移除」能正确判为失效。
+- **Dialog 交互**：backdrop 是填充 base 的 `Box`（`overlayBackdrop` 绘制 + 可点击），内容外面另包一层 `onMouseEvent { true }` + no-op `clickable` + `hoverable` 的 shield；内容优先、内容未处理也不落到 backdrop。按下/释放在内容内外跨区时不算 backdrop click：backdrop 的 clickable 在释放时检查内容是否处于 hover（`hoverable` 在 pointer 预检里随 release 路径更新）。Esc 是 layer 根上的 post `onKeyEvent`，内容可先消费；`dismissOnBack`/`dismissOnBackdropClick` 分别控制两条关闭路径。
+- **Backdrop 清屏**：终端没有 alpha。`OverlayBackdrop.Solid` 不能只写空格（会残留 base 的背景/下划线）。新增 `TextSurface.clearRect` 与 `TextCanvasDrawScope.clear`：对矩形内每个 cell 执行 `reset()`（字符/前景/背景/文字样式/下划线/下划线色），指定背景色时再写 `background`；标记 written 防本帧懒复位。`Solid(Unspecified)` = 回到终端默认空白，`Solid(color)` = 实色遮罩。`None` 不画任何东西、base 完整可见。
+- **焦点域与恢复**：`FocusManager` 增加 modal 深度栈：打开 modal 时保存当前 `focusedNode` 并清空；关闭时 LIFO 恢复（目标需仍 attached、enabled、traversable）。`activeFocusRoots()` 返回顶层→最上层 modal 的 layer 列表；Tab 只在域内收集 focusable，域内为空时 Tab 仍被消费（旧的无 host 路径保持「无 focusable 不消费」）；`FocusRequester.requestFocus` 在 modal 期间忽略域外目标。`PointerState.preDispatch` 改为接受候选 roots，只从第一个命中的 root 收集 hover/按压/点击聚焦路径，所以 modal 外的 base 不会被 hover 或点击聚焦。
+- **测试**：`DialogTest` 13 条——modal key/paste 屏障、Esc 内容未消费/已消费、backdrop 点击只在内容外且 press/release 跨区不误触、`None` 保留 base、`Solid()` 清字符+红底+下划线、`Solid(Red)` 铺红底且其余样式复位、焦点保存/恢复、关闭时目标已移除、Tab 只在 modal 两点循环、modal 无 focusable 时 Tab 被消费、打开 modal 取消 press + 清 hover、双层 modal 的 LIFO 键盘屏障。`PopupTest` 新增 modal Popup 填满 base、base key/click 不可达、内容 click 仍优先。`OverlayHostTest` 的非模态键盘用例改为「先给 popup、未消费再落 base」。
+- **验证**：定向 25/25；全量 `:mosaic-runtime:jvmTest` **794/794**、`:mosaic-runtime:linuxX64Test --no-configuration-cache` **792/792**；`:mosaic-runtime:apiDump` 后 `apiCheck` 通过；`:mosaic-runtime:compileKotlinLinuxX64` 通过；`spotlessKotlinCheck` 仍只剩既有违规，新增文件已按格式修正（文件级 `@file:Suppress("ktlint:compose:param-order-check")` 保留设计要求的参数顺序）。构建环境仍用预置原生工具链 + `-x :mosaic-tty:zigDownload`（未改构建脚本）。
+- **限制**：① host 登记在它所属的 `root()`；若放在 `BoxWithConstraints` 等子组合里，子组合根没有父链，主组合根的入口门控看不到它（P1 遗留的单 host/子组合边界，建议 host 放在组合根）；② `Solid` 的 cell reset 目前只覆盖整块 backdrop；若未来用于非整屏矩形，宽字符簇跨边界仍需按簇头/续列处理；③ 无 dim/invert 后处理、无非 modal 点击外部关闭、无关闭后 hover 重算、无 focus 目标的跨 modal 非 LIFO 对齐（设计 §11 开放问题）；④ `Dialog` 不画边框/背景，需要时调用方自行加 `Modifier.border`/`Modifier.background`。
+
 ## 6. 当前状态 / 下一步候选
 
 ### 6.1 当前状态（2026-10-22）
 
-- 分支 `main`（`refactor` 同步），L7.39 代码提交 `19c291a1`（OverlayHost + 非模态 Popup，P1）；代码提交后工作树干净，本台账变更另行提交。
+- 分支 `main`（`refactor` 同步），L7.40 代码提交 `1149eb06`（Dialog/模态 Popup/Backdrop/输入门控，P2）；代码提交后工作树干净，本台账变更另行提交。
 - **红线清理（2026-10-21，提交 `77b645fa`）**：5 个含第三方名的提交信息已重写（其后所有提交哈希随之变化，台账/待办中的引用已全部重映射）；3 份调研文档已移出仓库（存档于仓库外）；README/CHANGELOG 的归属引用已中性化。
-- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.39（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
-- 回归基线（2026-10-22）：`mosaic-runtime` **JVM 745 / linuxX64 743**；`mosaic-tty` **JVM 116 / linuxX64 122**（FFM 分发 JDK 25 亦 116）；`mosaic-tty-terminal` **JVM 274 / linuxX64 273**；`mosaic-animation` 各 23；`mosaic-terminal` / `mosaic-testing` / `samples/showcase` 双平台全绿、0 失败。
+- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.40（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
+- 回归基线（2026-10-23）：`mosaic-runtime` **JVM 794 / linuxX64 792**；`mosaic-tty` JVM 116 / linuxX64 122（FFM 分发 JDK 25 亦 116）；`mosaic-tty-terminal` JVM 274 / linuxX64 273；`mosaic-animation` 各 23；`mosaic-terminal` / `mosaic-testing` / `samples/showcase` 双平台全绿、0 失败。
 - L7.38 时间盒验证：只跑新增定向 JVM 测试（`TabRowTest` 7/7）与 `:mosaic-runtime:compileKotlinLinuxX64`（`apiDump` / `apiCheck` 通过），未重跑全量 JVM/Native 套件，故上述基线数值保持不变。
-- L7.39 时间盒验证：只跑新增定向 JVM 测试（`OverlayHostTest` 6/6 + `PopupTest` 5/5 = 11/11）、`:mosaic-runtime:apiDump` → `apiCheck` 与 `:mosaic-runtime:compileKotlinLinuxX64`；按时间盒要求**跳过** `linuxX64Test` 与全量 JVM 套件，故基线数值仍按 745/743 记录（新增 11 条未计入全量）。
-- L7.39 之后本层无「进行中」步骤；浮层的 P2（modal 门控/Dialog/backdrop/焦点域/Esc）与 P3（hover 屏蔽、golden、示例、光标）仍未做，见 todo §15 与设计文档 §9。
+- L7.39 时间盒验证：只跑新增定向 JVM 测试（`OverlayHostTest` 6/6 + `PopupTest` 5/5 = 11/11）、`:mosaic-runtime:apiDump` → `apiCheck` 与 `:mosaic-runtime:compileKotlinLinuxX64`；按时间盒要求**跳过** `linuxX64Test` 与全量 JVM 套件，故当时基线数值仍按 745/743 记录（新增 11 条未计入全量）。
+- L7.40 验证：定向 overlay 测试 25/25（`DialogTest` 13 + `PopupTest` 6 + `OverlayHostTest` 6）、全量 `:mosaic-runtime:jvmTest` 794/794、`:mosaic-runtime:linuxX64Test --no-configuration-cache` 792/792、`:mosaic-runtime:apiDump` → `apiCheck`、`:mosaic-runtime:compileKotlinLinuxX64` 全绿。
+- L7.40 之后本层无「进行中」步骤；浮层的 P3 打磨（hover 重算/光标可见性、非整屏 Solid 宽簇边缘、dim/invert、非 modal 点击外部关闭、golden/示例、子组合 host 登记）仍未做，见 todo §15 与设计文档 §9/§11。
 
 ### 6.2 下一步候选（需确认后，一次一项）
 
 1. **合并收尾（待确认）**：上游示例目录标识是否重命名；7 处既有 spotless 失败是否一并修复或逐条抑制（见 §2）。
-2. **本机可验证的功能候选**：浮层 P2（`Dialog`、`Popup(modal = true)`、`OverlayBackdrop`、根入口 key/mouse/paste 门控、`FocusManager` 活动域与焦点保存恢复、Esc；见设计文档 §9 P2 与 todo §15）、`LazyRow`（与 L7.16 对称）、第一方 widget 集（table/chart/scrollbar；tabs 已由 L7.38 完成，todo §6 P3）、输入侧组合字符（todo §3 P3）。
+2. **本机可验证的功能候选**：浮层 P3 打磨（hover 重算/光标可见性、非整屏 `Solid` 宽簇边缘、dim/invert 后处理、非 modal 点击外部关闭、golden/示例；见设计文档 §9 P3、§11 与 todo §15）、`LazyRow`（与 L7.16 对称）、第一方 widget 集（table/chart/scrollbar；tabs 已由 L7.38 完成，todo §6 P3）、输入侧组合字符（todo §3 P3）。
 3. **需 CI/远程环境**：macOS 特判（todo §9.2 P2）、Windows/ConPTY（§9.3 P1）、Windows 输入多路复用（§9.3 P1）、`linuxArm64` cinterop；本机不推进。
 4. **性能可选项（非必须）**：逐格写入本体（`writeCluster` 11 字段 + `canvas[row,col]` 边界/平移）仍占 draw-idle 大头，候选「样式打包成 primitive」或「收敛局部 cell 引用」；当前性能已远超目标，优先级低于功能与清理。
 
