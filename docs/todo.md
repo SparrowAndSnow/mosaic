@@ -195,4 +195,5 @@
 - [x] **定位回调** ✅（L7.13，`118c1a2e`）：`Modifier.onGloballyPositioned { position, size -> }`（根坐标 + 尺寸，仅变化时触发）。
 - [x] **动画容器** ✅（L7.21）：`Crossfade`（水平推进叠层：旧页左滑出 / 新页右滑入，容器裁剪）+ `AnimatedVisibility`（`EnterTransition`/`ExitTransition` + `EnterExitState`，expand/shrink 尺寸动画 + slide 位移动画，fade 因终端无 alpha 而省略，退出完成后内容才移除）+ `MutableTransitionState` 变体；showcase Animation 页增补两段演示；要点见 progress §5。
 - [x] **第一方 widget 集（标签栏）** ✅（L7.38，`d5bf3b19`）：`TabRow` 落地（todo §6 已有 P3 条目）；charts / tables / scrollbars 仍待办。
+- [ ] **P3 弹窗 / 浮层**：设计见 [dialog-overlay-design.md](dialog-overlay-design.md)（方案 C；未实现）。
 - [ ] 备注：`margin` **不是**缺口——Compose 没有 `margin`，间距用 `padding` 或外层间隔表达。
