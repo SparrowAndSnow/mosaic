@@ -6,7 +6,8 @@
 > 优先级：**P0**=正确性/回归优先；**P1**=高价值优化；**P2**=增强/打磨；**P3**=长期/可选。
 > 参考基准：本仓库既有测试与台账（调研文档已在合并前移出仓库）。
 
-> **对账更新：2026-10-22（五）** L7.36 双击检测工具（`layout/ClickTracker.kt`）已归档；纯 Kotlin 小工具，配合既有 `onMouseEvent` 做同下标双击判定（默认 400ms 窗口），未引入 `Modifier.clickable`。
+> **对账更新：2026-10-22（六）** L7.37 `Modifier.clickable` 跨重组按压捕获加固 + 可选双击已归档（`a935b802`）：释放不再依赖节点实例/父链存活，修复子组合与节点替换场景的丢点击；新增 `onDoubleClick`（同元素 400ms 窗口；首击 `onClick`、次击仅 `onDoubleClick`；禁用/移除不触发）。要点见 progress §5。
+> **对账更新：2026-10-22（五）** L7.36 双击检测工具（`layout/ClickTracker.kt`）已归档；纯 Kotlin 小工具，配合既有 `onMouseEvent` 做同下标双击判定（默认 400ms 窗口），当时未引入 `Modifier.clickable`（L7.37 已接入）。
 > **对账更新：2026-10-22（四）** L7.35 惯性滚动状态（`MomentumScrollState`，`8532ef1e`）已归档；库只提供物理状态 + `advance`，应用自驱 frame loop，默认滚轮一格约 3 行。
 > **对账更新：2026-10-22（三）** L7.34 备用屏生命周期已归档（`43c85bb1`，见 §11）；`runMosaic*` 可选 `alternateScreen`，库接管进出序列并在 teardown 中幂等 leave。
 > **对账更新：2026-10-22** L7.33 `onGloballyPositioned` 内容未放置修复已归档（Row/LazyColumn 回归）；L7.21~L7.32 归档记录保持不变，L1~L7 主干完成；本文件余下未勾项即后续候选（P1/P2/P3），台账进度以 refactor-progress 为准。
@@ -187,7 +188,7 @@
 - [x] **滚动容器（最大布局缺口）** ✅（L7.15，`cc62a232`）：`ScrollState`（`value`/`maxValue` 快照态 + `scrollBy`/`scrollTo` clamp + `rememberScrollState`）+ `verticalScroll`/`horizontalScroll`（滚动轴无界测量、视口=约束、内容位移取负，clip 在外 offset 在内）+ `clipToBounds()` + 画布裁剪矩形；顺带修复绘制三处（簇裁剪后续列卡死 / `maxValue` 快照可观察 / 格子首写重置消除背景残留），滚轮内建（一格 3 行）；showcase 第 6 页演示三类容器；要点见 progress §5。
 - [x] **惰性列表** ✅（L7.16，`f4b6f9a1`；L7.16.1，`e9ca8239` 根因修复）：`LazyColumn`（仅组合可视区子项、代价 O(视口) 与总数无关）+ `LazyListScope` `items(count)`/`items(List)` + 固定 `itemHeight` 槽位；复用滚动容器/裁剪/滚轮；`KeyEvent` 增 `repeat` 标志（L7.16.1 补 `CSI <key>;<mod>:<type>~` 解析、撤销 600ms 时间窗兜底，Page 键只响应全新 press）；showcase 第 7 页（500 行）。`LazyRow` 仍待办；要点见 progress §5。
 - [x] **输入控件** ✅（L7.17，`7d07e645`）：`BasicTextField`（单行可编辑 + 反显块光标 + IME/粘贴 + 字素级编辑），受控组件、内部文本镜像防连击丢字；showcase 第 8 页 Field。多字段/点击聚焦待 §15「焦点 / 键盘导航原语」。
-- [x] **鼠标交互** ✅（L7.18）：`Modifier.hoverable(onHoverChanged)`（enter/leave 会话级对账）+ `Modifier.clickable(enabled, onClickLabel, onClick)`（主键界内按下→界内松开触发，越界取消）；showcase TabBar 已改由二者驱动；要点见 progress §5。
+- [x] **鼠标交互** ✅（L7.18 + L7.37）：`Modifier.hoverable(onHoverChanged)`（enter/leave 会话级对账）+ `Modifier.clickable(enabled, onClickLabel, onDoubleClick, onClick)`（主键按下捕获 state 与按下边界，界内松开触发，越界/禁用/移除取消；可选双击：首击 `onClick`、同元素 400ms 内次击仅 `onDoubleClick`）；showcase TabBar 已改由二者驱动；跨重组加固与双击要点见 progress §5。
 - [x] **焦点 / 键盘导航原语** ✅（L7.19）：`focusable(enabled)`（Tab/Shift+Tab 环形遍历 + 点击聚焦）+ `onFocusChanged { FocusState }`（hasFocus=自/后代、isFocused=自身）+ `FocusRequester`（程序化 requestFocus）；`BasicTextField` 已接入——仅聚焦的字段响应输入/显示光标，多字段可同屏；showcase Field 页双字段 + 聚焦状态行；要点见 progress §5。
 - [x] **边框 / 分隔绘制** ✅（L7.20，`392b7efa`）：`Modifier.border(width=1, color)`（`LayoutModifier` 内凹 + `DrawModifier` 角/边条，width>1 实心环）+ `HorizontalDivider`/`VerticalDivider`（thickness/color/startIndent/endIndent，占满约束主向）；要点见 progress §5。
 - [x] **定位回调** ✅（L7.13，`118c1a2e`）：`Modifier.onGloballyPositioned { position, size -> }`（根坐标 + 尺寸，仅变化时触发）。

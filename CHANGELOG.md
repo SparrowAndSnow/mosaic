@@ -14,6 +14,9 @@ New:
 - `ClickTracker`, a small helper for double-click detection: call `press(index, nowMillis)` from a
   mouse event handler and it reports whether the same row was pressed again within a configurable
   window, with the caller supplying the clock.
+- `Modifier.clickable` accepts an optional `onDoubleClick`: the first release invokes `onClick`, and
+  a second release on the same element within 400 ms invokes `onDoubleClick` instead of clicking
+  again.
 - Focus tracking with Tab/Shift+Tab traversal.
 - Hardware cursor control: place the terminal's cursor by layout position with block, underline, or
   bar shapes and optional blinking (`Cursor`); the terminal's default shape is restored on exit.
@@ -47,6 +50,9 @@ Fixed:
   closed instance, matching the native binding instead of risking memory corruption or
   platform-specific failures; all three also install the same POSIX crash-safety net when entering
   raw mode.
+- `Modifier.clickable` no longer drops a press when the element's node is replaced or when it lives
+  in a sub-composition such as `BoxWithConstraints`. A release now fires while the element remains
+  enabled and the pointer is inside the bounds captured at press time; removed elements stay silent.
 
 
 ## [0.18.0] - 2025-08-21
