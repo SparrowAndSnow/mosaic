@@ -19,12 +19,15 @@ New:
   again.
 - `TabRow`, a palette-neutral row of clickable tabs: selected, hover, and container colors, an
   optional one-cell divider, and a trailing `RowScope` slot for a right-aligned status hint.
-- `OverlayHost` and a non-modal `Popup`: the host measures a base content slot first and an
-  optional overlay slot that matches the base size, whose direct children are layers drawn above
-  the base in composition order; `Popup` sizes itself to its content, places it at a base-relative
-  alignment plus cell offset, and shields mouse clicks inside its bounds. This first phase does not
-  gate keyboard or paste input and adds no modal backdrop, focus scope, or Escape dismissal; those
-  are planned for a later phase.
+- `OverlayHost` and `Popup`: the host measures a base content slot first and an optional overlay
+  slot matching the base size, whose direct children are layers drawn above the base in composition
+  order. `Popup` sizes to its content (or fills the base in modal mode), places content at a
+  base-relative alignment plus cell offset, shields mouse clicks inside its bounds, and offers
+  key/paste/mouse input to the layer before the base.
+- Modal `Dialog` and `Popup(modal = true)` with `OverlayBackdrop`: modal layers gate keyboard,
+  paste, mouse, and Tab traversal, save and restore base focus, support Escape dismissal, and can
+  erase the base (`Solid`, optionally filling a background color) or leave it visible (`None`).
+  Layer changes cancel any in-flight press and clear hover state.
 - Focus tracking with Tab/Shift+Tab traversal.
 - Hardware cursor control: place the terminal's cursor by layout position with block, underline, or
   bar shapes and optional blinking (`Cursor`); the terminal's default shape is restored on exit.

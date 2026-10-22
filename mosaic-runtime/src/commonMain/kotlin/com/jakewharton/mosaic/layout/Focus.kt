@@ -91,10 +91,12 @@ public class FocusRequester {
 		private set
 
 	public fun requestFocus() {
-		val target = node?.focusTarget ?: return
+		val targetNode = node ?: return
+		val target = targetNode.focusTarget ?: return
 		if (!target.enabled || !target.traversable) return
-		val root = node!!.root()
-		root.ensureFocusManager().focus(node)
+		val root = targetNode.root()
+		if (!root.isInActiveFocusScope(targetNode)) return
+		root.ensureFocusManager().focus(targetNode)
 	}
 
 	internal fun attach(n: MosaicNode) {
@@ -128,6 +130,11 @@ internal class FocusManager {
 
 	var focusedNode: MosaicNode? = null
 		private set
+
+	// Focus saved before each modal layer opened. Closing a layer restores its saved target when it
+	// is still focusable and attached; nested modals are therefore strict LIFO.
+	private val modalFocusStack = ArrayList<MosaicNode?>()
+	private var modalDepth = 0
 
 	/** Focuses [node], or clears focus when null. Fires [Modifier.onFocusChanged] on each affected target at most once. */
 	fun focus(node: MosaicNode?) {
@@ -167,7 +174,17 @@ internal class FocusManager {
 		if (event.key != "Tab" || event.ctrl || event.alt) return false
 		if (event.repeat) return true // swallow auto-repeat without spinning through the cycle
 		val nodes = ArrayList<MosaicNode>()
-		root.collectFocusable(nodes)
+		val activeRoots = root.activeFocusRoots()
+		if (activeRoots == null) {
+			root.collectFocusable(nodes)
+		} else {
+			for (scopeRoot in activeRoots) {
+				scopeRoot.collectFocusable(nodes)
+			}
+			// A modal domain with no focusable target still consumes Tab so it cannot move focus to
+			// the base behind the barrier. Outside a modal domain the legacy behavior is preserved.
+			if (nodes.isEmpty()) return true
+		}
 		if (nodes.isEmpty()) return false // no focusable: keep legacy Tab behavior
 		val current = focusedNode?.let { nodes.indexOf(it) } ?: -1
 		val next = when {
@@ -185,6 +202,27 @@ internal class FocusManager {
 			it.focusTarget?.let { t -> t.traversable && t.enabled } == true
 		} ?: return
 		focus(target)
+	}
+
+	/**
+	 * Saves or restores base focus as the number of modal layers changes. Opening a modal saves the
+	 * current target and clears focus; closing it restores the target saved for that depth.
+	 */
+	fun updateModalDepth(depth: Int, root: MosaicNode) {
+		while (modalDepth < depth) {
+			modalFocusStack += focusedNode
+			focus(null)
+			modalDepth++
+		}
+		while (modalDepth > depth) {
+			modalDepth--
+			val saved = modalFocusStack.removeLastOrNull()
+			val restored = saved?.takeIf {
+				it.focusTarget?.let { target -> target.enabled && target.traversable } == true &&
+					it.isAttachedTo(root)
+			}
+			focus(restored)
+		}
 	}
 
 	private fun reconcile(root: MosaicNode) {
@@ -215,6 +253,15 @@ internal fun MosaicNode.collectFocusHitPath(x: Int, y: Int, out: MutableList<Mos
 		children[index].collectFocusHitPath(x, y, out)
 	}
 	out += this
+}
+
+/** Active focus roots when a modal layer is present, or `null` in the legacy whole-tree domain. */
+internal fun MosaicNode.activeFocusRoots(): List<MosaicNode>? = overlayHost?.activeFocusRoots()
+
+/** True when [target] is inside the current modal focus domain (or no modal domain is active). */
+internal fun MosaicNode.isInActiveFocusScope(target: MosaicNode): Boolean {
+	val roots = activeFocusRoots() ?: return true
+	return roots.any { it.isOnPathTo(target) }
 }
 
 /** Returns this tree's root node. */

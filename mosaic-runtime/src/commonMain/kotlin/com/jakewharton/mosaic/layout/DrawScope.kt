@@ -122,10 +122,17 @@ public interface DrawScope {
 }
 
 internal open class TextCanvasDrawScope(
-	private val canvas: TextSurface,
+	internal val canvas: TextSurface,
 	override val width: Int,
 	override val height: Int,
 ) : DrawScope {
+	/** Clears the surface cells covered by this scope and optionally paints a background color. */
+	internal fun clear(background: Color) {
+		val left = -canvas.translationX
+		val top = -canvas.translationY
+		canvas.clearRect(left, top, left + width, top + height, background)
+	}
+
 	override fun drawRect(
 		char: Char,
 		foreground: Color,

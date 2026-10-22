@@ -128,7 +128,7 @@ class OverlayHostTest {
 		}
 	}
 
-	@Test fun overlayDoesNotGateKeyboardInput() = runTest {
+	@Test fun nonModalPopupOffersKeysBeforeBaseAndFallsThrough() = runTest {
 		runMosaicTest(NodeSnapshots) {
 			val received = mutableListOf<String>()
 			setContent {
@@ -138,7 +138,7 @@ class OverlayHostTest {
 							Box(
 								Modifier.onKeyEvent {
 									received += "popup"
-									true
+									false
 								},
 							)
 						}
@@ -158,8 +158,8 @@ class OverlayHostTest {
 
 			root.sendKeyEvent(KeyEvent("x"))
 
-			// P1 leaves keyboard dispatch in tree order: the base is composed first and wins.
-			assertThat(received).isEqualTo(listOf("base"))
+			// Non-modal layers are offered keys first; unhandled events fall through to the base.
+			assertThat(received).isEqualTo(listOf("popup", "base"))
 		}
 	}
 }

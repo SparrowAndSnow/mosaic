@@ -203,10 +203,26 @@ internal class PointerState(
 
 	/** Runs before normal mouse dispatch on the composition root for [event]. */
 	fun preDispatch(root: MosaicNode, event: MouseEvent) {
+		preDispatch(listOf(root), event)
+	}
+
+	/**
+	 * Runs before normal mouse dispatch with the ordered input roots (top-most first). Only the first
+	 * root containing the pointer participates, so a modal barrier or a non-modal layer cannot
+	 * accidentally enter or focus content behind it.
+	 */
+	fun preDispatch(roots: List<MosaicNode>, event: MouseEvent) {
+		val hitRoot = roots.firstOrNull {
+			event.x in it.x until it.x + it.width && event.y in it.y until it.y + it.height
+		}
 		val path = ArrayList<PointerEntry>()
-		root.collectPointerEntries(event.x, event.y, path)
+		if (hitRoot != null) {
+			hitRoot.collectPointerEntries(event.x, event.y, path)
+		}
 		reconcileHover(path)
-		handleFocus(root, event)
+		if (hitRoot != null) {
+			handleFocus(hitRoot, event)
+		}
 		handleClick(event, path)
 	}
 
@@ -236,6 +252,20 @@ internal class PointerState(
 				hovered += state
 			}
 		}
+	}
+
+	/** Cancels a captured press without invoking its click callback. */
+	fun cancelPress() {
+		pressed?.state?.release()
+		pressed = null
+	}
+
+	/** Exits every currently hovered element. */
+	fun clearHover() {
+		for (state in hovered) {
+			state.exit()
+		}
+		hovered.clear()
 	}
 
 	private fun handleClick(event: MouseEvent, path: List<PointerEntry>) {

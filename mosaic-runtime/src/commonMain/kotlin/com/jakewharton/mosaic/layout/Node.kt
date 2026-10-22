@@ -141,6 +141,9 @@ internal class MosaicNode(
 	/** Cross-node pointer session, created lazily on the composition root. */
 	private var pointerState: PointerState? = null
 
+	/** Overlay host registered on the composition root, if any. */
+	internal var overlayHost: OverlayHostState? = null
+
 	/** Focus target active on this node (null when no focus-related modifier is applied). */
 	internal var focusTarget: FocusTarget? = null
 
@@ -220,6 +223,9 @@ internal class MosaicNode(
 			var nextLayer = nextLayer
 			// The Modifier class can inherit from several key Modifier types
 			// with different processing logic.
+			if (element is OverlayHostAttach) {
+				element.attach(this)
+			}
 			if (element is LayoutModifier) {
 				nextLayer = LayoutLayer(element, nextLayer)
 			}
@@ -317,10 +323,25 @@ internal class MosaicNode(
 
 	fun sendKeyEvent(keyEvent: KeyEvent): Boolean {
 		if (parent == null) {
+			overlayHost?.syncLayers()
 			// On the composition root, the focus manager first handles Tab / Shift+Tab traversal
 			// (consuming them when a focusable exists), then the raw event is dispatched normally.
 			if (ensureFocusManager().preKeyEvent(this, keyEvent)) {
 				return true
+			}
+			val host = overlayHost
+			if (host != null && host.layers.isNotEmpty()) {
+				val layers = host.layers
+				for (index in layers.indices.reversed()) {
+					val layer = layers[index]
+					if (layer.sendKeyEvent(keyEvent)) {
+						return true
+					}
+					if (host.isModal(layer)) {
+						return false
+					}
+				}
+				return host.baseNode?.sendKeyEvent(keyEvent) ?: false
 			}
 		}
 		return topLayer.sendKeyEvent(keyEvent)
@@ -332,6 +353,18 @@ internal class MosaicNode(
 		return FocusManager().also { focusManager = it }
 	}
 
+	internal fun ensurePointerState(): PointerState {
+		val existing = pointerState
+		if (existing != null) return existing
+		return PointerState().also { pointerState = it }
+	}
+
+	/** Releases any captured pointer press and exits all hover states, used when layers change. */
+	internal fun resetPointerSessions() {
+		pointerState?.cancelPress()
+		pointerState?.clearHover()
+	}
+
 	/**
 	 * Dispatches a [MouseEvent] to the top-most layout under the pointer and, if it is not
 	 * consumed, bubbles up to its ancestors. Coordinates are absolute canvas (screen cell)
@@ -341,14 +374,25 @@ internal class MosaicNode(
 	 */
 	fun sendMouseEvent(event: MouseEvent): Boolean {
 		if (parent == null) {
-			val state = pointerState ?: PointerState().also { pointerState = it }
+			overlayHost?.syncLayers()
 			ensureFocusManager()
-			state.preDispatch(this, event)
+			val host = overlayHost
+			if (host != null && host.layers.isNotEmpty()) {
+				val roots = host.rootsForMouse()
+				ensurePointerState().preDispatch(roots, event)
+				for (root in roots) {
+					if (root.dispatchMouseEvent(event)) {
+						return true
+					}
+				}
+				return false
+			}
+			ensurePointerState().preDispatch(this, event)
 		}
 		return dispatchMouseEvent(event)
 	}
 
-	private fun dispatchMouseEvent(event: MouseEvent): Boolean {
+	internal fun dispatchMouseEvent(event: MouseEvent): Boolean {
 		if (event.x !in x until x + width || event.y !in y until y + height) {
 			return false
 		}
@@ -368,6 +412,23 @@ internal class MosaicNode(
 	 * true consumes the paste.
 	 */
 	fun sendPasteEvent(text: String): Boolean {
+		if (parent == null) {
+			overlayHost?.syncLayers()
+			val host = overlayHost
+			if (host != null && host.layers.isNotEmpty()) {
+				val layers = host.layers
+				for (index in layers.indices.reversed()) {
+					val layer = layers[index]
+					if (layer.sendPasteEvent(text)) {
+						return true
+					}
+					if (host.isModal(layer)) {
+						return false
+					}
+				}
+				return host.baseNode?.sendPasteEvent(text) ?: false
+			}
+		}
 		return topLayer.sendPasteEvent(text)
 	}
 

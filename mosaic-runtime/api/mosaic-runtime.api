@@ -808,6 +808,10 @@ public final class com/jakewharton/mosaic/ui/CursorShape : java/lang/Enum {
 	public static fun values ()[Lcom/jakewharton/mosaic/ui/CursorShape;
 }
 
+public final class com/jakewharton/mosaic/ui/DialogKt {
+	public static final fun Dialog (Lkotlin/jvm/functions/Function0;Lcom/jakewharton/mosaic/modifier/Modifier;ZZLcom/jakewharton/mosaic/ui/OverlayBackdrop;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class com/jakewharton/mosaic/ui/FillerKt {
 	public static final fun Filler-GddN7rU (CLcom/jakewharton/mosaic/modifier/Modifier;IIILandroidx/compose/runtime/Composer;II)V
 	public static final fun Filler-GddN7rU (ILcom/jakewharton/mosaic/modifier/Modifier;IIILandroidx/compose/runtime/Composer;II)V
@@ -832,12 +836,36 @@ public abstract interface class com/jakewharton/mosaic/ui/LazyListScope {
 public abstract interface annotation class com/jakewharton/mosaic/ui/MosaicComposable : java/lang/annotation/Annotation {
 }
 
+public abstract interface class com/jakewharton/mosaic/ui/OverlayBackdrop {
+}
+
+public final class com/jakewharton/mosaic/ui/OverlayBackdrop$None : com/jakewharton/mosaic/ui/OverlayBackdrop {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/jakewharton/mosaic/ui/OverlayBackdrop$None;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/jakewharton/mosaic/ui/OverlayBackdrop$Solid : com/jakewharton/mosaic/ui/OverlayBackdrop {
+	public static final field $stable I
+	public synthetic fun <init> (IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-OrXnJU4 ()I
+	public final fun copy-ZsyVsVM (I)Lcom/jakewharton/mosaic/ui/OverlayBackdrop$Solid;
+	public static synthetic fun copy-ZsyVsVM$default (Lcom/jakewharton/mosaic/ui/OverlayBackdrop$Solid;IILjava/lang/Object;)Lcom/jakewharton/mosaic/ui/OverlayBackdrop$Solid;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBackground-OrXnJU4 ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/jakewharton/mosaic/ui/OverlayHostKt {
 	public static final fun OverlayHost (Lkotlin/jvm/functions/Function2;Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class com/jakewharton/mosaic/ui/PopupKt {
-	public static final fun Popup-iBqTKTI (Lcom/jakewharton/mosaic/ui/Alignment;JLcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Popup-nunZxAg (Lcom/jakewharton/mosaic/ui/Alignment;JLcom/jakewharton/mosaic/modifier/Modifier;ZLcom/jakewharton/mosaic/ui/OverlayBackdrop;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
 public final class com/jakewharton/mosaic/ui/Row {

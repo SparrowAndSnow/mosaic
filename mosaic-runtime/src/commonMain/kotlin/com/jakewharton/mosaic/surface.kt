@@ -102,6 +102,39 @@ internal class TextSurface(
 	}
 
 	/**
+	 * Resets every cell in the absolute canvas rectangle [left, top, right, bottom) and optionally
+	 * paints [background] over it. Used by modal backdrops, which must erase not just characters but
+	 * also any background, underline, and color the base painted on those cells. The cells are marked
+	 * written so the frame's lazy unused-cell reset keeps the cleared result.
+	 */
+	internal fun clearRect(left: Int, top: Int, right: Int, bottom: Int, background: Color) {
+		var x0 = left.coerceAtLeast(0)
+		var y0 = top.coerceAtLeast(0)
+		var x1 = right.coerceAtMost(width)
+		var y1 = bottom.coerceAtMost(height)
+		if (clipActive) {
+			if (x0 < clipLeft) x0 = clipLeft
+			if (y0 < clipTop) y0 = clipTop
+			if (x1 > clipRight) x1 = clipRight
+			if (y1 > clipBottom) y1 = clipBottom
+		}
+		if (x0 >= x1 || y0 >= y1) return
+		val paintBackground = background.isSpecifiedColor
+		for (y in y0 until y1) {
+			var index = y * width + x0
+			for (x in x0 until x1) {
+				val cell = cells[index]
+				cell.reset()
+				if (paintBackground) {
+					cell.background = background
+				}
+				written[index] = true
+				index++
+			}
+		}
+	}
+
+	/**
 	 * Resets every cell to its blank default so this surface can be reused for the next frame's
 	 * draw without allocating a fresh cell array. Size changes allocate a new surface instead.
 	 */

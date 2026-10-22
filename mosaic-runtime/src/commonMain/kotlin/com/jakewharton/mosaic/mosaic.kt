@@ -318,6 +318,7 @@ internal class MosaicComposition(
 		// cache, but the whole-tree observation below additionally covers state reads that happen
 		// during placement (e.g. a changeable offset), which must still trigger a layout pass.
 		readStatesOnLayout.clear()
+		rootNode.overlayHost?.syncLayers()
 		Snapshot.observe(readObserver = readStatesOnLayoutObserver) {
 			rootNode.measureAndPlace()
 		}
@@ -606,6 +607,9 @@ internal class MosaicNodeApplier(
 ) {
 	override fun onBeginChanges() {
 		super.onBeginChanges()
+		// Overlay layers are part of the node tree, so any applied change may add, remove, or
+		// reshape them. Mark the host for a cheap re-read before layout or input dispatch.
+		root.overlayHost?.markDirty()
 		// We invoke this here rather than in the end change callback to try and ensure
 		// no one relies on it to signal the end of changes.
 		onChanges.invoke()
@@ -622,6 +626,9 @@ internal class MosaicNodeApplier(
 	}
 
 	override fun remove(index: Int, count: Int) {
+		for (i in index until index + count) {
+			current.children[i].parent = null
+		}
 		current.children.remove(index, count)
 		current.invalidateLayoutVersion()
 	}

@@ -2,10 +2,13 @@ package com.jakewharton.mosaic.ui
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import assertk.assertions.isTrue
 import com.jakewharton.mosaic.NodeSnapshots
+import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.MouseEvent
 import com.jakewharton.mosaic.layout.clickable
+import com.jakewharton.mosaic.layout.onKeyEvent
 import com.jakewharton.mosaic.layout.onMouseEvent
 import com.jakewharton.mosaic.layout.size
 import com.jakewharton.mosaic.modifier.Modifier
@@ -200,6 +203,56 @@ class PopupTest {
 			root.sendMouseEvent(press(2, 1))
 			root.sendMouseEvent(release(2, 1))
 
+			assertThat(popupClicks).isEqualTo(1)
+			assertThat(baseClicks).isEqualTo(0)
+		}
+	}
+
+	@Test fun modalPopupFillsBaseAndBarriersBaseInput() = runTest {
+		runMosaicTest(NodeSnapshots) {
+			var baseKeys = 0
+			var baseClicks = 0
+			var popupClicks = 0
+			setContent {
+				OverlayHost(
+					overlay = {
+						Popup(
+							modal = true,
+							backdrop = OverlayBackdrop.Solid(),
+							offset = IntOffset(2, 1),
+						) {
+							Box(Modifier.size(2, 1).clickable { popupClicks++ })
+						}
+					},
+					modifier = Modifier.size(10, 5),
+				) {
+					Box(
+						Modifier
+							.size(10, 5)
+							.clickable { baseClicks++ }
+							.onKeyEvent {
+								baseKeys++
+								true
+							},
+					) {
+						Text("base")
+					}
+				}
+			}
+			val root = awaitSnapshot()
+
+			// Modal popup content does not handle this key, but the barrier stops it at the layer.
+			assertThat(root.sendKeyEvent(KeyEvent("x"))).isFalse()
+			assertThat(baseKeys).isEqualTo(0)
+
+			// Click outside the popup content is swallowed by the modal layer.
+			root.sendMouseEvent(press(0, 0))
+			root.sendMouseEvent(release(0, 0))
+			assertThat(baseClicks).isEqualTo(0)
+
+			// Click inside the popup content reaches its handler first.
+			root.sendMouseEvent(press(2, 1))
+			root.sendMouseEvent(release(2, 1))
 			assertThat(popupClicks).isEqualTo(1)
 			assertThat(baseClicks).isEqualTo(0)
 		}
