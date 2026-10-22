@@ -19,6 +19,12 @@ New:
   again.
 - `TabRow`, a palette-neutral row of clickable tabs: selected, hover, and container colors, an
   optional one-cell divider, and a trailing `RowScope` slot for a right-aligned status hint.
+- `OverlayHost` and a non-modal `Popup`: the host measures a base content slot first and an
+  optional overlay slot that matches the base size, whose direct children are layers drawn above
+  the base in composition order; `Popup` sizes itself to its content, places it at a base-relative
+  alignment plus cell offset, and shields mouse clicks inside its bounds. This first phase does not
+  gate keyboard or paste input and adds no modal backdrop, focus scope, or Escape dismissal; those
+  are planned for a later phase.
 - Focus tracking with Tab/Shift+Tab traversal.
 - Hardware cursor control: place the terminal's cursor by layout position with block, underline, or
   bar shapes and optional blinking (`Cursor`); the terminal's default shape is restored on exit.

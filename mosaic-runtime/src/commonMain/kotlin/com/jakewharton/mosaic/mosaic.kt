@@ -26,6 +26,8 @@ import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.ui.BoxMeasurePolicy
 import com.jakewharton.mosaic.ui.CursorState
 import com.jakewharton.mosaic.ui.LocalCursor
+import com.jakewharton.mosaic.ui.LocalOverlayHostRegistry
+import com.jakewharton.mosaic.ui.OverlayHostRegistry
 import com.jakewharton.mosaic.ui.platform.LocalClipboard
 import com.jakewharton.mosaic.ui.platform.TermClipboard
 import de.cketti.codepoints.appendCodePoint
@@ -254,6 +256,9 @@ internal class MosaicComposition(
 
 	/** Set by [com.jakewharton.mosaic.ui.Cursor] during layout/composition; consumed by [draw]. */
 	private val cursorState = CursorState { needDraw = true }
+
+	/** Enforces that a single [com.jakewharton.mosaic.ui.OverlayHost] exists per composition. */
+	private val overlayHostRegistry = OverlayHostRegistry()
 
 	override val lifecycle = LifecycleRegistry.createUnsafe(this)
 
@@ -547,6 +552,7 @@ internal class MosaicComposition(
 				LocalLifecycleOwner provides this,
 				LocalClipboard provides clipboard,
 				LocalCursor provides cursorState,
+				LocalOverlayHostRegistry provides overlayHostRegistry,
 				content = content,
 			)
 		}

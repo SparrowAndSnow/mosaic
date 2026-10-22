@@ -832,6 +832,14 @@ public abstract interface class com/jakewharton/mosaic/ui/LazyListScope {
 public abstract interface annotation class com/jakewharton/mosaic/ui/MosaicComposable : java/lang/annotation/Annotation {
 }
 
+public final class com/jakewharton/mosaic/ui/OverlayHostKt {
+	public static final fun OverlayHost (Lkotlin/jvm/functions/Function2;Lcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+}
+
+public final class com/jakewharton/mosaic/ui/PopupKt {
+	public static final fun Popup-iBqTKTI (Lcom/jakewharton/mosaic/ui/Alignment;JLcom/jakewharton/mosaic/modifier/Modifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class com/jakewharton/mosaic/ui/Row {
 	public static final fun Row (Lcom/jakewharton/mosaic/modifier/Modifier;Lcom/jakewharton/mosaic/ui/Arrangement$Horizontal;Lcom/jakewharton/mosaic/ui/Alignment$Vertical;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
