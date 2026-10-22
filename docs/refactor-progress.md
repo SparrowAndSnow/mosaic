@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.35（代码 `8532ef1e`） · 创建：2026-10-17 · 更新：2026-10-22
+> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.36（代码 `284565b6`） · 创建：2026-10-17 · 更新：2026-10-22
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/benchmarks.md`（调研文档已在合并前移出仓库）
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -32,7 +32,7 @@
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 完成（L6.1~L6.8 已归档） |
-| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.35 已归档；余下 P2/P3 可选） |
+| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.36 已归档；余下 P2/P3 可选） |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
 
@@ -112,6 +112,7 @@
 | L7 | L7.33 | `onGloballyPositioned` 内容未放置修复（`layout/OnGloballyPositioned.kt`）：measure 自建的 placement 块只回报坐标、未 `placeable.place(0,0)`，子内容与整棵子树停在 canvas 原点 → LazyColumn 各行/带该 modifier 的内容全部画到左上角重叠；补放置调用（坐标语义不变） | `b8cdc33e` | `OnGloballyPositionedTest` 7 条（原 5 + `contentRemainsAtItsPlacedPosition`（修复前 `X---` → 修复后 `----X`）+ `lazyColumnRowsStayOnTheirRows`）；mosaic-runtime JVM 728 / linuxX64 726 全绿 | ✅ 已归档 |
 | L7 | L7.34 | 备用屏生命周期：`runMosaic` / `runMosaicBlocking` / `runMosaicMain` 增 `alternateScreen: Boolean = false`（默认保持内联行为），经 `withTerminal` → `Tty.asTerminalIn` 透传；真实绑定 TTY 且开启时在 `enableRawMode()` 后、能力探测前写 `CSI ?1049h`，幂等 teardown 先恢复所有被 toggle 的模式再写 `CSI ?1049l`（`reset()` 仅恢复 termios/信号、不写终端，置于 leave 后并注释）；`ansi.kt` 集中序列常量 | `43c85bb1` | `TtyTerminalAlternateScreenTest`（3：进入早于首次探测 + 退出 / 恢复模式后 leave 且为最后输出 / 关闭时不出现 1049）+ `TtyTerminalLifecycleTest` 增 2（close 幂等只 leave 一次 / 作用域取消经 finalization hook 也 leave）；tty-terminal JVM 274 / linuxX64 273，runtime JVM 728，apiDump/apiCheck JVM+klib | ✅ 已归档 |
 | L7 | L7.35 | 惯性滚动状态（`layout/MomentumScrollState.kt`）：只提供物理状态与 `advance(dt, maxPosition)`，不启动协程/帧循环；`impulse(rows)` 把滚轮格数转成 `rows × friction` 的初速度，默认参数一格 3 行约走 3 行；应用在自己的 frame loop 调 `advance` 并把 `position` 映射到布局。补齐 17 条单测，并修 `advance(dt=0)` 返回 false 但 velocity 未清的语义 bug（现返回是否仍在运动） | `8532ef1e` | `MomentumScrollStateTest`（17：默认 3 行/上限/累积/边界/越界 clamp/非法参数/快照状态/应用帧循环映射等）；mosaic-runtime JVM 745 / linuxX64 743 全绿；apiDump + apiCheck 通过 | ✅ 已归档 |
+| L7 | L7.36 | 双击检测工具（`layout/ClickTracker.kt`）：纯 Kotlin、无框架依赖；`press(index, nowMillis)` 在同一下标且与上次按下的间隔在 `0..doubleClickMillis`（默认 400ms，含边界）内返回 true，每次按下都更新基准；时钟回拨不匹配且该次按下成为新基准；`reset()` 清空。面向直接处理 `onMouseEvent` 的行选中场景，不引入 `Modifier.clickable` | `284565b6` | `ClickTrackerTest`（6：同下标窗口内/不同下标/超窗/时钟回拨/reset/负窗口拒绝）；定向 JVM 测试 6/6 通过；apiDump + apiCheck 通过；仅 `:mosaic-runtime:compileKotlinLinuxX64`（按时间盒跳过 linuxX64Test） | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -637,15 +638,23 @@
 - **测试**：`MomentumScrollStateTest` 17 条——默认 3 行行程、初速上限/累积、`jumpTo` 清速、边界 clamp、零/负 `maxPosition`、dt 上限、`dt=0` 保活、非法构造参数、snapshot 可观察、应用帧循环把 `position` 四舍五入映射到布局。
 - **验证**：mosaic-runtime JVM 745 / linuxX64 743 全绿；`apiDump` + `apiCheck` 通过（新增公开类，`.api`/`.klib.api` 已更新）。
 
+### L7.36 双击检测工具（`layout/ClickTracker.kt`，`284565b6`）
+- **定位**：给直接消费鼠标事件（`onMouseEvent`）的行选中场景提供双击判定；纯 Kotlin 状态，不依赖框架、不启动定时器，也不新增 `Modifier.clickable`（应用仍自行把 `press` 的返回值映射到选择/激活）。
+- **API**：`ClickTracker(doubleClickMillis: Long = 400L)`，构造时 `require(doubleClickMillis >= 0)`；`press(index, nowMillis)` 在同一下标且与上次按下的间隔落在 `0..doubleClickMillis`（含边界）时返回 true；每次调用都更新「上次下标/时间」，因此三连击会返回两次 true；`nowMillis` 回退时不匹配，并把该次按下作为新基准；`reset()` 清空基准，下一次 `press` 必为 false。间隔计算先判非负，顺带避免时间戳极端溢出误判。
+- **测试**：`ClickTrackerTest` 6 条——同下标窗口内含边界（并验证窗口从上次按下起算）、不同下标、超出窗口、时钟回拨、`reset()`、负窗口拒绝。
+- **验证**：`:mosaic-runtime:jvmTest --tests "com.jakewharton.mosaic.layout.ClickTrackerTest"` 6/6 通过；`:mosaic-runtime:apiDump` 更新 JVM `.api` + `.klib.api` 后 `apiCheck` 通过；`:mosaic-runtime:compileKotlinLinuxX64` 通过；按时间盒要求**跳过** `linuxX64Test`。
+- **Handoff**：应用在行内 `onMouseEvent` 收到按下时调用 `tracker.press(rowIndex, nowMillis)`，true 即双击；行内容/指针离开时 `reset()`。后续若要一步到位的交互，可在此基础上另立 `Modifier.clickable`，本轮不做。
+
 ## 6. 当前状态 / 下一步候选
 
 ### 6.1 当前状态（2026-10-22）
 
-- 分支 `main`（`refactor` 同步），HEAD `8532ef1e`（L7.35 惯性滚动状态）；工作树干净。
+- 分支 `main`（`refactor` 同步），HEAD `284565b6`（L7.36 双击检测工具）；代码提交后工作树干净，本台账变更另行提交。
 - **红线清理（2026-10-21，提交 `77b645fa`）**：5 个含第三方名的提交信息已重写（其后所有提交哈希随之变化，台账/待办中的引用已全部重映射）；3 份调研文档已移出仓库（存档于仓库外）；README/CHANGELOG 的归属引用已中性化。
-- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.35（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
+- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.36（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
 - 回归基线（2026-10-22）：`mosaic-runtime` **JVM 745 / linuxX64 743**；`mosaic-tty` **JVM 116 / linuxX64 122**（FFM 分发 JDK 25 亦 116）；`mosaic-tty-terminal` **JVM 274 / linuxX64 273**；`mosaic-animation` 各 23；`mosaic-terminal` / `mosaic-testing` / `samples/showcase` 双平台全绿、0 失败。
-- L7.35 之后本层无「进行中」步骤，只剩 todo 中的 P2/P3 可选项与合并前清理项。
+- L7.36 时间盒验证：只跑新增定向 JVM 测试（6/6）与 `:mosaic-runtime:compileKotlinLinuxX64`（`apiDump` / `apiCheck` 通过），未重跑全量 JVM/Native 套件，故上述基线数值保持不变。
+- L7.36 之后本层无「进行中」步骤，只剩 todo 中的 P2/P3 可选项与合并前清理项。
 
 ### 6.2 下一步候选（需确认后，一次一项）
 
