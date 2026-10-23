@@ -108,6 +108,7 @@
 - [x] **P2 Modifier 缺口** ✅（L7.13，`118c1a2e`）：约束便捷族早已齐备——`widthIn/heightIn/sizeIn`、`requiredWidth/Height/Size(+In)`、`fillMaxWidth/H/S(fraction)`、`wrapContent*/defaultMinSize`（`layout/Size.kt`）；真实缺口 `onGloballyPositioned` 放置回调已于 L7.13 补齐（根坐标+尺寸，仅变化时触发）。`margin` 明确不补（Compose 无 margin）。
 - [x] **P2 intrinsic 复用** ✅（L7.25，`d51f3ae4`）：`min/maxIntrinsicWidth/Height` 已在每个节点加**单槽 memo**（与布局缓存同 `layoutVersion` 门控、同一 snapshot 依赖口径），重复同参查询不再重走子树；实际 measure 时丢弃 memo 保证不陈旧。剩余：多槽（min/max 交替同参还未互不驱逐）。
 - [x] **P3 焦点管理** ✅（L7.19）：`focusable`/`onFocusChanged`/`FocusRequester` + 组合级 `FocusManager`（Tab/Shift+Tab 环形遍历、点击聚焦、锚点祖先 hasFocus）。**方向键导航原语**（箭头遍历 focus 环）仍缺——Compose 无通用实现、主流 TUI 靠各自状态机，属可选项。
+- [ ] **P1 条件分支替换后的测量缓存疑似陈旧**（2026-10-23，外部接入反馈，尚未复现）：接入方在 Main 用 `if (stopped) 空状态 else { 专辑图/标题/进度/控件 }`，从空状态切到播放后，播放控件的图标/宽度变小，鼠标 hover（触发一次重绘）后恢复；仅某终端复现，另一终端正常。已排除字形差异与 cell 内容差异，去掉 if/else 分支让控件常驻后正常。怀疑分支替换时布局缓存（L4.7 的 Constraints+layoutVersion 单槽 memo）未失效，或节点复用保持了旧测量；需要在 Mosaic 内做最小复现并补回归。
 - [x] **P3 `weight(fill)` 语义核对** ✅（L7.24，`3edfd316`）：`weight(fill=true)` 的加权子节点按**槽位尺寸**记账与放置（fill=false 与非加权仍用实测内容尺寸），子节点自身宽度保持内容宽不拉伸——Row/Column 总尺寸=槽位总和，等宽列不再塌缩、整槽点击区域恢复。决策见台账 L7.24：框架级「报告宽度收敛到约束」不可行，改为定点记账。
 
 ## 6. 文本 / 样式（`text/` + `ui/Text.kt`）
