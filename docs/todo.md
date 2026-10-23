@@ -6,6 +6,7 @@
 > 优先级：**P0**=正确性/回归优先；**P1**=高价值优化；**P2**=增强/打磨；**P3**=长期/可选。
 > 参考基准：本仓库既有测试与台账（调研文档已在合并前移出仓库）。
 
+> **对账更新：2026-10-23（十五）** L7.46 合并前格式清理已归档（`e236784d`）：`spotlessApply` 全仓库 62 文件格式 + 10 处 compose lint 文件级抑制/私有参数重排；`:spotlessCheck` 全绿。旧记录「7 处」实际为 10 处 lint + 格式漂移（runtime 8 + animation 1 + bench 1）。runtime 812/812、animation 23/23、showcase 11/11。
 > **对账更新：2026-10-23（十四）** L7.45 `Solid` backdrop 绘制原点修复已归档（`b1256722`）：`TextCanvasDrawScope.clear` 用 `canvas.translationX/Y`（不再取负）作为局部原点的绝对坐标；host 在 header 下方时只清 host 矩形，Header/TabRow 保留。新增 header/host/footer golden 与 translation (2,1) 的 2×1 清除直测；全量 runtime JVM 812 / linuxX64 810；showcase 11/11。
 > **对账更新：2026-10-23（十三）** L7.44 浮层剩余正确性已归档（`fed2ecda`）：①`TextSurface.clearRect` 把部分矩形扩到宽簇边界（起点续列左移簇头、右缘覆盖簇头扩到簇尾），CJK/emoji 不再留半格；②`FocusManager` 焦点栈按 modal layer node 记录 owner+saved，非 LIFO 关闭只删对应层并保留上层焦点，全关时回退最近仍有效目标（含被丢弃层的 saved），不恢复已移除/禁用节点。全量 runtime JVM 810 / linuxX64 808；showcase 11/11。
 > **对账更新：2026-10-23（十二）** L7.43 浮层 P3 打磨三项已归档（`bb61db22`）：①layer 变化后按最后鼠标坐标重算 hover（不派发 click/focus）；②`BoxWithConstraints` 子组合根链接主树，host 注册到组合根，modal 屏障在子组合内生效；③`Cursor` 按活动焦点域 gate，modal 打开时 base 光标隐藏、关闭恢复。全量 runtime JVM 803 / linuxX64 801；showcase 11/11。
