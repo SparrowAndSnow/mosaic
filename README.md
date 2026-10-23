@@ -2,7 +2,7 @@
 
 An experimental tool for building console UI in Kotlin using the Jetpack Compose compiler/runtime.
 
-<img src="samples/jest/demo.gif">
+<img src="samples/test-console/demo.gif">
 
 Jump to:
 [Introduction](#Introduction) |
@@ -49,9 +49,9 @@ suspend fun main() = runMosaic {
 That is the most basic sample of Mosaic.
 From there, the limit is only your imagination.
 
-<img src="samples/jest/demo.gif">
+<img src="samples/test-console/demo.gif">
 
-<img src="samples/rrtop/demo.gif">
+<img src="samples/monitor/demo.gif">
 
 _(Note: graphs in the above have rendering problems due to asciinema/agg which do not appear in the real output)_
 
@@ -105,17 +105,17 @@ Run `./gradlew installDist` to build the sample binaries.
 
    `./samples/demo/build/install/demo/bin/demo`
 
- * [Jest](samples/jest): Example output of a test framework (such as JS's 'Jest').
+ * [Test console](samples/test-console): A test-runner style console with fake tests.
 
-   `./samples/jest/build/install/jest/bin/jest`
+   `./samples/test-console/build/install/test-console/bin/test-console`
 
  * [Robot](samples/robot): An interactive, game-like program with keyboard control.
 
    `./samples/robot/build/install/robot/bin/robot`
 
- * [monitor](samples/rrtop): A top-like process monitor with fake data.
+ * [monitor](samples/monitor): A top-like process monitor with fake data.
 
-   `./samples/rrtop/build/install/rrtop/bin/rrtop`
+   `./samples/monitor/build/install/monitor/bin/monitor`
 
  * [snake](samples/snake): Snake game.
 
