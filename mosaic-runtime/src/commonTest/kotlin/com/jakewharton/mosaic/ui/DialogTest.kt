@@ -339,6 +339,83 @@ class DialogTest {
 		}
 	}
 
+	@Test fun nonLifoModalCloseKeepsUpperFocusAndFallsBackToBase() = runTest {
+		runMosaicTest(NodeSnapshots) {
+			var showA by mutableStateOf(false)
+			var showB by mutableStateOf(false)
+			val baseRequester = FocusRequester()
+			val aRequester = FocusRequester()
+			val bRequester = FocusRequester()
+			setContent {
+				OverlayHost(
+					overlay = {
+						if (showA) {
+							Dialog(onDismissRequest = {}) {
+								Box(
+									Modifier
+										.focusable()
+										.focusRequester(aRequester)
+										.testTag("a"),
+								) {
+									Text("A")
+								}
+							}
+						}
+						if (showB) {
+							Dialog(onDismissRequest = {}) {
+								Box(
+									Modifier
+										.focusable()
+										.focusRequester(bRequester)
+										.testTag("b"),
+								) {
+									Text("B")
+								}
+							}
+						}
+					},
+				) {
+					Box(
+						Modifier
+							.focusable()
+							.focusRequester(baseRequester)
+							.testTag("base"),
+					) {
+						Text("base")
+					}
+				}
+			}
+			val root = awaitSnapshot()
+			val base = root.nodeByTestTag("base")
+			baseRequester.requestFocus()
+			assertThat(root.ensureFocusManager().focusedNode).isEqualTo(base)
+
+			showA = true
+			awaitSnapshot()
+			assertThat(root.ensureFocusManager().focusedNode).isNull()
+			val a = root.nodeByTestTag("a")
+			aRequester.requestFocus()
+			assertThat(root.ensureFocusManager().focusedNode).isEqualTo(a)
+
+			showB = true
+			awaitSnapshot()
+			assertThat(root.ensureFocusManager().focusedNode).isNull()
+			val b = root.nodeByTestTag("b")
+			bRequester.requestFocus()
+			assertThat(root.ensureFocusManager().focusedNode).isEqualTo(b)
+
+			// Close the lower modal first: B keeps focus, A's saved entry is discarded.
+			showA = false
+			awaitSnapshot()
+			assertThat(root.ensureFocusManager().focusedNode).isEqualTo(b)
+
+			// B's saved target was inside A (now gone), so the still-valid base target wins.
+			showB = false
+			val closedRoot = awaitSnapshot()
+			assertThat(closedRoot.ensureFocusManager().focusedNode).isEqualTo(base)
+		}
+	}
+
 	@Test fun tabTraversalStaysInsideModalScope() = runTest {
 		runMosaicTest(NodeSnapshots) {
 			setContent {

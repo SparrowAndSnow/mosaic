@@ -121,8 +121,29 @@ internal class TextSurface(
 		if (x0 >= x1 || y0 >= y1) return
 		val paintBackground = background.isSpecifiedColor
 		for (y in y0 until y1) {
-			var index = y * width + x0
-			for (x in x0 until x1) {
+			val rowStart = y * width
+			var rowX0 = x0
+			var rowX1 = x1
+			// A rectangle may start on the continuation of a wide cluster. Walk left to that
+			// cluster's head so clearing never leaves half a glyph behind.
+			while (rowX0 > 0 && cells[rowStart + rowX0].isPlaceholder) {
+				rowX0--
+			}
+			// Expand the right edge for every wide cluster whose head starts inside the rectangle;
+			// this also covers the rectangle ending on a continuation column.
+			var head = rowX0
+			while (head < rowX1 && head < width) {
+				val cell = cells[rowStart + head]
+				if (!cell.isPlaceholder && cell.width > 1) {
+					val clusterEnd = head + cell.width
+					if (clusterEnd > rowX1) {
+						rowX1 = clusterEnd.coerceAtMost(width)
+					}
+				}
+				head++
+			}
+			var index = rowStart + rowX0
+			for (x in rowX0 until rowX1) {
 				val cell = cells[index]
 				cell.reset()
 				if (paintBackground) {

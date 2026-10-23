@@ -131,10 +131,14 @@ internal class FocusManager {
 	var focusedNode: MosaicNode? = null
 		private set
 
-	// Focus saved before each modal layer opened. Closing a layer restores its saved target when it
-	// is still focusable and attached; nested modals are therefore strict LIFO.
-	private val modalFocusStack = ArrayList<MosaicNode?>()
-	private var modalDepth = 0
+	// Focus saved before each modal layer opened, keyed by the layer that saved it. Keying by owner
+	// lets a non-LIFO close discard exactly that layer's entry instead of popping the wrong depth.
+	private val modalFocusEntries = ArrayList<ModalFocusEntry>()
+
+	// Saved targets from lower layers removed while an upper modal stayed open. They are not valid
+	// to restore at removal time, but provide a fallback once every modal is gone (for example base
+	// focus remembered by the first of two dialogs closed out of order).
+	private val discardedFocusSaves = ArrayList<MosaicNode?>()
 
 	/** Focuses [node], or clears focus when null. Fires [Modifier.onFocusChanged] on each affected target at most once. */
 	fun focus(node: MosaicNode?) {
@@ -205,25 +209,67 @@ internal class FocusManager {
 	}
 
 	/**
-	 * Saves or restores base focus as the number of modal layers changes. Opening a modal saves the
-	 * current target and clears focus; closing it restores the target saved for that depth.
+	 * Aligns saved focus with the current modal layers (bottom-most first). New layers save the
+	 * current target and clear focus; removed layers discard their own entry. When all modals close
+	 * the most recent still-valid saved target is restored, so an out-of-order close cannot restore a
+	 * removed or disabled node.
 	 */
-	fun updateModalDepth(depth: Int, root: MosaicNode) {
-		while (modalDepth < depth) {
-			modalFocusStack += focusedNode
-			focus(null)
-			modalDepth++
-		}
-		while (modalDepth > depth) {
-			modalDepth--
-			val saved = modalFocusStack.removeLastOrNull()
-			val restored = saved?.takeIf {
-				it.focusTarget?.let { target -> target.enabled && target.traversable } == true &&
-					it.isAttachedTo(root)
+	fun updateModals(modals: List<MosaicNode>, root: MosaicNode) {
+		val previous = modalFocusEntries.toList()
+		val next = ArrayList<ModalFocusEntry>(modals.size)
+		for (layer in modals) {
+			val existing = previous.firstOrNull { it.owner === layer }
+			if (existing != null) {
+				next += existing
+			} else {
+				next += ModalFocusEntry(layer, focusedNode)
+				focus(null)
 			}
-			focus(restored)
+		}
+
+		val removed = previous.filter { entry -> modals.none { it === entry.owner } }
+		modalFocusEntries.clear()
+		modalFocusEntries.addAll(next)
+
+		if (removed.isNotEmpty()) {
+			val removedTop = previous.lastOrNull { entry -> modals.none { it === entry.owner } }
+			val wasTop = removedTop != null && removedTop === previous.last()
+			if (next.isEmpty()) {
+				// All modals are gone; prefer the most recently saved target that still exists,
+				// including targets remembered by lower layers closed out of order.
+				val candidates = removed.asReversed().map { it.saved } + discardedFocusSaves.asReversed()
+				val restored = candidates.firstNotNullOfOrNull { saved ->
+					saved?.takeIf { isValidModalRestore(it, root) }
+				}
+				focus(restored)
+				discardedFocusSaves.clear()
+			} else if (wasTop) {
+				focus(removedTop!!.saved?.takeIf { isValidModalRestore(it, root) })
+			} else {
+				// A lower modal was removed while an upper one remains: remember its saved target as a
+				// fallback for when the upper modal closes, and keep upper focus if still valid.
+				for (entry in removed) {
+					discardedFocusSaves += entry.saved
+				}
+				val focused = focusedNode
+				if (focused != null && !root.isInActiveFocusScope(focused)) {
+					focus(null)
+				}
+			}
+		}
+
+		val focused = focusedNode
+		if (focused != null && !root.isInActiveFocusScope(focused)) {
+			focus(null)
+		}
+		check(modalFocusEntries.map { it.owner } == modals) {
+			"Modal focus stack is out of sync with overlay layers"
 		}
 	}
+
+	private fun isValidModalRestore(target: MosaicNode, root: MosaicNode): Boolean = target.focusTarget?.let { it.enabled && it.traversable } == true &&
+		target.isAttachedTo(root) &&
+		root.isInActiveFocusScope(target)
 
 	private fun reconcile(root: MosaicNode) {
 		val node = focusedNode ?: return
@@ -234,6 +280,11 @@ internal class FocusManager {
 		}
 	}
 }
+
+private class ModalFocusEntry(
+	val owner: MosaicNode,
+	val saved: MosaicNode?,
+)
 
 /** Pre-order tree walk collecting traversable focus targets. */
 internal fun MosaicNode.collectFocusable(out: MutableList<MosaicNode>) {

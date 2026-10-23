@@ -50,7 +50,7 @@ internal class OverlayHostState :
 
 	private var rootNode: MosaicNode? = null
 	private var previousLayers: List<MosaicNode> = emptyList()
-	private var previousModalCount = 0
+	private var previousModalLayers: List<MosaicNode> = emptyList()
 	private var dirty = true
 
 	/** Live layer list, bottom-most first. Later layers draw and receive input above earlier ones. */
@@ -100,20 +100,20 @@ internal class OverlayHostState :
 		baseNode = node.children.getOrNull(0)
 		slotNode = node.children.getOrNull(1)
 		val currentLayers = slotNode?.children?.toList().orEmpty()
-		val modalCount = currentLayers.count(::isModal)
+		val modalLayers = currentLayers.filter(::isModal)
 		val layersChanged = currentLayers != previousLayers
-		val modalChanged = modalCount != previousModalCount
-		if (layersChanged || modalChanged) {
+		val modalsChanged = modalLayers != previousModalLayers
+		if (layersChanged || modalsChanged) {
 			rootNode?.resetPointerSessions()
 		}
-		if (modalChanged) {
-			rootNode?.ensureFocusManager()?.updateModalDepth(modalCount, rootNode!!)
+		if (modalsChanged) {
+			rootNode?.ensureFocusManager()?.updateModals(modalLayers, rootNode!!)
 		}
-		if (layersChanged || modalChanged) {
+		if (layersChanged || modalsChanged) {
 			rootNode?.rehoverOverlay()
 		}
 		previousLayers = currentLayers
-		previousModalCount = modalCount
+		previousModalLayers = modalLayers
 	}
 
 	/** Detaches this host when its composition leaves, restoring the base focus domain. */
@@ -121,7 +121,7 @@ internal class OverlayHostState :
 		val root = rootNode
 		if (root != null && root.overlayHost === this) {
 			root.overlayHost = null
-			root.ensureFocusManager().updateModalDepth(0, root)
+			root.ensureFocusManager().updateModals(emptyList(), root)
 			root.resetPointerSessions()
 		}
 		hostNode = null
@@ -129,7 +129,7 @@ internal class OverlayHostState :
 		slotNode = null
 		rootNode = null
 		previousLayers = emptyList()
-		previousModalCount = 0
+		previousModalLayers = emptyList()
 		dirty = false
 	}
 

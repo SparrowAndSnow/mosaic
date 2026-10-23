@@ -67,6 +67,12 @@ Fixed:
 - `Modifier.clickable` no longer drops a press when the element's node is replaced or when it lives
   in a sub-composition such as `BoxWithConstraints`. A release now fires while the element remains
   enabled and the pointer is inside the bounds captured at press time; removed elements stay silent.
+- A partial `OverlayBackdrop.Solid` rectangle now erases complete wide grapheme clusters: if it
+  touches a CJK/emoji head or continuation cell, the head and every continuation cell are cleared,
+  so no half glyph remains.
+- Modal focus save/restore is keyed by the layer that saved it. Closing dialogs out of order
+  discards only the removed layer's entry and never restores a target from a removed or disabled
+  layer; when the last modal closes the nearest still-valid saved target is restored.
 
 
 ## [0.18.0] - 2025-08-21
