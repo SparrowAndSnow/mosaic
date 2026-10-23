@@ -28,6 +28,30 @@ class OverlayBackdropTest {
 		assertThat(terminal.hasResidue()).isFalse()
 	}
 
+	@Test fun clearUsesDrawScopeTranslationAsAbsoluteOrigin() {
+		val surface = TextSurface(6, 4)
+		val painter = TextCanvasDrawScope(surface, 6, 4)
+		for (row in 0 until 4) {
+			painter.drawText(row, 0, "XXXXXX")
+		}
+
+		// A 2x1 node placed at (2,1) must clear only row 1 columns 2..3.
+		surface.translationX = 2
+		surface.translationY = 1
+		TextCanvasDrawScope(surface, 2, 1).clear(Color.Unspecified)
+
+		for (row in 0 until 4) {
+			for (column in 0 until 6) {
+				val cell = surface.cells[row * 6 + column]
+				if (row == 1 && column in 2..3) {
+					assertThat(cell.isEmpty()).isTrue()
+				} else {
+					assertThat(cell.text).isEqualTo("X")
+				}
+			}
+		}
+	}
+
 	@Test fun rectOnCjkContinuationClearsWholeClusterAndKeepsNeighbors() {
 		val surface = row()
 		surface.clearRect(1, 0, 2, 1, Color.Unspecified)

@@ -164,6 +164,35 @@ internal class EndToEndGoldenTest {
 		}
 	}
 
+	@Test fun solidDialogOnlyClearsHostAreaBetweenHeaderAndFooter() = assertGolden(
+		listOf(
+			"HEADER",
+			"",
+			"",
+			"       Dialog",
+			"",
+			"TAB",
+		),
+	) {
+		Column(Modifier.width(20).height(6)) {
+			Text("HEADER")
+			Box(Modifier.height(4)) {
+				OverlayHost(
+					overlay = {
+						Dialog(onDismissRequest = {}) {
+							Text("Dialog")
+						}
+					},
+				) {
+					Box(Modifier.width(20).height(4)) {
+						Text("base")
+					}
+				}
+			}
+			Text("TAB")
+		}
+	}
+
 	@Test fun popupDrawsAboveBaseAndLeavesRestVisible() = assertGolden(
 		listOf(
 			"base",

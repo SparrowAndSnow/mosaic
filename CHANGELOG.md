@@ -73,6 +73,9 @@ Fixed:
 - Modal focus save/restore is keyed by the layer that saved it. Closing dialogs out of order
   discards only the removed layer's entry and never restores a target from a removed or disabled
   layer; when the last modal closes the nearest still-valid saved target is restored.
+- `OverlayBackdrop.Solid` now clears at the draw scope's translated origin. A dialog hosted below
+  a header (or above a footer) only erases the host area instead of every row from the canvas
+  origin through the host height.
 
 
 ## [0.18.0] - 2025-08-21

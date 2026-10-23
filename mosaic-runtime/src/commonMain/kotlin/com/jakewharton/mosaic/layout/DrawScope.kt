@@ -128,8 +128,11 @@ internal open class TextCanvasDrawScope(
 ) : DrawScope {
 	/** Clears the surface cells covered by this scope and optionally paints a background color. */
 	internal fun clear(background: Color) {
-		val left = -canvas.translationX
-		val top = -canvas.translationY
+		// [TextSurface.clearRect] takes absolute canvas cells, while this scope's local origin is
+		// translated by the node placement. Convert local (0,0)..(width,height) through the same
+		// translation normal drawing uses instead of clearing at the canvas origin.
+		val left = canvas.translationX
+		val top = canvas.translationY
 		canvas.clearRect(left, top, left + width, top + height, background)
 	}
 
