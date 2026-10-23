@@ -6,11 +6,11 @@ import assertk.assertions.doesNotContain
 import assertk.assertions.isEqualTo
 import assertk.assertions.isTrue
 import com.jakewharton.mosaic.AnsiIncrementalRendering
-import com.jakewharton.mosaic.assertFailure
-import com.jakewharton.mosaic.size
 import com.jakewharton.mosaic.NodeSnapshots
 import com.jakewharton.mosaic.RenderingSnapshots
+import com.jakewharton.mosaic.assertFailure
 import com.jakewharton.mosaic.modifier.Modifier
+import com.jakewharton.mosaic.size
 import com.jakewharton.mosaic.testing.TestTerminal
 import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.ui.Box

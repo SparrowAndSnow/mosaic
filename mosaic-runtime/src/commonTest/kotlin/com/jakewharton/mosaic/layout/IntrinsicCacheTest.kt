@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:compose:mutable-state-autoboxing")
+
 package com.jakewharton.mosaic.layout
 
 import androidx.compose.runtime.getValue
@@ -8,8 +10,8 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNotEmpty
 import com.jakewharton.mosaic.NodeSnapshots
 import com.jakewharton.mosaic.testing.runMosaicTest
-import com.jakewharton.mosaic.ui.unit.Constraints
 import com.jakewharton.mosaic.ui.Layout
+import com.jakewharton.mosaic.ui.unit.Constraints
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 

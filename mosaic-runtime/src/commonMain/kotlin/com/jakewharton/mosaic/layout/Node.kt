@@ -100,7 +100,6 @@ internal object NotMeasured : MeasureResult {
 	override fun placeChildren() = throw UnsupportedOperationException("Not measured")
 }
 
-
 private const val MIN_WIDTH = 0
 private const val MAX_WIDTH = 1
 private const val MIN_HEIGHT = 2
@@ -165,12 +164,15 @@ internal class MosaicNode(
 	/** Number of times an actual (non-cached) measurement ran on this node. */
 	internal var measureCount: Long = 0
 		private set
+
 	/** Number of times a cached measurement result was reused on this node. */
 	internal var cacheHitCount: Long = 0
 		private set
+
 	/** Number of times an intrinsic query actually recomputed on this node. */
 	internal var intrinsicRecomputeCount: Long = 0
 		private set
+
 	/** Number of times a cached intrinsic result was reused on this node. */
 	internal var intrinsicCacheHitCount: Long = 0
 		private set
@@ -609,14 +611,12 @@ private class MouseLayer(
 	private val element: MouseModifier,
 	override val next: MosaicNodeLayer,
 ) : MosaicNodeLayer() {
-	override fun sendMouseEvent(event: MouseEvent): Boolean =
-		element.onMouseEvent(event) || next.sendMouseEvent(event)
+	override fun sendMouseEvent(event: MouseEvent): Boolean = element.onMouseEvent(event) || next.sendMouseEvent(event)
 }
 
 private class PasteLayer(
 	private val element: PasteModifier,
 	override val next: MosaicNodeLayer,
 ) : MosaicNodeLayer() {
-	override fun sendPasteEvent(text: String): Boolean =
-		element.onPaste(text) || next.sendPasteEvent(text)
+	override fun sendPasteEvent(text: String): Boolean = element.onPaste(text) || next.sendPasteEvent(text)
 }

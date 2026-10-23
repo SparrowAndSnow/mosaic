@@ -69,7 +69,10 @@ class LifecycleSemanticsTest {
 	@Test fun infiniteEffectKeepsAwaitCompleteBlockedUntilCancel() = runBlocking {
 		val harness = createHarness()
 		try {
-			harness.mosaic.setContent { Ticker(); Text("alive") }
+			harness.mosaic.setContent {
+				Ticker()
+				Text("alive")
+			}
 
 			val completed = CompletableDeferred<Unit>()
 			val awaiter = launch {
@@ -139,6 +142,7 @@ private fun Ticker() {
 }
 
 /** A per-frame effect that records how many frames ran for the given content key. */
+@Suppress("ktlint:compose:mutable-params-check") // Test-only recorder intentionally mutates its map.
 @Composable
 private fun FrameCounter(name: String, frames: MutableMap<String, Int>) {
 	LaunchedEffect(name) {

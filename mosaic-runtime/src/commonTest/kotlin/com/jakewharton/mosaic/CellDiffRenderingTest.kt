@@ -94,7 +94,6 @@ class CellDiffRenderingTest {
 		assertThat(vt.displayRow(0)).isEqualTo("中>")
 	}
 
-
 	@Test fun wideClusterExactlyFittingRightEdgeIsKept() {
 		val vt = transition(
 			row(narrow("A"), wide("中")),
@@ -147,8 +146,10 @@ class CellDiffRenderingTest {
 
 	@Test fun resizeToNarrowerRowClearsFormerWideColumns() {
 		val vt = resizeTransition(
-			oldWidth = 3, row(narrow("B"), wide("中")),
-			newWidth = 2, row(narrow("B"), narrow("X")),
+			oldWidth = 3,
+			row(narrow("B"), wide("中")),
+			newWidth = 2,
+			row(narrow("B"), narrow("X")),
 		)
 		assertThat(vt.hasResidue()).isFalse()
 		assertThat(vt.displayRow(0)).isEqualTo("BX ")

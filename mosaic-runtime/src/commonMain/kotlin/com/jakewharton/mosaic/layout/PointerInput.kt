@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:compose:modifier-composed-check")
+
 package com.jakewharton.mosaic.layout
 
 import androidx.compose.runtime.Composable
@@ -310,6 +312,7 @@ internal class PointerState(
 				)
 				target.state.press()
 			}
+
 			MouseEvent.Type.Release -> {
 				val target = pressed ?: return
 				pressed = null
@@ -322,6 +325,7 @@ internal class PointerState(
 				}
 				target.state.click(nowMillis())
 			}
+
 			else -> {}
 		}
 	}

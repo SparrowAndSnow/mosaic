@@ -5,10 +5,10 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import com.jakewharton.mosaic.testing.TestTerminal
 import com.jakewharton.mosaic.testing.runMosaicTest
-import com.jakewharton.mosaic.ui.Column
 import com.jakewharton.mosaic.ui.Color
-import com.jakewharton.mosaic.ui.TextStyle
+import com.jakewharton.mosaic.ui.Column
 import com.jakewharton.mosaic.ui.Text
+import com.jakewharton.mosaic.ui.TextStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -68,13 +68,13 @@ class SurfaceReuseTest {
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
 
-		// Shrink the first row to nothing on the reused surface, then diff against the previous
-		// frame. The incremental renderer must rewrite the vacated row as blank (clearing any old
-		// residue such as the "pha" suffix) instead of leaking it into the new frame.
-		value.value = ""
-		assertThat(awaitSnapshot()).isEqualTo(
-			synchronizedOutputEnable + CSI + "1;1H" + clearLine + CSI + "3;1H" + synchronizedOutputDisable,
-		)
+			// Shrink the first row to nothing on the reused surface, then diff against the previous
+			// frame. The incremental renderer must rewrite the vacated row as blank (clearing any old
+			// residue such as the "pha" suffix) instead of leaking it into the new frame.
+			value.value = ""
+			assertThat(awaitSnapshot()).isEqualTo(
+				synchronizedOutputEnable + CSI + "1;1H" + clearLine + CSI + "3;1H" + synchronizedOutputDisable,
+			)
+		}
 	}
-}
 }

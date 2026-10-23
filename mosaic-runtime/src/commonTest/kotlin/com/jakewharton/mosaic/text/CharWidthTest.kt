@@ -185,5 +185,4 @@ class CharWidthTest {
 		assertEquals(2, charWidth(0x1100))
 		assertEquals(2, charWidth(0x115F))
 	}
-
 }

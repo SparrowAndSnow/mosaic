@@ -1,10 +1,10 @@
 package com.jakewharton.mosaic.tty.terminal
 
-import kotlinx.cinterop.toKString
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.UnsafeNumber
 import kotlinx.cinterop.convert
 import kotlinx.cinterop.cstr
+import kotlinx.cinterop.toKString
 import platform.posix.STDERR_FILENO
 import platform.posix.getenv
 import platform.posix.write

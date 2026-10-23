@@ -65,8 +65,8 @@ public fun BoxWithConstraints(
 	BoxWithConstraintsNode(
 		measurePolicy = measurePolicy,
 		debugPolicy = { "BoxWithConstraints(alignment=$contentAlignment)" },
-		modifier = modifier,
 		state = state,
+		modifier = modifier,
 	)
 }
 
@@ -117,11 +117,9 @@ public interface BoxWithConstraintsScope : BoxScope {
 private class BoxWithConstraintsScopeImpl(
 	override val constraints: Constraints,
 ) : BoxWithConstraintsScope {
-	override fun Modifier.align(alignment: Alignment): Modifier =
-		this.then(AlignModifier(alignment, matchParentSize = false))
+	override fun Modifier.align(alignment: Alignment): Modifier = this.then(AlignModifier(alignment, matchParentSize = false))
 
-	override fun Modifier.matchParentSize(): Modifier =
-		this.then(AlignModifier(Alignment.Center, matchParentSize = true))
+	override fun Modifier.matchParentSize(): Modifier = this.then(AlignModifier(Alignment.Center, matchParentSize = true))
 }
 
 /**
@@ -260,8 +258,8 @@ internal class BoxWithConstraintsMeasurePolicy(
 private fun BoxWithConstraintsNode(
 	measurePolicy: MeasurePolicy,
 	debugPolicy: DebugPolicy,
-	modifier: Modifier,
 	state: BoxWithConstraintsState,
+	modifier: Modifier = Modifier,
 ) {
 	val materializedModifier = currentComposer.materialize(modifier)
 	ComposeNode<MosaicNode, Applier<Any>>(

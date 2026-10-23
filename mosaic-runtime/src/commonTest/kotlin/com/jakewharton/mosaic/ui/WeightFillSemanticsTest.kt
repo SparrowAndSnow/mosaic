@@ -1,8 +1,8 @@
 package com.jakewharton.mosaic.ui
 
 import assertk.assertThat
-import assertk.assertions.isGreaterThan
 import assertk.assertions.isEqualTo
+import assertk.assertions.isGreaterThan
 import com.jakewharton.mosaic.NodeSnapshots
 import com.jakewharton.mosaic.layout.fillMaxWidth
 import com.jakewharton.mosaic.layout.height

@@ -40,12 +40,12 @@ class GraphemeWidthTest {
 
 	@Test fun zwjEmojiFamilyIsTwoColumns() {
 		assertEquals(2, "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67".graphemeWidth()) // 👨👩👧
-		assertEquals(2, "\uD83D\uDC68\u200D\uD83D\uDC67".graphemeWidth())                  // 👨👧
+		assertEquals(2, "\uD83D\uDC68\u200D\uD83D\uDC67".graphemeWidth()) // 👨👧
 	}
 
 	@Test fun flagsAreTwoColumns() {
 		assertEquals(2, "\uD83C\uDDE8\uD83C\uDDF3".graphemeWidth()) // 🇨🇳
-		assertEquals(1, "\uD83C\uDDE8".graphemeWidth())            // lone regional indicator
+		assertEquals(1, "\uD83C\uDDE8".graphemeWidth()) // lone regional indicator
 	}
 
 	@Test fun keycapSequences() {
@@ -55,14 +55,14 @@ class GraphemeWidthTest {
 
 	@Test fun variationSelectors() {
 		assertEquals(1, "©".graphemeWidth())
-		assertEquals(2, "©\uFE0F".graphemeWidth())     // VS16 switches to emoji presentation
+		assertEquals(2, "©\uFE0F".graphemeWidth()) // VS16 switches to emoji presentation
 		assertEquals(1, "\u2600\uFE0E".graphemeWidth()) // VS15 keeps text presentation
 		assertEquals(2, "\u2600\uFE0F".graphemeWidth()) // VS16
 	}
 
 	@Test fun hangulJamoFoldsIntoBaseWidth() {
 		assertEquals(2, "각".graphemeWidth())
-		assertEquals(2, "\u1100\u1161".graphemeWidth())       // L+V jamo
+		assertEquals(2, "\u1100\u1161".graphemeWidth()) // L+V jamo
 		assertEquals(2, "\u1100\u1161\u11A8".graphemeWidth()) // L+V+T jamo
 	}
 
@@ -96,7 +96,7 @@ class GraphemeWidthTest {
 			"\uD83C\uDDE8\uD83C\uDDF3 \uD83C\uDDFA\uD83C\uDDF8",
 			"#\uFE0F\u20E3 1\uFE0F\u20E3",
 			"\u1100\u1161\u11A8 \uAC00 \uD83D\uDE00",
-			"\u0915\u094D\u0915",       // Devanagari conjunct (ka-virama-ka)
+			"\u0915\u094D\u0915", // Devanagari conjunct (ka-virama-ka)
 			"\u0915\u094D\u200D\u0937", // Devanagari + ZWJ sequence
 		)
 		for (sample in samples) {

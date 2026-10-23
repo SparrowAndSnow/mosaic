@@ -191,6 +191,7 @@ internal suspend fun runMosaicComposition(
 
 /** Frame delay while work is pending: roughly the 60fps terminal pacing mainstream TUIs use. */
 private val activeFrameDelay: Duration = 16.milliseconds
+
 /** Frame delay while idle: keeps input latency bounded without a busy frame loop. */
 private val idleFrameDelay: Duration = 50.milliseconds
 
@@ -482,8 +483,10 @@ internal class MosaicComposition(
 						val event = terminal.events.tryReceive().getOrNull() ?: break
 						val terminalMouse = event as? com.jakewharton.mosaic.terminal.MouseEvent
 						if (terminalMouse != null &&
-							(terminalMouse.type == com.jakewharton.mosaic.terminal.MouseEvent.Type.Motion ||
-								terminalMouse.type == com.jakewharton.mosaic.terminal.MouseEvent.Type.Drag)
+							(
+								terminalMouse.type == com.jakewharton.mosaic.terminal.MouseEvent.Type.Motion ||
+									terminalMouse.type == com.jakewharton.mosaic.terminal.MouseEvent.Type.Drag
+								)
 						) {
 							pendingMotion = terminalMouse
 							continue
@@ -504,21 +507,25 @@ internal class MosaicComposition(
 										job.cancel()
 										return@withFrameNanos
 									}
-									paste.append(event.text ?: run {
-										buildString { appendCodePoint(event.codepoint) }
-									})
+									paste.append(
+										event.text ?: run {
+											buildString { appendCodePoint(event.codepoint) }
+										},
+									)
 									continue
 								}
-									val keyEvent = event.toKeyEventOrNull() ?: continue
+								val keyEvent = event.toKeyEventOrNull() ?: continue
 								val keyHandled = rootNode.sendKeyEvent(keyEvent)
 								if (!keyHandled && keyEvent == ctrlC) {
 									job.cancel()
 									return@withFrameNanos
 								}
 							}
+
 							is com.jakewharton.mosaic.terminal.MouseEvent -> {
 								rootNode.sendMouseEvent(event.toRuntimeMouseEvent())
 							}
+
 							is BracketedPasteEvent -> {
 								if (event.start) {
 									pasteText = StringBuilder()
@@ -528,9 +535,11 @@ internal class MosaicComposition(
 									rootNode.sendPasteEvent(text)
 								}
 							}
+
 							is ClipboardEvent -> {
 								clipboard.onEvent(event)
 							}
+
 							else -> {}
 						}
 					}

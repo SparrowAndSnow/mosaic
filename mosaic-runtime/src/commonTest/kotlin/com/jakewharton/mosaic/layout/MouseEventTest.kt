@@ -13,11 +13,11 @@ import com.jakewharton.mosaic.layout.offset
 import com.jakewharton.mosaic.layout.size
 import com.jakewharton.mosaic.layout.width
 import com.jakewharton.mosaic.modifier.Modifier
-import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.terminal.MouseEvent as TerminalMouseEvent
+import com.jakewharton.mosaic.testing.runMosaicTest
 import com.jakewharton.mosaic.ui.Box
-import com.jakewharton.mosaic.ui.Text
 import com.jakewharton.mosaic.ui.Row
+import com.jakewharton.mosaic.ui.Text
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 
@@ -179,10 +179,12 @@ class MouseEventTest {
 			var last by mutableStateOf("none")
 
 			setContent {
-				Box(Modifier.onMouseEvent {
-					last = "${it.x},${it.y}:${it.type}"
-					true
-				}) {
+				Box(
+					Modifier.onMouseEvent {
+						last = "${it.x},${it.y}:${it.type}"
+						true
+					},
+				) {
 					com.jakewharton.mosaic.ui.Text(last)
 				}
 			}
@@ -214,10 +216,12 @@ class MouseEventTest {
 			setContent {
 				// Reading [received] in composition ties state mutations to recomposition so that
 				// awaitSnapshot can observe them.
-				Box(Modifier.size(20, 10).onMouseEvent {
-					received += it
-					true
-				}) {
+				Box(
+					Modifier.size(20, 10).onMouseEvent {
+						received += it
+						true
+					},
+				) {
 					Text(received.size.toString())
 				}
 			}
@@ -252,10 +256,12 @@ class MouseEventTest {
 			setContent {
 				// Reading [received] in composition ties state mutations to recomposition so that
 				// awaitSnapshot can observe them.
-				Box(Modifier.size(20, 10).onMouseEvent {
-					received += it
-					true
-				}) {
+				Box(
+					Modifier.size(20, 10).onMouseEvent {
+						received += it
+						true
+					},
+				) {
 					Text(received.size.toString())
 				}
 			}
@@ -277,10 +283,12 @@ class MouseEventTest {
 			setContent {
 				// Reading [received] in composition ties state mutations to recomposition so that
 				// awaitSnapshot can observe them.
-				Box(Modifier.size(20, 10).onMouseEvent {
-					received += it
-					true
-				}) {
+				Box(
+					Modifier.size(20, 10).onMouseEvent {
+						received += it
+						true
+					},
+				) {
 					Text(received.size.toString())
 				}
 			}

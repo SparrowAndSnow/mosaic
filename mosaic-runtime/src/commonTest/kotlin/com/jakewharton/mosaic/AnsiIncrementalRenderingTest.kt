@@ -111,7 +111,6 @@ class AnsiIncrementalRenderingTest {
 		}
 	}
 
-
 	@Test fun styleChangeDetectedAndRewritesStyledRow() = runTest {
 		runMosaicTest(RenderingSnapshots(rendering)) {
 			setContent {
@@ -235,7 +234,6 @@ class AnsiIncrementalRenderingTest {
 		}
 	}
 
-
 	@Test fun changeAfterUnchangedWideClusterStaysAfterIt() = runTest {
 		runMosaicTest(RenderingSnapshots(rendering)) {
 			setContent {
@@ -323,8 +321,8 @@ class AnsiIncrementalRenderingTest {
 				"""
 				|${cursorUp(4)}${clearLine}Hello
 				|${clearLine}World!
-				|${clearLine}
-				|${clearLine}
+				|$clearLine
+				|$clearLine
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -467,8 +465,8 @@ class AnsiIncrementalRenderingTest {
 				"""
 				|${cursorUp(4)}${clearLine}One
 				|${clearLine}X
-				|${clearLine}
-				|${clearLine}
+				|$clearLine
+				|$clearLine
 				|
 				""".trimMargin().dropLast(1).wrapWithAnsiSynchronizedUpdate().replaceLineEndingsWithCRLF(),
 			)
@@ -520,7 +518,7 @@ class AnsiIncrementalRenderingTest {
 				Text("ABCDEFXHIJ")
 			}
 			assertThat(awaitSnapshot()).isEqualTo(
-				"${hideCursor}${goto(1, 7)}X${goto(2, 1)}${showCursor}",
+				"${hideCursor}${goto(1, 7)}X${goto(2, 1)}$showCursor",
 			)
 		}
 	}

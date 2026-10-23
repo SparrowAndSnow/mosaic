@@ -10,10 +10,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.jakewharton.mosaic.LocalTerminalState
 import com.jakewharton.mosaic.layout.ClipToBoundsElement
+import com.jakewharton.mosaic.layout.Measurable
 import com.jakewharton.mosaic.layout.MeasurePolicy
 import com.jakewharton.mosaic.layout.MeasureResult
 import com.jakewharton.mosaic.layout.MeasureScope
-import com.jakewharton.mosaic.layout.Measurable
 import com.jakewharton.mosaic.layout.ParentDataModifier
 import com.jakewharton.mosaic.layout.Placeable
 import com.jakewharton.mosaic.layout.ScrollState
@@ -158,8 +158,7 @@ internal class LazyListEntry(
 private class LazyIndexModifier(
 	private val index: Int,
 ) : ParentDataModifier {
-	override fun modifyParentData(parentData: Any?): Any =
-		((parentData as? LazyParentData) ?: LazyParentData()).also { it.index = index }
+	override fun modifyParentData(parentData: Any?): Any = ((parentData as? LazyParentData) ?: LazyParentData()).also { it.index = index }
 
 	override fun toString(): String = "LazyIndex($index)"
 }

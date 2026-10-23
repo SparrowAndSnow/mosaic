@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:compose:param-order-check")
+
 package com.jakewharton.mosaic.layout
 
 import androidx.compose.runtime.Composable
@@ -37,7 +39,8 @@ public fun Modifier.border(
 private class BorderModifier(
 	private val width: Int,
 	private val color: Color,
-) : LayoutModifier, DrawModifier {
+) : LayoutModifier,
+	DrawModifier {
 
 	init {
 		require(width >= 0) { "Border width must be non-negative" }

@@ -6,15 +6,15 @@ package com.jakewharton.mosaic.text.unicodewidth
  * Methods for determining displayed width of Unicode strings.
  */
 public interface UnicodeWidthStr {
-    /**
-     * Returns the string's displayed width in columns.
-     */
-    public fun width(): Int
+	/**
+	 * Returns the string's displayed width in columns.
+	 */
+	public fun width(): Int
 
-    /**
-     * Returns the string's displayed width in columns for CJK contexts.
-     */
-    public fun widthCjk(): Int
+	/**
+	 * Returns the string's displayed width in columns for CJK contexts.
+	 */
+	public fun widthCjk(): Int
 }
 
 /**

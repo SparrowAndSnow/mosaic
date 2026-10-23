@@ -8,17 +8,17 @@ internal interface Sealed
  * Methods for determining displayed width of Unicode characters.
  */
 public interface UnicodeWidthChar {
-    /**
-     * Returns the character's displayed width in columns, or `null` if the
-     * character is a control character.
-     */
-    public fun width(): Int?
+	/**
+	 * Returns the character's displayed width in columns, or `null` if the
+	 * character is a control character.
+	 */
+	public fun width(): Int?
 
-    /**
-     * Returns the character's displayed width in columns for CJK contexts, or
-     * `null` if the character is a control character.
-     */
-    public fun widthCjk(): Int?
+	/**
+	 * Returns the character's displayed width in columns for CJK contexts, or
+	 * `null` if the character is a control character.
+	 */
+	public fun widthCjk(): Int?
 }
 
 /**

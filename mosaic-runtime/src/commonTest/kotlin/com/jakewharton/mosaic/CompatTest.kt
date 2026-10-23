@@ -12,8 +12,7 @@ import kotlin.test.Test
 
 class CompatTest {
 
-	private fun press(codepoint: Int, modifiers: Int = 0, text: String? = null) =
-		KeyboardEvent(codepoint, modifiers = modifiers, text = text)
+	private fun press(codepoint: Int, modifiers: Int = 0, text: String? = null) = KeyboardEvent(codepoint, modifiers = modifiers, text = text)
 
 	@Test fun legacyControlKeysAreNamed() {
 		assertThat(press(9).toKeyEventOrNull()).isEqualTo(KeyEvent("Tab"))

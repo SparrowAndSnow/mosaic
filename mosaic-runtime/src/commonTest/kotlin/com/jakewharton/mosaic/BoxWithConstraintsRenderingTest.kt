@@ -1,9 +1,11 @@
+@file:Suppress("ktlint:compose:naming-check")
+
 package com.jakewharton.mosaic
 
+import androidx.compose.runtime.Composable
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.isTrue
-import androidx.compose.runtime.Composable
 import com.jakewharton.mosaic.layout.fillMaxWidth
 import com.jakewharton.mosaic.layout.height
 import com.jakewharton.mosaic.layout.padding
@@ -28,8 +30,7 @@ import kotlinx.coroutines.test.runTest
 class BoxWithConstraintsRenderingTest {
 	private val rendering = AnsiIncrementalRendering(TestTerminal.Capabilities())
 
-	private fun visible(frame: String): String =
-		frame.replace(synchronizedOutputEnable, "").replace(synchronizedOutputDisable, "").replace("\r\n", "\n")
+	private fun visible(frame: String): String = frame.replace(synchronizedOutputEnable, "").replace(synchronizedOutputDisable, "").replace("\r\n", "\n")
 
 	@Composable
 	private fun centeredCell(width: Int, content: String) {

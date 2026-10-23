@@ -1,4 +1,5 @@
 @file:OptIn(ExperimentalTransitionApi::class, InternalAnimationApi::class)
+@file:Suppress("ktlint:compose:param-order-check")
 
 package com.jakewharton.mosaic.animation
 
@@ -20,9 +21,9 @@ import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.ui.Alignment
 import com.jakewharton.mosaic.ui.Layout
 import com.jakewharton.mosaic.ui.unit.Constraints
-import com.jakewharton.mosaic.ui.unit.constrain
 import com.jakewharton.mosaic.ui.unit.IntOffset
 import com.jakewharton.mosaic.ui.unit.IntSize
+import com.jakewharton.mosaic.ui.unit.constrain
 import kotlin.math.max
 
 /**
@@ -73,7 +74,9 @@ public fun AnimatedVisibility(
 	enter: EnterTransition = expandVertically(),
 	exit: ExitTransition = shrinkVertically(),
 	label: String = "AnimatedVisibility",
-	content: @Composable() AnimatedVisibilityScope.() -> Unit,
+	content:
+	@Composable()
+	AnimatedVisibilityScope.() -> Unit,
 ) {
 	val transition = updateTransition(visible, label)
 	AnimatedVisibilityImpl(transition, { it }, modifier, enter, exit, content)
@@ -98,21 +101,24 @@ public fun AnimatedVisibility(
 	enter: EnterTransition = expandVertically(),
 	exit: ExitTransition = shrinkVertically(),
 	label: String = "AnimatedVisibility",
-	content: @Composable() AnimatedVisibilityScope.() -> Unit,
+	content:
+	@Composable()
+	AnimatedVisibilityScope.() -> Unit,
 ) {
 	val transition = rememberTransition(visibleState, label)
 	AnimatedVisibilityImpl(transition, { it }, modifier, enter, exit, content)
 }
 
-
 @Composable
 internal fun <T> AnimatedVisibilityImpl(
 	transition: Transition<T>,
 	visible: (T) -> Boolean,
-	modifier: Modifier,
+	modifier: Modifier = Modifier,
 	enter: EnterTransition,
 	exit: ExitTransition,
-	content: @Composable() AnimatedVisibilityScope.() -> Unit,
+	content:
+	@Composable()
+	AnimatedVisibilityScope.() -> Unit,
 ) {
 	AnimatedEnterExitImpl(
 		transition = transition,
@@ -129,11 +135,13 @@ internal fun <T> AnimatedVisibilityImpl(
 internal fun <T> AnimatedEnterExitImpl(
 	transition: Transition<T>,
 	visible: (T) -> Boolean,
-	modifier: Modifier,
+	modifier: Modifier = Modifier,
 	enter: EnterTransition,
 	exit: ExitTransition,
 	shouldDisposeBlock: (EnterExitState, EnterExitState) -> Boolean,
-	content: @Composable() AnimatedVisibilityScope.() -> Unit,
+	content:
+	@Composable()
+	AnimatedVisibilityScope.() -> Unit,
 ) {
 	if (visible(transition.targetState) || visible(transition.currentState)) {
 		val childTransition = transition.createChildTransition(label = "EnterExitTransition") {
@@ -167,9 +175,9 @@ internal fun <T> AnimatedEnterExitImpl(
 			Layout(
 				content = { scope.content() },
 				modifier =
-					modifier.then(
-						childTransition.createModifier(enter, exit, label = "Built-in"),
-					),
+				modifier.then(
+					childTransition.createModifier(enter, exit, label = "Built-in"),
+				),
 				measurePolicy = remember { MaxSizeAtOriginMeasurePolicy },
 			)
 		}
@@ -310,10 +318,8 @@ private fun Transition<EnterExitState>.trackActiveExit(exit: ExitTransition): Ex
  */
 private class EnterExitTransitionModifier(
 	private val transition: Transition<EnterExitState>,
-	private val sizeAnimation:
-		Transition<EnterExitState>.DeferredAnimation<IntSize, AnimationVector2D>?,
-	private val slideAnimation:
-		Transition<EnterExitState>.DeferredAnimation<IntOffset, AnimationVector2D>?,
+	private val sizeAnimation: Transition<EnterExitState>.DeferredAnimation<IntSize, AnimationVector2D>?,
+	private val slideAnimation: Transition<EnterExitState>.DeferredAnimation<IntOffset, AnimationVector2D>?,
 	private val enter: EnterTransition,
 	private val exit: ExitTransition,
 ) : LayoutModifier {
@@ -335,8 +341,10 @@ private class EnterExitTransitionModifier(
 			when {
 				EnterExitState.PreEnter isTransitioningTo EnterExitState.Visible ->
 					enter.data.changeSize?.animationSpec
+
 				EnterExitState.Visible isTransitioningTo EnterExitState.PostExit ->
 					exit.data.changeSize?.animationSpec
+
 				else -> null
 			} ?: DefaultSizeAnimationSpec
 		}
@@ -346,25 +354,25 @@ private class EnterExitTransitionModifier(
 			when {
 				EnterExitState.PreEnter isTransitioningTo EnterExitState.Visible ->
 					enter.data.slide?.animationSpec
+
 				EnterExitState.Visible isTransitioningTo EnterExitState.PostExit ->
 					exit.data.slide?.animationSpec
+
 				else -> null
 			} ?: DefaultOffsetAnimationSpec
 		}
 
-	private fun sizeByState(targetState: EnterExitState, fullSize: IntSize): IntSize =
-		when (targetState) {
-			EnterExitState.Visible -> fullSize
-			EnterExitState.PreEnter -> enter.data.changeSize?.size?.invoke(fullSize) ?: fullSize
-			EnterExitState.PostExit -> exit.data.changeSize?.size?.invoke(fullSize) ?: fullSize
-		}
+	private fun sizeByState(targetState: EnterExitState, fullSize: IntSize): IntSize = when (targetState) {
+		EnterExitState.Visible -> fullSize
+		EnterExitState.PreEnter -> enter.data.changeSize?.size?.invoke(fullSize) ?: fullSize
+		EnterExitState.PostExit -> exit.data.changeSize?.size?.invoke(fullSize) ?: fullSize
+	}
 
-	private fun slideTargetValueByState(targetState: EnterExitState, fullSize: IntSize): IntOffset =
-		when (targetState) {
-			EnterExitState.Visible -> IntOffset.Zero
-			EnterExitState.PreEnter -> enter.data.slide?.slideOffset?.invoke(fullSize) ?: IntOffset.Zero
-			EnterExitState.PostExit -> exit.data.slide?.slideOffset?.invoke(fullSize) ?: IntOffset.Zero
-		}
+	private fun slideTargetValueByState(targetState: EnterExitState, fullSize: IntSize): IntOffset = when (targetState) {
+		EnterExitState.Visible -> IntOffset.Zero
+		EnterExitState.PreEnter -> enter.data.slide?.slideOffset?.invoke(fullSize) ?: IntOffset.Zero
+		EnterExitState.PostExit -> exit.data.slide?.slideOffset?.invoke(fullSize) ?: IntOffset.Zero
+	}
 
 	override fun MeasureScope.measure(
 		measurable: Measurable,

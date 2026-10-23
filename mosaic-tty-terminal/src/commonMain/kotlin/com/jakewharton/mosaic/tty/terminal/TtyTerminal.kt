@@ -20,8 +20,10 @@ import com.jakewharton.mosaic.terminal.ResizeEvent
 import com.jakewharton.mosaic.terminal.SystemThemeEvent
 import com.jakewharton.mosaic.terminal.Terminal
 import com.jakewharton.mosaic.terminal.TerminalVersionEvent
-import com.jakewharton.mosaic.tty.Tty
 import com.jakewharton.mosaic.tty.IOException
+import com.jakewharton.mosaic.tty.Tty
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -40,56 +42,54 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.concurrent.atomics.AtomicBoolean
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
-	private class TtyTerminal(
-		override val name: String?,
-		override val state: Terminal.State,
-		override val capabilities: Terminal.Capabilities,
-		override val events: ReceiveChannel<Event>,
-		private val teardown: () -> Unit,
-		private val closeJob: Job,
-		private val readerJob: Job,
-		private val tty: Tty,
-	) : Terminal {
-		override val interactive get() = true
-		override fun close() {
-			teardown()
-			closeJob.cancel()
-			// The reader coroutine is a child of the scope which created the terminal, and the
-			// caller frees the tty (and its file descriptors) immediately after close() returns.
-			// Until the reader has fully exited it may still be inside a blocking read on those
-			// descriptors; freeing them mid-read would surface either EBADF (crash) or, if the
-			// descriptor number was reused before the read started, a read which never returns.
-			// The reader only stops once it observes an interrupt wake-up, so keep waking it
-			// until the job completes, bounded so a stuck reader cannot wedge normal shutdown.
-			runBlocking {
-				if (withTimeoutOrNull(readerShutdownTimeout) {
-						while (!readerJob.isCompleted) {
-							runCatching { tty.interruptRead() }
-							delay(1)
-						}
-					} == null
-				) {
-					// Best effort at the deadline: cancellation unblocks a cooperative reader (for
-					// example one suspended on the event channel); the final interrupt wakes one
-					// which is blocked inside a native read.
-					readerJob.cancel()
-					runCatching { tty.interruptRead() }
-				}
+private class TtyTerminal(
+	override val name: String?,
+	override val state: Terminal.State,
+	override val capabilities: Terminal.Capabilities,
+	override val events: ReceiveChannel<Event>,
+	private val teardown: () -> Unit,
+	private val closeJob: Job,
+	private val readerJob: Job,
+	private val tty: Tty,
+) : Terminal {
+	override val interactive get() = true
+	override fun close() {
+		teardown()
+		closeJob.cancel()
+		// The reader coroutine is a child of the scope which created the terminal, and the
+		// caller frees the tty (and its file descriptors) immediately after close() returns.
+		// Until the reader has fully exited it may still be inside a blocking read on those
+		// descriptors; freeing them mid-read would surface either EBADF (crash) or, if the
+		// descriptor number was reused before the read started, a read which never returns.
+		// The reader only stops once it observes an interrupt wake-up, so keep waking it
+		// until the job completes, bounded so a stuck reader cannot wedge normal shutdown.
+		runBlocking {
+			if (withTimeoutOrNull(readerShutdownTimeout) {
+					while (!readerJob.isCompleted) {
+						runCatching { tty.interruptRead() }
+						delay(1)
+					}
+				} == null
+			) {
+				// Best effort at the deadline: cancellation unblocks a cooperative reader (for
+				// example one suspended on the event channel); the final interrupt wakes one
+				// which is blocked inside a native read.
+				readerJob.cancel()
+				runCatching { tty.interruptRead() }
 			}
 		}
+	}
 
-		override fun requestClipboardRead(selection: ClipboardEvent.Selection) {
-			tty.write("${OSC}52;${ClipboardOsc.requestSelection(selection)};?$ST")
-		}
+	override fun requestClipboardRead(selection: ClipboardEvent.Selection) {
+		tty.write("${OSC}52;${ClipboardOsc.requestSelection(selection)};?$ST")
+	}
 
-		override fun writeClipboard(text: String, selection: ClipboardEvent.Selection) {
-			tty.write("${OSC}52;${ClipboardOsc.requestSelection(selection)};${ClipboardOsc.encode(text)}$ST")
-		}
+	override fun writeClipboard(text: String, selection: ClipboardEvent.Selection) {
+		tty.write("${OSC}52;${ClipboardOsc.requestSelection(selection)};${ClipboardOsc.encode(text)}$ST")
+	}
 
-		class State(
+	class State(
 		override val focused: StateFlow<Boolean>,
 		override val theme: StateFlow<Terminal.Theme>,
 		override val size: StateFlow<Terminal.Size>,

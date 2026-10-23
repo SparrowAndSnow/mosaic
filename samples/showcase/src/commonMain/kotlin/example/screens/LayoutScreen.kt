@@ -54,7 +54,7 @@ internal fun LayoutScreen() {
 }
 
 @Composable
-private fun Cell(text: String, modifier: Modifier) {
+private fun Cell(text: String, modifier: Modifier = Modifier) {
 	Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
 		Text(text, color = ShowcaseTheme.body)
 	}

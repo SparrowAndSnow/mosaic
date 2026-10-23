@@ -62,15 +62,18 @@ internal class FrameWriter(
 		}
 		when (size) {
 			1 -> buffer[position++] = codePoint.toByte()
+
 			2 -> {
 				buffer[position++] = (0xC0 or (codePoint shr 6)).toByte()
 				buffer[position++] = (0x80 or (codePoint and 0x3F)).toByte()
 			}
+
 			3 -> {
 				buffer[position++] = (0xE0 or (codePoint shr 12)).toByte()
 				buffer[position++] = (0x80 or ((codePoint shr 6) and 0x3F)).toByte()
 				buffer[position++] = (0x80 or (codePoint and 0x3F)).toByte()
 			}
+
 			else -> {
 				buffer[position++] = (0xF0 or (codePoint shr 18)).toByte()
 				buffer[position++] = (0x80 or ((codePoint shr 12) and 0x3F)).toByte()

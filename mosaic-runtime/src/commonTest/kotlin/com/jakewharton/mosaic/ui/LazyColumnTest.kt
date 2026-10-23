@@ -5,13 +5,13 @@ import assertk.assertions.contains
 import assertk.assertions.isEqualTo
 import com.jakewharton.mosaic.DebugRendering
 import com.jakewharton.mosaic.RenderingSnapshots
+import com.jakewharton.mosaic.layout.ScrollState
+import com.jakewharton.mosaic.layout.size
+import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.terminal.AnsiLevel
 import com.jakewharton.mosaic.terminal.MouseEvent
 import com.jakewharton.mosaic.testing.TestTerminal
 import com.jakewharton.mosaic.testing.runMosaicTest
-import com.jakewharton.mosaic.layout.ScrollState
-import com.jakewharton.mosaic.layout.size
-import com.jakewharton.mosaic.modifier.Modifier
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 
@@ -28,11 +28,9 @@ import kotlinx.coroutines.test.runTest
 class LazyColumnTest {
 	private val rendering = DebugRendering(TestTerminal.Capabilities(ansiLevel = AnsiLevel.NONE))
 
-	private fun rows(frame: String): List<String> =
-		frame.substringAfter("OUTPUT:\r\n").split("\r\n")
+	private fun rows(frame: String): List<String> = frame.substringAfter("OUTPUT:\r\n").split("\r\n")
 
-	private fun nodeDebug(frame: String): String =
-		frame.substringAfter("NODES:\r\n").substringBefore("\r\n\r\n")
+	private fun nodeDebug(frame: String): String = frame.substringAfter("NODES:\r\n").substringBefore("\r\n\r\n")
 
 	@Test fun composesOnlyTheVisibleWindow() = runTest {
 		val state = ScrollState()

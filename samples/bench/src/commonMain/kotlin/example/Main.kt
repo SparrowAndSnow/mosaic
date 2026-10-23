@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:compose:mutable-state-autoboxing")
+
 package example
 
 import androidx.compose.runtime.BroadcastFrameClock

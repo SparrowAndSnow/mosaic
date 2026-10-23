@@ -78,8 +78,7 @@ public fun Modifier.focusable(enabled: Boolean = true): Modifier = this then Foc
  * component itself is the focused target. Combine with [focusable] for self focus, or place on an
  * ancestor to observe descendant focus.
  */
-public fun Modifier.onFocusChanged(onFocusChanged: (FocusState) -> Unit): Modifier =
-	this then FocusObserverElement(onFocusChanged)
+public fun Modifier.onFocusChanged(onFocusChanged: (FocusState) -> Unit): Modifier = this then FocusObserverElement(onFocusChanged)
 
 /**
  * Requests focus for the component it is applied to, typically from a side effect such as
@@ -118,8 +117,7 @@ private class FocusRequesterElement(override val requester: FocusRequester) : Fo
  * Requests [FocusRequester.requestFocus] for the component it is applied to. Use together with
  * [focusable].
  */
-public fun Modifier.focusRequester(focusRequester: FocusRequester): Modifier =
-	this then FocusRequesterElement(focusRequester)
+public fun Modifier.focusRequester(focusRequester: FocusRequester): Modifier = this then FocusRequesterElement(focusRequester)
 
 /**
  * Composition-level focus state, created lazily on the composition root. Tracks the single focused

@@ -33,6 +33,7 @@ internal const val resetCursorShape = "$CSI 0 q"
 
 internal const val ansiReset = "${CSI}0"
 internal const val clearLine = "${CSI}K"
+
 /** Erase the whole display (ED with parameter 2) — `ESC[J` alone only clears below the cursor. */
 internal const val clearDisplay = "${CSI}2J"
 

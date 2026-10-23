@@ -78,7 +78,7 @@ internal fun BorderScreen() {
 }
 
 @Composable
-private fun Bordered(text: String, modifier: Modifier) {
+private fun Bordered(text: String, modifier: Modifier = Modifier) {
 	Box(modifier) {
 		Text(text, modifier = Modifier.padding(horizontal = 1, vertical = 1), color = ShowcaseTheme.body)
 	}

@@ -93,6 +93,7 @@ internal fun InputScreen() {
 					}
 					true
 				}
+
 				"r" -> {
 					clipboardBusy = true
 					scope.launch {
@@ -102,6 +103,7 @@ internal fun InputScreen() {
 					}
 					true
 				}
+
 				else -> false
 			}
 		}

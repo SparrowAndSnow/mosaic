@@ -31,8 +31,8 @@ import example.screens.AnimationScreen
 import example.screens.BorderScreen
 import example.screens.FieldScreen
 import example.screens.InputScreen
-import example.screens.LazyScreen
 import example.screens.LayoutScreen
+import example.screens.LazyScreen
 import example.screens.OverlayScreen
 import example.screens.ScrollScreen
 import example.screens.TextScreen
@@ -103,14 +103,17 @@ internal fun ShowcaseApp() {
 							select(pageIndex - 1)
 							true
 						}
+
 						"ArrowRight", "Tab" -> {
 							select(pageIndex + 1)
 							true
 						}
+
 						in listOf("1", "2", "3", "4", "5", "6", "7", "8", "9") -> {
 							select(event.key[0] - '1')
 							true
 						}
+
 						else -> false
 					}
 				},
@@ -125,19 +128,28 @@ internal fun ShowcaseApp() {
 			) {
 				when (page) {
 					Page.Unicode -> UnicodeScreen()
+
 					Page.Overlay -> OverlayScreen(
 						onOpenPopup = { showPopup = true },
 						onOpenDialog = { showDialog = true },
 						baseClicks = baseClicks,
 						onBaseClick = { baseClicks++ },
 					)
+
 					Page.Text -> TextScreen()
+
 					Page.Layout -> LayoutScreen()
+
 					Page.Input -> InputScreen()
+
 					Page.Field -> FieldScreen()
+
 					Page.Animation -> AnimationScreen()
+
 					Page.Scroll -> ScrollScreen()
+
 					Page.Lazy -> LazyScreen()
+
 					Page.Border -> BorderScreen()
 				}
 			}
@@ -184,7 +196,7 @@ private fun Tab(
 	page: Page,
 	active: Boolean,
 	hovering: Boolean,
-	modifier: Modifier,
+	modifier: Modifier = Modifier,
 ) {
 	val background: Color = when {
 		active -> ShowcaseTheme.accent

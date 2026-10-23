@@ -1,11 +1,11 @@
 package com.jakewharton.mosaic
 
+import androidx.compose.runtime.Composable
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.doesNotContain
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
-import androidx.compose.runtime.Composable
 import com.jakewharton.mosaic.layout.fillMaxSize
 import com.jakewharton.mosaic.layout.fillMaxWidth
 import com.jakewharton.mosaic.layout.height
@@ -46,17 +46,15 @@ class FullRedrawNoScrollTest {
 		override fun cancel() = Unit
 	}
 
-	private fun textSurface(width: Int, text: String): TextSurface =
-		TextSurface(width, 1).also { surface ->
-			for (i in 0 until width) {
-				if (i < text.length) {
-					surface[0, i].text = text[i].toString()
-				}
+	private fun textSurface(width: Int, text: String): TextSurface = TextSurface(width, 1).also { surface ->
+		for (i in 0 until width) {
+			if (i < text.length) {
+				surface[0, i].text = text[i].toString()
 			}
 		}
+	}
 
-	private fun String.frameBody(): String =
-		removePrefix(synchronizedOutputEnable).removeSuffix(synchronizedOutputDisable)
+	private fun String.frameBody(): String = removePrefix(synchronizedOutputEnable).removeSuffix(synchronizedOutputDisable)
 
 	@Test fun fullRedrawFramesAreNeverLineTerminated() {
 		val firstFrame = rendering.render(FakeMosaic(textSurface(6, "HELLO"))).toString()

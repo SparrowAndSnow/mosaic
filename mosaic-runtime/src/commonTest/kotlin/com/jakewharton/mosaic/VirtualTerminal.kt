@@ -86,13 +86,18 @@ internal class VirtualTerminal(
 			}
 
 			'A' -> cursorRow = (cursorRow - values.getOrElse(0) { 1 }).coerceAtLeast(0)
+
 			'B' -> cursorRow = (cursorRow + values.getOrElse(0) { 1 }).coerceAtMost(rows - 1)
+
 			'C' -> cursorColumn = (cursorColumn + values.getOrElse(0) { 1 }).coerceAtMost(columns - 1)
+
 			'D' -> cursorColumn = (cursorColumn - values.getOrElse(0) { 1 }).coerceAtLeast(0)
+
 			'F' -> { // CPL: previous line, back to the first column like the real terminal does
 				cursorRow = (cursorRow - values.getOrElse(0) { 1 }).coerceAtLeast(0)
 				cursorColumn = 0
 			}
+
 			'E' -> { // CNL
 				cursorRow = (cursorRow + values.getOrElse(0) { 1 }).coerceAtMost(rows - 1)
 				cursorColumn = 0
@@ -101,9 +106,11 @@ internal class VirtualTerminal(
 			'K', 'X' -> { // EL clear line
 				when (values.getOrElse(0) { 0 }) {
 					0 -> clearToEndOfLine()
+
 					1 -> {
 						for (x in 0..cursorColumn) grid[cursorRow][x] = null
 					}
+
 					2 -> {
 						for (x in 0 until columns) grid[cursorRow][x] = null
 					}
@@ -113,6 +120,7 @@ internal class VirtualTerminal(
 			'J' -> { // ED clear display
 				when (values.getOrElse(0) { 0 }) {
 					0 -> clearFromCursorToBottom()
+
 					1 -> {
 						for (r in 0..cursorRow) {
 							for (x in 0..if (r == cursorRow) cursorColumn else columns - 1) {
@@ -120,6 +128,7 @@ internal class VirtualTerminal(
 							}
 						}
 					}
+
 					2 -> clearDisplay()
 				}
 			}

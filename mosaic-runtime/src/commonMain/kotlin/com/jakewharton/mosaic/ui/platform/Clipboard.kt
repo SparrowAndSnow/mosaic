@@ -4,10 +4,10 @@ import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.jakewharton.mosaic.terminal.ClipboardEvent
 import com.jakewharton.mosaic.terminal.Terminal
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Manages access to the terminal's system clipboard over OSC 52.

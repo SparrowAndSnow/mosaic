@@ -84,7 +84,14 @@ class CellSliceTest {
 	@Test fun sameContentFromDifferentSourcesComparesEqual() {
 		val first = draw("abcdef", width = 6, height = 1)
 		// Compiled literals are interned on the JVM, so build a distinct (non-interned) instance.
-		val second = draw(buildString { append("abc"); append("def") }, width = 6, height = 1)
+		val second = draw(
+			buildString {
+				append("abc")
+				append("def")
+			},
+			width = 6,
+			height = 1,
+		)
 
 		for (column in 0 until 6) {
 			val a = first[0, column]

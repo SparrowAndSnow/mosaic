@@ -87,36 +87,48 @@ public fun BasicTextField(
 					cursor = TextEditing.caretLeft(editableText, caret)
 					true
 				}
+
 				"ArrowRight" -> {
 					cursor = TextEditing.caretRight(editableText, caret)
 					true
 				}
+
 				"Home" -> {
 					cursor = 0
 					true
 				}
+
 				"End" -> {
 					cursor = editableText.length
 					true
 				}
+
 				"Backspace" -> {
-					if (readOnly) true else {
+					if (readOnly) {
+						true
+					} else {
 						commit(TextEditing.backspace(editableText, caret))
 						true
 					}
 				}
+
 				"Delete" -> {
-					if (readOnly) true else {
+					if (readOnly) {
+						true
+					} else {
 						commit(TextEditing.delete(editableText, caret))
 						true
 					}
 				}
+
 				"Enter" -> {
 					onDone?.invoke()
 					onDone != null
 				}
+
 				// Navigation that belongs to the surrounding application, not the field.
 				"ArrowUp", "ArrowDown", "PageUp", "PageDown", "Tab", "Escape" -> false
+
 				else -> {
 					// A printable edit (single characters for direct typing, whole strings for IME
 					// composition). Ctrl combinations stay unhandled so shortcuts keep working.

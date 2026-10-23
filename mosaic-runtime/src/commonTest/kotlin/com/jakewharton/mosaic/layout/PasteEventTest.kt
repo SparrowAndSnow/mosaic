@@ -107,10 +107,12 @@ class PasteEventTest {
 			var last by mutableStateOf("none")
 
 			setContent {
-				Box(Modifier.onPaste { text ->
-					last = text
-					true
-				}) {
+				Box(
+					Modifier.onPaste { text ->
+						last = text
+						true
+					},
+				) {
 					Text(last)
 				}
 			}

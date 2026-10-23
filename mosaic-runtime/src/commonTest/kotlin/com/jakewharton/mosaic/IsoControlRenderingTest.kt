@@ -22,14 +22,13 @@ import kotlinx.coroutines.test.runTest
 class IsoControlRenderingTest {
 	private val rendering = AnsiIncrementalRendering(TestTerminal.Capabilities())
 
-	private fun visible(frame: String): String =
-		frame
-			.replace(synchronizedOutputEnable, "")
-			.replace(synchronizedOutputDisable, "")
-			// The first frame also includes the takeover prefix (clear display + home); it is
-			// framing, not content, so the visible-text assertions below ignore it.
-			.replace("$clearDisplay${CSI}H", "")
-			.replace("\r\n", "\n")
+	private fun visible(frame: String): String = frame
+		.replace(synchronizedOutputEnable, "")
+		.replace(synchronizedOutputDisable, "")
+		// The first frame also includes the takeover prefix (clear display + home); it is
+		// framing, not content, so the visible-text assertions below ignore it.
+		.replace("$clearDisplay${CSI}H", "")
+		.replace("\r\n", "\n")
 
 	@Test fun tabCrAndBackspaceAreDropped() = runTest {
 		runMosaicTest(RenderingSnapshots(rendering)) {

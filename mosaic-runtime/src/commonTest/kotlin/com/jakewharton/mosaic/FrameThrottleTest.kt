@@ -109,7 +109,6 @@ class FrameThrottleTest {
 
 		assertThat(elapsedMs).isLessThan(1400)
 	}
-
 }
 
 @Composable
@@ -135,4 +134,3 @@ private fun IdleThenFrameRateProbe(startAnimation: CompletableDeferred<Unit>, do
 		done.complete(start.elapsedNow().inWholeMilliseconds)
 	}
 }
-

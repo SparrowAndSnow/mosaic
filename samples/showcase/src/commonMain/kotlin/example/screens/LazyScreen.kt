@@ -1,9 +1,9 @@
 package example.screens
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.ScrollState
@@ -46,21 +46,24 @@ internal fun LazyScreen() {
 							state.scrollBy(-1)
 							true
 						}
-					"ArrowDown" -> {
-						state.scrollBy(1)
-						true
-					}
-					// Page keys act once per physical press: the keyboard-protocol auto-repeat
-					// (a held Fn+arrow on compact keyboards) arrives tagged as a repeat and must
-					// not stack whole pages on a single hold. Fresh presses always page.
-					"PageUp", "PageDown" -> {
-						if (event.repeat) {
-							true
-						} else {
-							state.scrollBy(if (event.key == "PageUp") -(LazyViewportRows - 1) else (LazyViewportRows - 1))
+
+						"ArrowDown" -> {
+							state.scrollBy(1)
 							true
 						}
+
+						// Page keys act once per physical press: the keyboard-protocol auto-repeat
+						// (a held Fn+arrow on compact keyboards) arrives tagged as a repeat and must
+						// not stack whole pages on a single hold. Fresh presses always page.
+						"PageUp", "PageDown" -> {
+							if (event.repeat) {
+								true
+							} else {
+								state.scrollBy(if (event.key == "PageUp") -(LazyViewportRows - 1) else (LazyViewportRows - 1))
+								true
+							}
 						}
+
 						else -> false
 					}
 				},

@@ -120,8 +120,7 @@ public class MomentumScrollState(
 		return velocity != 0f
 	}
 
-	override fun toString(): String =
-		"MomentumScrollState(position=$position, velocity=$velocity)"
+	override fun toString(): String = "MomentumScrollState(position=$position, velocity=$velocity)"
 }
 
 private const val MaxAdvanceSeconds = 0.05f

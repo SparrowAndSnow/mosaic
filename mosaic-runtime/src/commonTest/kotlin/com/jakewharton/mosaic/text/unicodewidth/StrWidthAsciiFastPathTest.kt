@@ -21,7 +21,7 @@ class StrWidthAsciiFastPathTest {
 
 	@Test fun asciiSubRangesOfMixedText() {
 		val text = "A中B"
-		assertEquals(1, strWidth(text, 0, 1))  // "A"
+		assertEquals(1, strWidth(text, 0, 1)) // "A"
 		assertEquals(1, strWidth(text, 2, 3)) // "B"
 		assertEquals(4, strWidth(text, 0, 3)) // "A中B"
 	}

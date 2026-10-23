@@ -39,7 +39,10 @@ class PasteInterruptTest {
 				terminal = terminal,
 				rendering = AnsiIncrementalRendering(terminal.capabilities),
 				frameWriter = silentWriter(),
-				content = { Ticker(); Text("paste") },
+				content = {
+					Ticker()
+					Text("paste")
+				},
 			)
 			exited.complete(Unit)
 		}
@@ -65,7 +68,10 @@ class PasteInterruptTest {
 				terminal = terminal,
 				rendering = AnsiIncrementalRendering(terminal.capabilities),
 				frameWriter = silentWriter(),
-				content = { Ticker(); Text("paste") },
+				content = {
+					Ticker()
+					Text("paste")
+				},
 			)
 			exited.complete(Unit)
 		}

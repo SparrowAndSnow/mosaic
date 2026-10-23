@@ -45,9 +45,11 @@ class OnGloballyPositionedTest {
 			setContent {
 				Box(Modifier.size(30, 16)) {
 					Box(Modifier.padding(3, 5)) {
-						Box(Modifier.size(4, 6).onGloballyPositioned { position, size ->
-							reports += position to size
-						})
+						Box(
+							Modifier.size(4, 6).onGloballyPositioned { position, size ->
+								reports += position to size
+							},
+						)
 					}
 				}
 			}
@@ -153,9 +155,11 @@ class OnGloballyPositionedTest {
 			) {
 				Box(Modifier.size(30, 16)) {
 					Box(Modifier.padding(3, 5)) {
-						Box(Modifier.size(4, 6).onGloballyPositioned { position, size ->
-							reports += position to size
-						})
+						Box(
+							Modifier.size(4, 6).onGloballyPositioned { position, size ->
+								reports += position to size
+							},
+						)
 					}
 				}
 				AnimatedFrameCounter(expected = 20) {

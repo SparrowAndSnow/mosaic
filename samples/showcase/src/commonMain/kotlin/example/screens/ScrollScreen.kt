@@ -40,7 +40,13 @@ internal fun ScrollScreen() {
 			Column(Modifier.verticalScroll(verticalState)) {
 				for (n in 1..12) {
 					val idx = n.toString().padStart(2, '0')
-					val marker = if (n % 4 == 0) "★" else if (n % 3 == 0) "●" else "·"
+					val marker = if (n % 4 == 0) {
+						"★"
+					} else if (n % 3 == 0) {
+						"●"
+					} else {
+						"·"
+					}
 					Text(
 						"L$idx  条目 中文行 $idx  $marker",
 						color = if (n % 2 == 0) ShowcaseTheme.body else ShowcaseTheme.dim,

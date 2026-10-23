@@ -5,8 +5,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import assertk.assertThat
-import assertk.assertions.isGreaterThan
 import assertk.assertions.isEqualTo
+import assertk.assertions.isGreaterThan
 import com.jakewharton.mosaic.NodeSnapshots
 import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.testing.runMosaicTest

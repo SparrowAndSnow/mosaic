@@ -4,14 +4,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import assertk.assertThat
-import assertk.assertions.doesNotContain
 import assertk.assertions.contains
+import assertk.assertions.doesNotContain
 import com.jakewharton.mosaic.DebugRendering
 import com.jakewharton.mosaic.RenderingSnapshots
+import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.terminal.AnsiLevel
 import com.jakewharton.mosaic.testing.TestTerminal
 import com.jakewharton.mosaic.testing.runMosaicTest
-import com.jakewharton.mosaic.modifier.Modifier
 import com.jakewharton.mosaic.ui.Box
 import com.jakewharton.mosaic.ui.Color
 import com.jakewharton.mosaic.ui.Text
@@ -28,8 +28,7 @@ class CellStyleResetTest {
 	private val rendering =
 		DebugRendering(TestTerminal.Capabilities(ansiLevel = AnsiLevel.TRUECOLOR))
 
-	private fun rows(frame: String): List<String> =
-		frame.substringAfter("OUTPUT:\r\n").split("\r\n")
+	private fun rows(frame: String): List<String> = frame.substringAfter("OUTPUT:\r\n").split("\r\n")
 
 	@Test fun flatTextDoesNotRetainPreviousFrameBackground() = runTest {
 		var colored by mutableIntStateOf(1)

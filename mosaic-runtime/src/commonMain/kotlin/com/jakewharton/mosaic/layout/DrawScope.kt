@@ -337,9 +337,13 @@ internal open class TextCanvasDrawScope(
 			// pile up on the same column and the rest of the line goes blank.
 			val fullyVisible = canvasColumn >= 0 && canvasRow >= 0 &&
 				canvasColumn + w <= canvasWidth && canvasRow < canvasHeight &&
-				(!canvas.clipActive ||
-					(canvasColumn >= canvas.clipLeft && canvasColumn + w <= canvas.clipRight &&
-						canvasRow >= canvas.clipTop && canvasRow < canvas.clipBottom))
+				(
+					!canvas.clipActive ||
+						(
+							canvasColumn >= canvas.clipLeft && canvasColumn + w <= canvas.clipRight &&
+								canvasRow >= canvas.clipTop && canvasRow < canvas.clipBottom
+							)
+					)
 			if (fullyVisible) {
 				// The surface getter expects this scope's own (local) coordinates and applies the
 				// node placement translation itself, so write with [row]/[characterColumn], not the

@@ -80,7 +80,10 @@ class TextMeasuredDrawTest {
 		TextCanvasDrawScope(streamed, 12, 1).drawText(0, 0, annotated)
 		val measured = TextSurface(12, 1)
 		TextCanvasDrawScope(measured, 12, 1).drawMeasuredText(
-			0, 0, annotated.text, annotated.text.measureClusters(),
+			0,
+			0,
+			annotated.text,
+			annotated.text.measureClusters(),
 			{ start, end -> annotated.getLocalRawSpanStyles(start, end) },
 		)
 		assertEquivalent(
@@ -131,5 +134,4 @@ class TextMeasuredDrawTest {
 		val cells = (0 until 4).map { canvas[0, it].text }
 		assertEquals(listOf(" ", " ", " ", " "), cells, "off-canvas row writes nothing")
 	}
-
 }

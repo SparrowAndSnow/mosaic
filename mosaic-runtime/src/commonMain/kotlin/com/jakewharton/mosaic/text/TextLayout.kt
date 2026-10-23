@@ -1,8 +1,8 @@
 package com.jakewharton.mosaic.text
 
-import com.jakewharton.mosaic.text.grapheme.graphemeWidth
 import com.jakewharton.mosaic.text.grapheme.forEachGraphemeClusterRange
 import com.jakewharton.mosaic.text.grapheme.graphemeClusterWidth
+import com.jakewharton.mosaic.text.grapheme.graphemeWidth
 import com.jakewharton.mosaic.ui.TextOverflow
 import com.jakewharton.mosaic.ui.unit.Constraints
 
@@ -132,6 +132,7 @@ internal abstract class TextLayout<T : CharSequence>(initialValue: T) {
 		} else {
 			when (overflow) {
 				TextOverflow.Clip -> wrappedLines.subList(visibleStart, visibleStart + effectiveMaxLines)
+
 				TextOverflow.Ellipsis -> {
 					val kept = ArrayList<T>(effectiveMaxLines)
 					kept.addAll(wrappedLines.subList(visibleStart, visibleStart + effectiveMaxLines - 1))
@@ -253,8 +254,7 @@ internal class AnnotatedStringTextLayout :
 
 	override fun AnnotatedString.subSlice(from: Int, to: Int): AnnotatedString = subSequence(from, to)
 
-	override fun AnnotatedString.truncateForEllipsis(maxWidth: Int): AnnotatedString =
-		clipTo(maxWidth - 1) + AnnotatedString("\u2026")
+	override fun AnnotatedString.truncateForEllipsis(maxWidth: Int): AnnotatedString = clipTo(maxWidth - 1) + AnnotatedString("\u2026")
 }
 
 /**

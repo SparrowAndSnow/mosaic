@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:compose:mutable-state-autoboxing")
+
 package com.jakewharton.mosaic.ui
 
 import androidx.compose.runtime.getValue

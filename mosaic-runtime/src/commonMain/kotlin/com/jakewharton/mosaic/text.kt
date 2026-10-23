@@ -14,4 +14,3 @@ internal const val UnspecifiedCodePoint: Int = -1
  */
 @Stable
 internal inline val Int.isUnspecifiedCodePoint: Boolean get() = this == UnspecifiedCodePoint
-

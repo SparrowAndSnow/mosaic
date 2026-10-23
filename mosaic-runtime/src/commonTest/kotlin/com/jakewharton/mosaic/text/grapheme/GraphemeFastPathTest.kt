@@ -98,7 +98,10 @@ private fun CharSequence.forEachGraphemeClusterRangeRef(block: (start: Int, end:
 		val currentInCb = inCbClassOf(codepoint)
 
 		val breakBefore = !first && shouldBreakRef(
-			previousClass, currentClass, currentIsExtPict, currentInCb,
+			previousClass,
+			currentClass,
+			currentIsExtPict,
+			currentInCb,
 			regionalIndicatorsOdd,
 			extendedPictographicRun && runEndsWithZwj,
 			conjunctState == STATE_CONJUNCT,
@@ -113,11 +116,14 @@ private fun CharSequence.forEachGraphemeClusterRangeRef(block: (start: Int, end:
 		} else {
 			when {
 				currentClass == GCB_EXTEND -> runEndsWithZwj = false
+
 				currentClass == GCB_ZWJ -> runEndsWithZwj = extendedPictographicRun
+
 				currentClass == GCB_SPACING_MARK -> {
 					extendedPictographicRun = false
 					runEndsWithZwj = false
 				}
+
 				else -> {
 					extendedPictographicRun = currentIsExtPict
 					runEndsWithZwj = false
@@ -127,10 +133,13 @@ private fun CharSequence.forEachGraphemeClusterRangeRef(block: (start: Int, end:
 
 		conjunctState = when {
 			currentInCb == INC_CONS -> STATE_CONS
+
 			currentInCb == INC_LINKER ->
 				if (conjunctState == STATE_CONS || conjunctState == STATE_CONJUNCT) STATE_CONJUNCT else STATE_NONE
+
 			currentInCb == INC_EXTEND ->
 				if (conjunctState == STATE_CONS || conjunctState == STATE_CONJUNCT) conjunctState else STATE_NONE
+
 			else -> STATE_NONE
 		}
 
@@ -163,8 +172,10 @@ private fun shouldBreakRef(
 	if (grapheme11Eligible && currentIsExtPict) return false
 	// GB6: L × (L | V | LV | LVT)
 	if (previousClass == GCB_L &&
-		(currentClass == GCB_L || currentClass == GCB_V || currentClass == GCB_LV ||
-			currentClass == GCB_LVT)
+		(
+			currentClass == GCB_L || currentClass == GCB_V || currentClass == GCB_LV ||
+				currentClass == GCB_LVT
+			)
 	) {
 		return false
 	}
