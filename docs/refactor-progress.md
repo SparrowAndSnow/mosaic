@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.46（代码 `e236784d`） · 创建：2026-10-17 · 更新：2026-10-23
+> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.47（代码 `02728889`） · 创建：2026-10-17 · 更新：2026-10-23
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/benchmarks.md`（调研文档已在合并前移出仓库）
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -18,7 +18,8 @@
   - 已中性化：`d1398ccd` 清除了内置宽度代码的归属注释。
   - 已清理（2026-10-21）：早期归档/调研提交（`cef427b8`~`b4ee1af4`）的提交信息已重写；`docs/todo.md` 与 `docs/refactor-progress.md` 正文已中性化；三份调研文档已移出仓库（存档于仓库外）；README/CHANGELOG 的归属引用已中性化。
   - 已处理（L7.46，`e236784d`）：`spotlessCheck` 全绿。实际范围是 10 处 compose lint（runtime 8 + animation 1 + samples/bench 1）+ 全仓库格式（62 文件，均为换行/缩进/尾随逗号/import 顺序等格式变更）；旧文档写「7 处」是低估，见 §5 L7.46。
-  - 未处理：上游示例目录标识重命名（见 §6.2）。
+  - 已处理（L7.47，`02728889`）：两个上游示例目录及全部标识中性化（`samples/test-console`、`samples/monitor`），Gradle/settings/README/CI 同步；全仓库 grep 无旧标识。
+  - 未处理：无。
 - **性能优先**：绘制/测量/渲染等热路径低分配（复用 StringBuilder、避免每帧不必要分配）。
 - **Kotlin 惯用写法**：对外 API 惯用；内部热路径可手写优化。
 - 中文交流、英文提交信息。验证命令见 §7。
@@ -33,7 +34,7 @@
 | L4 布局 | 约束/测量/缓存/排版/Modifier | §5、§6 | 主干完成（L4.1~L4.7）；余下 P2/P3 可选 |
 | L5 输入/事件 | 鼠标/粘贴/剪贴板/背压/特殊键 | §8 | 完成（L5.1~L5.6 已归档） |
 | L6 能力探测/tty 适配 | DEC 2027、三套绑定、raw、信号、Windows | §9、§10 | 完成（L6.1~L6.8 已归档） |
-| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.46 已归档；余下 P3 可选） |
+| L7 生命周期/动画/测试/发布 | 异常安全、帧节流、测试矩阵、示例 | §11~§14 | 完成（L7.1~L7.47 已归档；余下 P3 可选） |
 
 > 编号为推进顺序；某层内的小步骤继续用 Lx.y 编号（如 L3.2）。
 
@@ -124,6 +125,7 @@
 | L7 | L7.44 | 浮层剩余正确性：①`TextSurface.clearRect` 按行把矩形扩到宽簇边界（起点在续列时左移簇头，右缘覆盖簇头时扩到簇尾），部分 backdrop 不再留半格；②`FocusManager` 焦点栈按 modal layer node 记录 owner+saved，非 LIFO 关闭只删对应层、保留上层焦点；全部关闭时回退最近仍有效目标（含被丢弃层的 saved），不恢复已移除/禁用节点，并用 `check` 保证栈与层对齐 | `fed2ecda` | `OverlayBackdropTest` 6 条（CJK/emoji 头/续列/相邻/全屏）+ `DialogTest.nonLifo...` 1 条；全量 JVM 810/810、linuxX64 808/808、showcase 11/11；apiCheck（API 无变化）；compileKotlinLinuxX64 | ✅ 已归档 |
 | L7 | L7.45 | 修复 `OverlayBackdrop.Solid` 在非原点 host 的清理偏移：`TextCanvasDrawScope.clear` 用 `canvas.translationX/Y` 作为局部 (0,0) 的绝对原点（此前取负值，host 在 y=1 时会从 row0 开始清，擦掉 Header）；现在只清 host/layer 实际矩形，clip 仍生效。回归：header + host + footer 的 golden（header/footer 保留、host 中间清空、Dialog 居中）；`OverlayBackdropTest` 直测 translation (2,1) 的 2×1 清除只影响目标格。既有全屏 golden 不变 | `b1256722` | 全量 JVM 812/812、linuxX64 810/810、showcase 11/11；apiCheck（API 无变化）；compileKotlinLinuxX64 | ✅ 已归档 |
 | L7 | L7.46 | 合并前格式清理：`spotlessApply` 全仓库格式化（62 文件，11.8k 行，均为换行/缩进/尾随逗号/import 顺序/分支空行等格式变更）+ 10 处 compose lint 逐条抑制或私有参数重排（Border param-order、PointerInput composed、BoxWithConstraintsNode、BWC/Intrinsic/PointerInput/BWC 测试、AnimatedVisibility、samples/bench Main）；无行为/公共 API 变化 | `e236784d` | `:spotlessCheck`、`:mosaic-runtime:spotlessKotlinCheck`、`:mosaic-animation:spotlessKotlinCheck`、`:samples:bench:spotlessKotlinCheck` 全绿；`:mosaic-runtime:jvmTest` 812/812、`:mosaic-animation:jvmTest` 23/23、`:samples:showcase:jvmTest` 11/11；`:mosaic-runtime:compileKotlinLinuxX64` 通过 | ✅ 已归档 |
+| L7 | L7.47 | 示例目录中性化：测试控制台样例与进程监控样例的目录/文件/类/CompositionLocal/Gradle mainClass/README/CI matrix 全部改为中性标识（`samples/test-console`、`samples/monitor`）；包名 `example` 不变，功能不变 | `02728889` | `:samples:test-console:compileKotlinJvm`、`:samples:monitor:compileKotlinJvm`、`:samples:monitor:compileKotlinLinuxX64`、`:spotlessCheck`、`:samples:showcase:jvmTest` 通过；全仓库 grep 无旧标识 | ✅ 已归档 |
 
 ## 5. 已完成步骤的实现要点（供恢复上下文）
 
@@ -774,13 +776,21 @@
 - **验证**：`:mosaic-runtime:jvmTest` **812/812**、`:mosaic-animation:jvmTest` 23/23、`:samples:showcase:jvmTest` 11/11；`:mosaic-runtime:compileKotlinLinuxX64` 通过；`:spotlessCheck` / `:mosaic-runtime:spotlessKotlinCheck` / `:mosaic-animation:spotlessKotlinCheck` / `:samples:bench:spotlessKotlinCheck` 全绿。
 - **剩余合并清理项**：上游示例目录标识是否重命名（§2/§6.2）；无其它已知 spotless 失败。
 
+### L7.47 示例目录与标识中性化（`samples/test-console` / `samples/monitor`，`02728889`）
+- **目录**：两个上游示例目录改为中性路径 `samples/test-console` 与 `samples/monitor`；拍照/演示资源 `demo.gif`、监控样例的 `input.sh` 一并随目录移动。
+- **代码标识**：监控样例的 `*App/*ColorsPalette/*UiState/*ViewModel/Local*ColorsPalette` 全部改为 `Monitor*`，入口文件改为 `monitor.kt`（JVM mainClass `example.MonitorKt`）；测试控制台入口文件改为 `TestConsole.kt`（JVM mainClass `example.TestConsoleKt`）。包名仍为 `example`，功能与数据流不变。
+- **Gradle/CI/README**：`settings.gradle` 的 include、两个 sample 的 `build.gradle`、根 README 的图片/链接/运行命令、`.github/workflows/build.yaml` 的 sample matrix 全部同步；两个 sample README 改为中性描述，删除第三方仓库链接与名称。
+- **Grep**：`grep -rniE '旧标识' --exclude-dir=build --exclude-dir=.gradle --exclude-dir=.git --exclude-dir=.idea .` 返回空；`find samples` 无旧名称文件（`.idea` 为本地忽略目录，未改）。
+- **验证**：`:samples:test-console:compileKotlinJvm`、`:samples:monitor:compileKotlinJvm`、`:samples:monitor:compileKotlinLinuxX64` 通过；`:spotlessCheck`、两个 sample 的 `spotlessKotlinCheck`、`:samples:showcase:jvmTest` 通过。
+- **合并清理**：§2 的「上游示例目录标识」与 §6.2 第 1 项均已勾销；无其它已知合并清理项。
+
 ## 6. 当前状态 / 下一步候选
 
 ### 6.1 当前状态（2026-10-22）
 
-- 分支 `main`（`refactor` 同步），L7.46 代码提交 `e236784d`（合并前格式清理）；代码提交后工作树干净，本台账变更另行提交。
+- 分支 `main`（`refactor` 同步），L7.47 代码提交 `02728889`（示例目录/标识中性化）；代码提交后工作树干净，本台账变更另行提交。
 - **红线清理（2026-10-21，提交 `77b645fa`）**：5 个含第三方名的提交信息已重写（其后所有提交哈希随之变化，台账/待办中的引用已全部重映射）；3 份调研文档已移出仓库（存档于仓库外）；README/CHANGELOG 的归属引用已中性化。
-- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.46（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
+- **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.47（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
 - 回归基线（2026-10-23）：`mosaic-runtime` **JVM 812 / linuxX64 810**；`mosaic-tty` JVM 116 / linuxX64 122（FFM 分发 JDK 25 亦 116）；`mosaic-tty-terminal` JVM 274 / linuxX64 273；`mosaic-animation` 各 23；`mosaic-terminal` / `mosaic-testing` / `samples/showcase`（11/11）双平台全绿。
 - L7.38 时间盒验证：只跑新增定向 JVM 测试（`TabRowTest` 7/7）与 `:mosaic-runtime:compileKotlinLinuxX64`（`apiDump` / `apiCheck` 通过），未重跑全量 JVM/Native 套件，故上述基线数值保持不变。
 - L7.39 时间盒验证：只跑新增定向 JVM 测试（`OverlayHostTest` 6/6 + `PopupTest` 5/5 = 11/11）、`:mosaic-runtime:apiDump` → `apiCheck` 与 `:mosaic-runtime:compileKotlinLinuxX64`；按时间盒要求**跳过** `linuxX64Test` 与全量 JVM 套件，故当时基线数值仍按 745/743 记录（新增 11 条未计入全量）。
@@ -791,11 +801,12 @@
 - L7.44 验证：全量 `:mosaic-runtime:jvmTest` 810/810、`:mosaic-runtime:linuxX64Test --no-configuration-cache` 808/808、`:samples:showcase:jvmTest` 11/11；新增宽簇/非 LIFO 7 条定向测试通过；`:mosaic-runtime:apiCheck`（无公共 API 变化）；`:mosaic-runtime:compileKotlinLinuxX64` 通过。
 - L7.45 验证：全量 `:mosaic-runtime:jvmTest` 812/812、`:mosaic-runtime:linuxX64Test --no-configuration-cache` 810/810、`:samples:showcase:jvmTest` 11/11；新增 golden + translation 定向测试通过；`:mosaic-runtime:apiCheck`（无公共 API 变化）；`:mosaic-runtime:compileKotlinLinuxX64` 通过。
 - L7.46 验证（纯格式）：`:spotlessCheck`、`:mosaic-runtime:spotlessKotlinCheck`、`:mosaic-animation:spotlessKotlinCheck`、`:samples:bench:spotlessKotlinCheck` 全绿；`:mosaic-runtime:jvmTest` 812/812、`:mosaic-animation:jvmTest` 23/23、`:samples:showcase:jvmTest` 11/11；`:mosaic-runtime:compileKotlinLinuxX64` 通过；公共 API 未变。
-- L7.46 之后浮层只剩 P3 设计项（dim/invert 后处理、非 modal 点击外部关闭），见 todo §15 与设计文档 §9/§11；合并清理只剩上游示例目录标识。
+- L7.47 验证：`:samples:test-console:compileKotlinJvm`、`:samples:monitor:compileKotlinJvm`、`:samples:monitor:compileKotlinLinuxX64`、`:spotlessCheck`、两个 sample 的 `spotlessKotlinCheck`、`:samples:showcase:jvmTest` 全部通过；grep 无旧标识。
+- L7.47 之后合并清理已完成；浮层只剩 P3 设计项（dim/invert 后处理、非 modal 点击外部关闭），见 todo §15 与设计文档 §9/§11。
 
 ### 6.2 下一步候选（需确认后，一次一项）
 
-1. **合并收尾（待确认）**：上游示例目录标识是否重命名；spotless 已在 L7.46（`e236784d`）全绿，无待修格式项。
+1. **合并收尾** ✅：格式清理（L7.46 `e236784d`）与示例标识中性化（L7.47 `02728889`）均已完成；无其它已知清理项。
 2. **本机可验证的功能候选**：浮层 P3 剩余设计项（dim/invert 后处理、非 modal 点击外部关闭；见设计文档 §9 P3、§11 与 todo §15）、`LazyRow`（与 L7.16 对称）、第一方 widget 集（table/chart/scrollbar；tabs 已由 L7.38 完成，todo §6 P3）、输入侧组合字符（todo §3 P3）。
 3. **需 CI/远程环境**：macOS 特判（todo §9.2 P2）、Windows/ConPTY（§9.3 P1）、Windows 输入多路复用（§9.3 P1）、`linuxArm64` cinterop；本机不推进。
 4. **性能可选项（非必须）**：逐格写入本体（`writeCluster` 11 字段 + `canvas[row,col]` 边界/平移）仍占 draw-idle 大头，候选「样式打包成 primitive」或「收敛局部 cell 引用」；当前性能已远超目标，优先级低于功能与清理。

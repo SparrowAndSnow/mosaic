@@ -46,6 +46,9 @@ New:
 - JVM support for RISC-V and s390x!
 
 Changed:
+- The test-console and process-monitor examples now use neutral paths and identifiers
+  (`samples/test-console`, `samples/monitor`), including their Gradle projects, binaries, READMEs,
+  and CI sample matrix; behavior is unchanged.
 - Terminal teardown now restores every mode it toggled (cursor, mouse, bracketed paste, keyboard,
   grapheme clustering, and so on) before leaving the alternate screen, and writes nothing after the
   leave sequence.
