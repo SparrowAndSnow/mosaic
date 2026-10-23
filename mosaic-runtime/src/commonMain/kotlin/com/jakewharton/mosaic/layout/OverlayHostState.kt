@@ -9,9 +9,7 @@ import com.jakewharton.mosaic.ui.unit.IntOffset
  * Marker implemented by the modifier element attached to an overlay host root. [MosaicNode.setModifier]
  * calls [attach] so the host state can learn its own node without exposing node identity to user code.
  */
-internal interface OverlayHostAttach : Modifier.Element {
-	fun attach(node: MosaicNode)
-}
+internal interface OverlayHostAttach : MosaicNodeAttach
 
 /**
  * Parent data attached by every overlay layer (Popup, Dialog) so the overlay slot knows whether the
@@ -103,11 +101,16 @@ internal class OverlayHostState :
 		slotNode = node.children.getOrNull(1)
 		val currentLayers = slotNode?.children?.toList().orEmpty()
 		val modalCount = currentLayers.count(::isModal)
-		if (currentLayers != previousLayers) {
+		val layersChanged = currentLayers != previousLayers
+		val modalChanged = modalCount != previousModalCount
+		if (layersChanged || modalChanged) {
 			rootNode?.resetPointerSessions()
 		}
-		if (modalCount != previousModalCount) {
+		if (modalChanged) {
 			rootNode?.ensureFocusManager()?.updateModalDepth(modalCount, rootNode!!)
+		}
+		if (layersChanged || modalChanged) {
+			rootNode?.rehoverOverlay()
 		}
 		previousLayers = currentLayers
 		previousModalCount = modalCount

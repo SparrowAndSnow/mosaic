@@ -164,6 +164,9 @@ internal class BoxWithConstraintsState {
 			composition = newComposition
 			subRoot = root
 			node.children.add(root)
+			// Link the sub-composition root into the main tree so root()/isAttachedTo() and overlay
+			// host registration can reach the composition root instead of stopping at the sub-root.
+			root.parent = node
 			newComposition.setContent { scope.content() }
 		} else {
 			current.setContent { scope.content() }
@@ -177,6 +180,7 @@ internal class BoxWithConstraintsState {
 		val root = subRoot
 		if (node != null && root != null) {
 			node.children.remove(root)
+			root.parent = null
 		}
 		subRoot = null
 		lastConstraints = null

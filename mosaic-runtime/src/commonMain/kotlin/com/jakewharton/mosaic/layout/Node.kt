@@ -12,6 +12,14 @@ internal fun interface DebugPolicy {
 	fun MosaicNode.renderDebug(): String
 }
 
+/**
+ * Modifier element that needs the node it is applied to (overlay host registration, cursor
+ * active-domain tracking). Recognized by [MosaicNode.setModifier].
+ */
+internal interface MosaicNodeAttach : Modifier.Element {
+	fun attach(node: MosaicNode)
+}
+
 internal abstract class MosaicNodeLayer :
 	Placeable(),
 	Measurable,
@@ -223,7 +231,7 @@ internal class MosaicNode(
 			var nextLayer = nextLayer
 			// The Modifier class can inherit from several key Modifier types
 			// with different processing logic.
-			if (element is OverlayHostAttach) {
+			if (element is MosaicNodeAttach) {
 				element.attach(this)
 			}
 			if (element is LayoutModifier) {
@@ -363,6 +371,12 @@ internal class MosaicNode(
 	internal fun resetPointerSessions() {
 		pointerState?.cancelPress()
 		pointerState?.clearHover()
+	}
+
+	/** Recomputes hover for the last pointer position against the current overlay roots. */
+	internal fun rehoverOverlay() {
+		val host = overlayHost ?: return
+		pointerState?.rehover(host.rootsForMouse())
 	}
 
 	/**

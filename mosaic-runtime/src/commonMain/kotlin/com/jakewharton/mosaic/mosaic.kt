@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.jakewharton.mosaic.NonInteractivePolicy.Exit
 import com.jakewharton.mosaic.layout.KeyEvent
 import com.jakewharton.mosaic.layout.MosaicNode
+import com.jakewharton.mosaic.layout.root
 import com.jakewharton.mosaic.layout.toRuntimeMouseEvent
 import com.jakewharton.mosaic.terminal.BracketedPasteEvent
 import com.jakewharton.mosaic.terminal.ClipboardEvent
@@ -318,10 +319,12 @@ internal class MosaicComposition(
 		// cache, but the whole-tree observation below additionally covers state reads that happen
 		// during placement (e.g. a changeable offset), which must still trigger a layout pass.
 		readStatesOnLayout.clear()
-		rootNode.overlayHost?.syncLayers()
 		Snapshot.observe(readObserver = readStatesOnLayoutObserver) {
 			rootNode.measureAndPlace()
 		}
+		// Re-read the layer stack after placement so hover recomputation can use the freshly
+		// measured bounds of layers that were just composed (for example a newly opened Dialog).
+		rootNode.overlayHost?.syncLayers()
 
 		performDraw()
 	}
@@ -340,7 +343,7 @@ internal class MosaicComposition(
 		// carried by static(). An inactive cursor explicitly clears the request so a reused surface
 		// can never keep showing a cursor that left the composition.
 		if (canvas is TextSurface) {
-			if (cursorState.active) {
+			if (cursorState.active && cursorState.isVisible(rootNode)) {
 				canvas.cursorColumn = cursorState.column
 				canvas.cursorRow = cursorState.row
 				canvas.cursorShape = cursorState.shape
@@ -608,8 +611,9 @@ internal class MosaicNodeApplier(
 	override fun onBeginChanges() {
 		super.onBeginChanges()
 		// Overlay layers are part of the node tree, so any applied change may add, remove, or
-		// reshape them. Mark the host for a cheap re-read before layout or input dispatch.
-		root.overlayHost?.markDirty()
+		// reshape them. Mark the composition-root host (sub-composition roots are linked into the
+		// main tree) for a cheap re-read before layout or input dispatch.
+		root.root().overlayHost?.markDirty()
 		// We invoke this here rather than in the end change callback to try and ensure
 		// no one relies on it to signal the end of changes.
 		onChanges.invoke()

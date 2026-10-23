@@ -27,10 +27,13 @@ New:
 - Modal `Dialog` and `Popup(modal = true)` with `OverlayBackdrop`: modal layers gate keyboard,
   paste, mouse, and Tab traversal, save and restore base focus, support Escape dismissal, and can
   erase the base (`Solid`, optionally filling a background color) or leave it visible (`None`).
-  Layer changes cancel any in-flight press and clear hover state.
+  Layer changes cancel any in-flight press and recompute hover at the last pointer position; hosts
+  inside sub-compositions register with the composition root, so modal barriers still apply.
 - Focus tracking with Tab/Shift+Tab traversal.
 - Hardware cursor control: place the terminal's cursor by layout position with block, underline, or
   bar shapes and optional blinking (`Cursor`); the terminal's default shape is restored on exit.
+  While a modal overlay is open, a cursor whose node is outside the active modal domain is hidden
+  and restored when that overlay closes.
 - Opt-in momentum scrolling: `MomentumScrollState` turns wheel impulses into a decaying fling; the
   application owns the frame loop, calls `advance(dt, maxPosition)` each frame, and maps `position`
   into layout. A default wheel notch travels about three rows.

@@ -427,6 +427,145 @@ class DialogTest {
 		}
 	}
 
+	@Test fun modalInsideBoxWithConstraintsStillGatesInput() = runTest {
+		runMosaicTest(NodeSnapshots) {
+			var baseClicks = 0
+			val received = mutableListOf<String>()
+			setContent {
+				BoxWithConstraints(Modifier.size(20, 6)) {
+					OverlayHost(
+						overlay = {
+							Dialog(onDismissRequest = {}) {
+								Box(
+									Modifier
+										.onKeyEvent {
+											received += "dialog"
+											true
+										}
+										.onPaste {
+											received += "dialog-paste"
+											true
+										},
+								)
+							}
+						},
+					) {
+						Box(
+							Modifier
+								.size(20, 6)
+								.clickable { baseClicks++ }
+								.onKeyEvent {
+									received += "base"
+									true
+								}
+								.onPaste {
+									received += "base-paste"
+									true
+								},
+						) {
+							Text("base")
+						}
+					}
+				}
+			}
+			val root = awaitSnapshot()
+
+			assertThat(root.sendKeyEvent(KeyEvent("x"))).isTrue()
+			assertThat(root.sendPasteEvent("pasted")).isTrue()
+			assertThat(received).isEqualTo(listOf("dialog", "dialog-paste"))
+
+			root.sendMouseEvent(press(0, 0))
+			root.sendMouseEvent(release(0, 0))
+			assertThat(baseClicks).isEqualTo(0)
+		}
+	}
+
+	@Test fun openingModalRehoversIntoDialogContent() = runTest {
+		runMosaicTest(NodeSnapshots) {
+			var show by mutableStateOf(false)
+			val baseHovered = mutableListOf<Boolean>()
+			val dialogHovered = mutableListOf<Boolean>()
+			setContent {
+				OverlayHost(
+					overlay = {
+						if (show) {
+							Dialog(onDismissRequest = {}) {
+								Box(Modifier.size(6, 4).hoverable { dialogHovered += it })
+							}
+						}
+					},
+					modifier = Modifier.size(10, 5),
+				) {
+					Box(Modifier.size(10, 5).hoverable { baseHovered += it }) {
+						Text("base")
+					}
+				}
+			}
+			val root = awaitSnapshot()
+
+			root.sendMouseEvent(motion(2, 2))
+			assertThat(baseHovered).isEqualTo(listOf(true))
+
+			// Opening the modal recomputes hover against the measured dialog content.
+			show = true
+			awaitSnapshot()
+			assertThat(baseHovered).isEqualTo(listOf(true, false))
+			assertThat(dialogHovered).isEqualTo(listOf(true))
+
+			show = false
+			awaitSnapshot()
+			assertThat(baseHovered).isEqualTo(listOf(true, false, true))
+			assertThat(dialogHovered).isEqualTo(listOf(true, false))
+		}
+	}
+
+	@Test fun closingModalRehoversAtLastPointerPosition() = runTest {
+		runMosaicTest(NodeSnapshots) {
+			var show by mutableStateOf(false)
+			var clicks = 0
+			val hovered = mutableListOf<Boolean>()
+			setContent {
+				OverlayHost(
+					overlay = {
+						if (show) {
+							Dialog(onDismissRequest = {}) {
+								Text("dialog")
+							}
+						}
+					},
+					modifier = Modifier.size(10, 5),
+				) {
+					Box(
+						Modifier
+							.size(10, 5)
+							.clickable { clicks++ }
+							.hoverable { hovered += it }
+							.focusable()
+							.testTag("base"),
+					) {
+						Text("base")
+					}
+				}
+			}
+			val root = awaitSnapshot()
+
+			root.sendMouseEvent(motion(2, 2))
+			assertThat(hovered).isEqualTo(listOf(true))
+
+			show = true
+			awaitSnapshot()
+			assertThat(hovered).isEqualTo(listOf(true, false))
+
+			// No mouse event between close and the assertion: the last position is replayed.
+			show = false
+			awaitSnapshot()
+			assertThat(hovered).isEqualTo(listOf(true, false, true))
+
+			assertThat(clicks).isEqualTo(0)
+			assertThat(root.ensureFocusManager().focusedNode).isNull()
+		}
+	}
+
 	@Test fun laterModalLayerReceivesKeysFirstAndBarrierMovesDown() = runTest {
 		runMosaicTest(NodeSnapshots) {
 			var first by mutableStateOf(true)

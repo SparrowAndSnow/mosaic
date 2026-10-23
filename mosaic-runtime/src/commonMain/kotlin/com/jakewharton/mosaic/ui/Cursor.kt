@@ -5,6 +5,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.jakewharton.mosaic.layout.MosaicNode
+import com.jakewharton.mosaic.layout.MosaicNodeAttach
+import com.jakewharton.mosaic.layout.isInActiveFocusScope
 import com.jakewharton.mosaic.layout.onGloballyPositioned
 import com.jakewharton.mosaic.modifier.Modifier
 
@@ -65,9 +68,11 @@ public fun Cursor(
 		}
 	}
 	Spacer(
-		modifier.onGloballyPositioned { position, _ ->
-			state.place(token, position.x, position.y)
-		},
+		modifier
+			.then(CursorNodeModifier(state, token))
+			.onGloballyPositioned { position, _ ->
+				state.place(token, position.x, position.y)
+			},
 	)
 }
 
@@ -76,6 +81,17 @@ public fun Cursor(
  * output. Placement and style updates are plain fields (not snapshot state): they always happen
  * during composition, layout, or disposal, and each mutation asks the composition for a draw.
  */
+private class CursorNodeModifier(
+	private val state: CursorState,
+	private val token: Any,
+) : MosaicNodeAttach {
+	override fun attach(node: MosaicNode) {
+		state.attachNode(token, node)
+	}
+
+	override fun toString(): String = "CursorNode()"
+}
+
 internal class CursorState(
 	private val onChanged: () -> Unit,
 ) {
@@ -96,6 +112,20 @@ internal class CursorState(
 
 	/** Identifies the [Cursor] instance that most recently placed itself. */
 	private var token: Any? = null
+
+	/** Node for each attached [Cursor] token, used to check the active focus domain at draw time. */
+	private val nodes = HashMap<Any, MosaicNode>()
+
+	fun attachNode(token: Any, node: MosaicNode) {
+		nodes[token] = node
+	}
+
+	/** True when this cursor's node is inside the current modal focus domain (or no modal). */
+	fun isVisible(root: MosaicNode): Boolean {
+		val token = token ?: return false
+		val node = nodes[token] ?: return false
+		return root.isInActiveFocusScope(node)
+	}
 
 	fun place(token: Any, column: Int, row: Int) {
 		val changed = !active || this.column != column || this.row != row
@@ -118,6 +148,7 @@ internal class CursorState(
 	}
 
 	fun release(token: Any) {
+		nodes.remove(token)
 		if (this.token !== token) return
 		this.token = null
 		if (active) {

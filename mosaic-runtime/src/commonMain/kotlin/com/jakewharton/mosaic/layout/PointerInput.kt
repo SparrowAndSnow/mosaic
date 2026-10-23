@@ -185,6 +185,10 @@ internal class PointerEntry(
  * outlives a single node's dispatch (leave happens on later events; release can land outside the
  * pressed bounds).
  */
+internal fun List<MosaicNode>.rootAt(x: Int, y: Int): MosaicNode? = firstOrNull {
+	x in it.x until it.x + it.width && y in it.y until it.y + it.height
+}
+
 internal class PointerState(
 	private val nowMillis: () -> Long = { nanoTime() / 1_000_000 },
 ) {
@@ -201,6 +205,12 @@ internal class PointerState(
 	)
 	private var pressed: PressedTarget? = null
 
+	// Last mouse position, kept so hover can be recomputed after an overlay layer change without
+	// requiring the pointer to move again.
+	private var lastX = Int.MIN_VALUE
+	private var lastY = Int.MIN_VALUE
+	private var hasLastPosition = false
+
 	/** Runs before normal mouse dispatch on the composition root for [event]. */
 	fun preDispatch(root: MosaicNode, event: MouseEvent) {
 		preDispatch(listOf(root), event)
@@ -212,9 +222,10 @@ internal class PointerState(
 	 * accidentally enter or focus content behind it.
 	 */
 	fun preDispatch(roots: List<MosaicNode>, event: MouseEvent) {
-		val hitRoot = roots.firstOrNull {
-			event.x in it.x until it.x + it.width && event.y in it.y until it.y + it.height
-		}
+		lastX = event.x
+		lastY = event.y
+		hasLastPosition = true
+		val hitRoot = roots.rootAt(event.x, event.y)
 		val path = ArrayList<PointerEntry>()
 		if (hitRoot != null) {
 			hitRoot.collectPointerEntries(event.x, event.y, path)
@@ -224,6 +235,21 @@ internal class PointerState(
 			handleFocus(hitRoot, event)
 		}
 		handleClick(event, path)
+	}
+
+	/**
+	 * Recomputes hover for the last known pointer position against [roots] without delivering a
+	 * click or moving focus. Used when overlay layers open or close so the item under a stationary
+	 * pointer highlights again after a modal disposes.
+	 */
+	fun rehover(roots: List<MosaicNode>) {
+		if (!hasLastPosition) return
+		val hitRoot = roots.rootAt(lastX, lastY)
+		val path = ArrayList<PointerEntry>()
+		if (hitRoot != null) {
+			hitRoot.collectPointerEntries(lastX, lastY, path)
+		}
+		reconcileHover(path)
 	}
 
 	private fun handleFocus(root: MosaicNode, event: MouseEvent) {
