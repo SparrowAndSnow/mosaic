@@ -171,7 +171,10 @@ internal class RowColumnMeasurementHelper(
 				}
 			}
 			weightedSpace = (weightedSpace + arrangementSpacingTotal)
-				.coerceIn(0, constraints.mainAxisMax - fixedSpace)
+				// Fixed children can need more space than the parent offers (content-sized children
+				// keep their own size, and a terminal can be shrunk below the content). Clamp so the
+				// range can never be empty and the weights simply get nothing.
+				.coerceIn(0, (constraints.mainAxisMax - fixedSpace).coerceAtLeast(0))
 				.toInt()
 		}
 
