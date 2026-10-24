@@ -1,5 +1,6 @@
 package com.jakewharton.mosaic.tty.terminal
 
+import kotlin.experimental.ExperimentalNativeApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.UnsafeNumber
 import kotlinx.cinterop.convert
@@ -11,6 +12,11 @@ import platform.posix.write
 
 internal actual fun env(name: String): String? {
 	return getenv(name)?.toKString()
+}
+
+@OptIn(ExperimentalNativeApi::class)
+internal actual fun isWindowsPlatform(): Boolean {
+	return Platform.osFamily == OsFamily.WINDOWS
 }
 
 @OptIn(ExperimentalForeignApi::class, UnsafeNumber::class)

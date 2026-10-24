@@ -543,11 +543,14 @@ private fun Tty.write(s: String) {
 	}
 }
 
-internal fun detectAnsiLevel(): AnsiLevel {
-	if (!env("NO_COLOR").isNullOrEmpty()) {
+internal fun detectAnsiLevel(
+	getenv: (String) -> String? = ::env,
+	isWindows: Boolean = isWindowsPlatform(),
+): AnsiLevel {
+	if (!getenv("NO_COLOR").isNullOrEmpty()) {
 		return AnsiLevel.NONE
 	}
-	val term = env("COLORTERM") ?: env("TERM") ?: "dumb"
+	val term = getenv("COLORTERM") ?: getenv("TERM") ?: "dumb"
 	if (term.contains("24bit", ignoreCase = true) || term.contains("truecolor", ignoreCase = true)) {
 		return AnsiLevel.TRUECOLOR
 	}
@@ -557,12 +560,13 @@ internal fun detectAnsiLevel(): AnsiLevel {
 	if (term != "dumb") {
 		return AnsiLevel.ANSI16
 	}
-	// https://github.com/microsoft/terminal/issues/1040#issuecomment-496691842
-	if (env("WT_SESSION") != null) {
-		return AnsiLevel.TRUECOLOR
-	}
-	// Per https://conemu.github.io/en/ConEmuEnvironment.html
-	if (env("ConEmuANSI") == "ON") {
+	// The Windows console renders 24-bit color as soon as VT output processing is enabled, which
+	// entering raw mode does before this runs. Windows Terminal advertises itself through WT_SESSION
+	// (see https://github.com/microsoft/terminal/issues/1040#issuecomment-496691842) and ConEmu
+	// through ConEmuANSI (https://conemu.github.io/en/ConEmuEnvironment.html), but keying off either
+	// left plain console windows — cmd, or a double-clicked executable — monochrome even though they
+	// support 24-bit color. NO_COLOR still wins, and an explicit TERM/COLORTERM above still decides.
+	if (isWindows) {
 		return AnsiLevel.TRUECOLOR
 	}
 	return AnsiLevel.NONE
