@@ -109,6 +109,7 @@
 - [x] **P2 intrinsic 复用** ✅（L7.25，`d51f3ae4`）：`min/maxIntrinsicWidth/Height` 已在每个节点加**单槽 memo**（与布局缓存同 `layoutVersion` 门控、同一 snapshot 依赖口径），重复同参查询不再重走子树；实际 measure 时丢弃 memo 保证不陈旧。剩余：多槽（min/max 交替同参还未互不驱逐）。
 - [x] **P3 焦点管理** ✅（L7.19）：`focusable`/`onFocusChanged`/`FocusRequester` + 组合级 `FocusManager`（Tab/Shift+Tab 环形遍历、点击聚焦、锚点祖先 hasFocus）。**方向键导航原语**（箭头遍历 focus 环）仍缺——Compose 无通用实现、主流 TUI 靠各自状态机，属可选项。
 - [ ] **P1 条件分支替换后的测量缓存疑似陈旧**（2026-10-23，外部接入反馈，尚未复现）：接入方在 Main 用 `if (stopped) 空状态 else { 专辑图/标题/进度/控件 }`，从空状态切到播放后，播放控件的图标/宽度变小，鼠标 hover（触发一次重绘）后恢复；仅某终端复现，另一终端正常。已排除字形差异与 cell 内容差异，去掉 if/else 分支让控件常驻后正常。怀疑分支替换时布局缓存（L4.7 的 Constraints+layoutVersion 单槽 memo）未失效，或节点复用保持了旧测量；需要在 Mosaic 内做最小复现并补回归。
+- [x] **P1 加权子节点在父级空间不足时崩溃** ✅（2026-10-24）：终端被缩到内容自然尺寸以下（接入方 EIMusic 现场）时 `fixedSpace > mainAxisMax`，`RowColumnMeasurementHelper` 的 `coerceIn(0, mainAxisMax - fixedSpace)` 上界变成负数（现场 -6，回归用例 -6 / -1）→ `IllegalArgumentException: Cannot coerce value to an empty range`，进程 FATAL 退出。修复：上界先 `coerceAtLeast(0)`（与 Compose 语义一致），权重拿不到空间就为 0。回归：`WeightedOverflowTest`（Row：`requiredWidth(10)` 撑爆 4 列 + weight；Column：3 行塞进 2 行 + weight），修复前两条都以原消息失败。
 - [x] **P3 `weight(fill)` 语义核对** ✅（L7.24，`3edfd316`）：`weight(fill=true)` 的加权子节点按**槽位尺寸**记账与放置（fill=false 与非加权仍用实测内容尺寸），子节点自身宽度保持内容宽不拉伸——Row/Column 总尺寸=槽位总和，等宽列不再塌缩、整槽点击区域恢复。决策见台账 L7.24：框架级「报告宽度收敛到约束」不可行，改为定点记账。
 
 ## 6. 文本 / 样式（`text/` + `ui/Text.kt`）
@@ -150,6 +151,11 @@
 ### 9.3 Windows
 - [ ] **P1 ConPTY / VT**：raw mode 用 `GetConsoleMode/SetConsoleMode` + `ENABLE_VIRTUAL_TERMINAL_INPUT/PROCESSING`（已有）；核对失败回退（非 VT 终端）、ConPTY 与真实 console 差异。
 - [ ] **P1 输入多路复用**：Windows 需在 `ReadConsoleInput` 循环里分发 `KEY_EVENT`/`MOUSE_EVENT`/`WINDOW_BUFFER_SIZE_EVENT`/`FOCUS_EVENT`（已有分支）；核对中文字符（宽字符 `KEY_EVENT` 的 `WCHAR`）与 UTF-8 转换、Ime 持有状态。
+  - 2026-10-24 实测修复（真 conhost）：①resize/focus 记录被分发却从不消费 → reader 忙等自旋（单核 100%、resize 回调风暴挤掉真实输入、`interruptRead` 失效导致 close 时释放仍在读取的原生句柄）；改为消费这些记录，并按「窗口实际尺寸 vs 上次上报」去重上报 resize（`ReadFile` 吞掉 resize 记录时也不丢）。②`ReadFile`（VT 翻译）只对**按下**的 `KEY_EVENT` 产字节；单独的抬起记录、鼠标记录会让 `ReadFile` 一直阻塞到下一次按键（连 `readWithTimeout` 也不遵守超时），等于输入全僵；现在只把「有按下」的批次交给 `ReadFile`，其余记录分发/消费掉。③JNI 回调改为按调用线程 `GetEnv`（原先缓存注册线程的 `JNIEnv`，跨线程使用不合法）。
+  - 剩余：Windows 鼠标事件——本机 conhost 的 VT 输入翻译对上 `MOUSE_EVENT` 不产字节（`ReadFile` 阻塞，开/关 1000/1003/1006 都一样）；目前记录被消费（鼠标事件不下发）。要做需自行按 SGR 编码鼠标记录，或以 DECSET 输出嗅探判断追踪是否开启，再决定是否走 `ReadFile`。
+  - 2026-10-24 二次修复（接入方 EIMusic 现场复现）：进程内其它代码（音频引擎/驱动）会在 Mosaic 进入 raw mode 之后重置控制台模式。实测运行中的 app 输入模式为 `0x028F`（`PROCESSED|LINE|ECHO|WINDOW|EXTENDED|VT_INPUT`）——带 `ENABLE_LINE_INPUT` 时 `ReadFile` 会等到回车，带 `ENABLE_ECHO_INPUT` 时按键被回显到屏幕上（屏幕底部出现 `asdwage...`、方向键回显成 `^[[B`），表现为“输入完全失效”。而 `enableRawMode` 是**一次性**的：`saved_input_mode` 已置位就直接返回，外部重置后没有任何修复路径。
+    修复：raw mode 记录「控制台实际接受」的输入/输出模式与代码页（不是请求值，因为主机可能清掉 `ENABLE_MOUSE_INPUT` 等位）；reader 每次循环比对当前模式并恢复；阻塞读改为 1s 周期唤醒，空闲时也能修复；`enableRawMode` 再次调用改为「重新断言」而非空操作。C 侧验证：把模式改成 `0x028F` 后注入按键，之前 2s 内一直阻塞，现在立刻按 VT 语义返回（`a` / `1b 5b 42` / `03`）。
+    说明：Ctrl+C 之所以“退出不清理屏幕”，是因为输入失效时控制台带 `ENABLE_PROCESSED_INPUT`，Ctrl+C 退化成信号直接终止进程，跳过 Mosaic 的 teardown（备用屏/raw mode 都不恢复）。模式修复后 Ctrl+C 回到按键通路，由应用正常取消协程收尾。真正的硬杀（关窗口、`taskkill`、CTRL_CLOSE）仍缺 Windows 侧的控制台恢复：`mosaic_tty_enable_signal_guard` 在 Windows 是空实现。
 - [ ] **P2 光标/颜色**：`ENABLE_VIRTUAL_TERMINAL_PROCESSING` 下的 ANSI 输出与 24bit；核对 Windows Terminal 与 conhost 差异。
 - [ ] **P3 codepage**：`chcp 65001`/`CP_UTF8` 处理与恢复（若不做需文档化）。
 - [ ] **P3 focus 回调**：仅 Windows 提供 `onFocus`；跨平台对等（POSIX 走 DECRPM focus 事件）已在 `TtyTerminal` 层补齐——保持两个通路语义一致。

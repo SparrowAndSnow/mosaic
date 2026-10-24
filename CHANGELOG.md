@@ -53,6 +53,10 @@ Changed:
   grapheme clustering, and so on) before leaving the alternate screen, and writes nothing after the
   leave sequence.
 - Use the AndroidX versions of the Compose runtime and lifecycle dependencies which are now fully multiplatform. Dependency constraints to the corresponding JetBrains artifacts (which are now empty) are present to prevent symbol duplication.
+- Windows color detection no longer depends on being launched from Windows Terminal. Entering raw
+  mode enables VT output processing, and every console that supports it renders 24-bit color, so a
+  plain console window (cmd, or a double-clicked executable) now gets color too instead of falling
+  back to no color. `NO_COLOR` and an explicit `TERM`/`COLORTERM` still take precedence.
 - Remove support for x86 macOS targets. These have been deprecated for a bit, but support has been removed from the Compose runtime so we have no choice but to match.
 
 Fixed:
@@ -79,6 +83,34 @@ Fixed:
 - `OverlayBackdrop.Solid` now clears at the draw scope's translated origin. A dialog hosted below
   a header (or above a footer) only erases the host area instead of every row from the canvas
   origin through the host height.
+- Windows window resizes no longer wedge input. A window-size or focus record which arrived with
+  no keystrokes pending was dispatched as a callback but never consumed, so the reader looped on it:
+  a pegged core, a resize callback storm which crowded real input out of the event channel, and an
+  uninterruptible read which could outlive the terminal when it was closed. Those records are now
+  consumed, the reported size is derived from the actual window (so a resize swallowed by a read is
+  not lost), and an interrupt is honored even while console records are pending.
+- Windows input no longer stalls after a key release or a mouse event. Only a key press makes the
+  console's VT translation produce bytes; a release or mouse record left the reader blocked inside
+  the read until the next key press, which also froze any timed read (such as the one which
+  disambiguates a bare Escape). Records which cannot produce bytes are consumed instead of being
+  handed to a read which would never return. Windows mouse events are therefore not delivered yet;
+  the console's VT input translation produces no bytes for them.
+- Windows input no longer depends on the console keeping the modes Mosaic applied. Anything else in
+  the process which resets the console (an audio engine or a driver it loads is the usual culprit)
+  left it line-buffered and echoing, so reads blocked until Enter and every keystroke was printed
+  onto the screen instead of reaching the application. The reader now compares the console's modes
+  with the ones it applied and restores them, waking once a second while idle to repair a reset;
+  `enableRawMode()` also re-asserts the modes when raw mode is already enabled instead of doing
+  nothing.
+- Shrinking the terminal below the content's natural size no longer crashes a weighted `Row` or
+  `Column`. Fixed children can need more space than the parent offers (content-sized children keep
+  their own size), which made the space left for weights negative and built an empty `coerceIn`
+  range: `IllegalArgumentException: Cannot coerce value to an empty range`. The remaining space
+  now clamps to zero, so weighted children simply get none.
+- The JNI binding now looks up the calling thread's JNI environment when invoking TTY callbacks
+  instead of reusing the environment captured when the callback was registered. A JNI environment
+  is only valid on its own thread, so callbacks delivered from the reader thread could fail or
+  corrupt the VM state.
 
 
 ## [0.18.0] - 2025-08-21
