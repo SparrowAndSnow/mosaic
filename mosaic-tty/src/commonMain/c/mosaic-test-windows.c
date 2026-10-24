@@ -271,6 +271,11 @@ MOSAIC_EXPORT MosaicIoResult mosaic_test_write_tty(MosaicTestTty *testTty, uint8
 	}
 	for (int i = 0; i < count; i++) {
 		records[i].EventType = KEY_EVENT;
+		// The console only turns key *presses* into VT input bytes. A release record (the reset
+		// default of calloc) would leave the reading side waiting for a press instead.
+		records[i].Event.KeyEvent.bKeyDown = TRUE;
+		records[i].Event.KeyEvent.wRepeatCount = 1;
+		records[i].Event.KeyEvent.wVirtualKeyCode = VkKeyScanA(buffer[i]) & 0xFF;
 		records[i].Event.KeyEvent.uChar.AsciiChar = buffer[i];
 	}
 

@@ -416,33 +416,48 @@ Java_com_jakewharton_mosaic_tty_Jni_streamsFree(
 }
 
 typedef struct MosaicJniTtyCallback {
-	JNIEnv *env;
+	JavaVM *jvm;
 	jobject instance;
 	jmethodID onFocus;
 	jmethodID onResize;
 } MosaicJniTtyCallback;
 
+// Callbacks are invoked from whatever thread is inside mosaic_tty_read, which is not necessarily
+// the thread which registered the callback. A JNIEnv is only valid on its own thread, so look up
+// the calling thread's environment instead of caching one. The calling thread is always attached
+// here because the callback can only be reached from a native method invocation.
+static JNIEnv *callbackEnv(MosaicJniTtyCallback *callback) {
+	JNIEnv *env = NULL;
+	if (unlikely((*callback->jvm)->GetEnv(callback->jvm, (void **) &env, JNI_VERSION_1_6) != JNI_OK)) {
+		return NULL;
+	}
+	return env;
+}
+
 static void invokeOnFocusCallback(void *opaque, bool focused) {
 	MosaicJniTtyCallback *callback = (MosaicJniTtyCallback *) opaque;
-	(*callback->env)->CallVoidMethod(
-		callback->env,
-		callback->instance,
-		callback->onFocus,
-		focused
-	);
+	JNIEnv *env = callbackEnv(callback);
+	if (unlikely(env == NULL)) {
+		return;
+	}
+	(*env)->CallVoidMethod(env, callback->instance, callback->onFocus, focused);
+	if (unlikely((*env)->ExceptionCheck(env))) {
+		// The callback contract forbids throwing. A pending exception would poison every later JNI
+		// call on this thread, so clear it rather than letting it escape.
+		(*env)->ExceptionClear(env);
+	}
 }
 
 static void invokeOnResizeCallback(void *opaque, int columns, int rows, int width, int height) {
 	MosaicJniTtyCallback *callback = (MosaicJniTtyCallback *) opaque;
-	(*callback->env)->CallVoidMethod(
-		callback->env,
-		callback->instance,
-		callback->onResize,
-		columns,
-		rows,
-		width,
-		height
-	);
+	JNIEnv *env = callbackEnv(callback);
+	if (unlikely(env == NULL)) {
+		return;
+	}
+	(*env)->CallVoidMethod(env, callback->instance, callback->onResize, columns, rows, width, height);
+	if (unlikely((*env)->ExceptionCheck(env))) {
+		(*env)->ExceptionClear(env);
+	}
 }
 
 JNIEXPORT jlong JNICALL
@@ -476,7 +491,13 @@ Java_com_jakewharton_mosaic_tty_Jni_ttyCallbackInit(
 		(*env)->DeleteGlobalRef(env, globalInstance);
 		return 0;
 	}
-	jniCallback->env = env;
+	JavaVM *jvm = NULL;
+	if (unlikely((*env)->GetJavaVM(env, &jvm) != 0)) {
+		free(jniCallback);
+		(*env)->DeleteGlobalRef(env, globalInstance);
+		return 0;
+	}
+	jniCallback->jvm = jvm;
 	jniCallback->instance = globalInstance;
 	jniCallback->onFocus = onFocus;
 	jniCallback->onResize = onResize;
