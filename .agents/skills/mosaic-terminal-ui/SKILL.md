@@ -12,7 +12,7 @@ description: Build or modify Mosaic terminal-UI apps, widgets, samples, and test
 - [references/testing.md](references/testing.md) — 快照/虚拟终端/能力矩阵测试
 - [references/patterns.md](references/patterns.md) — 可直接抄的完整写法
 
-## 0. 先记住 7 条硬约束
+## 0. 先记住 6 条硬约束
 
 1. **组合根按无界约束测量**。`fillMaxWidth()`、`fillMaxHeight()`、`weight()`、比例布局在根上默认无效。全屏应用必须自己声明画布：
    `Column(Modifier.width(terminal.size.columns).height(terminal.size.rows))`，尺寸来自 `LocalTerminalState.current.size`。
@@ -22,7 +22,6 @@ description: Build or modify Mosaic terminal-UI apps, widgets, samples, and test
    `LaunchedEffect(Unit) { awaitCancellation() }`，或由无限循环/事件驱动。
 5. **必须真 TTY**。在 Gradle `run*`、IntelliJ 终端、CI 无 TTY 环境里，ANSI 会被吞或没有交互；先 `installDist`，再在真实终端运行二进制。
 6. **鼠标/粘贴是 opt-in**：`runMosaic(mouse = true, paste = true)`（或对应 `runMosaicBlocking/Main`）。键盘始终可用；滚轮只在滚轮容器上生效。
-7. **仓库红线**：代码/注释/文档/提交信息里不要出现外部参考库或项目名。改写或新增文档时也不要把这些名字带回来。
 
 ## 1. 最小完整应用
 
@@ -71,7 +70,7 @@ fun App() {
 | `mosaic-tty-terminal/` | 终端能力探测、事件解析、`TtyTerminal` 实现 |
 | `mosaic-animation/` | `animate*AsState`、`Animatable`、`Crossfade`、`AnimatedVisibility` |
 | `mosaic-testing/` | `runMosaicTest`、`TestMosaic`、`TestTerminal`、`CapabilityMatrix` |
-| `samples/showcase/` | 9 页能力演示（Unicode/Text/Layout/Input/Field/Animation/Scroll/Lazy/Border），**优先照抄** |
+| `samples/showcase/` | 10 页能力演示（Unicode/Overlay/Text/Layout/Input/Field/Animation/Scroll/Lazy/Border），**优先照抄** |
 | `samples/counter/` | 最小状态/动画入口 |
 | `mosaic-runtime/src/commonTest/` | 绝大多数行为测试；`jvmTest/` 放官方字素套件等只适合 JVM 的大文件 |
 
@@ -99,7 +98,7 @@ fun App() {
 ./samples/showcase/build/install/showcase/bin/showcase
 ```
 
-注意：`:mosaic-tty:spotlessCheck` 通过；但整个仓库的 `spotlessCheck` 当前在 runtime 的 7 处**既有**代码上失败（compose 规则），不是你新增代码的问题，别顺手改无关文件。
+注意：整个仓库的 `spotlessCheck` 当前通过。Zig 0.17.1 用于 JNI 交叉编译；本机网络不便时可按台账说明预置 `mosaic-tty/build/zig/zig` 并跳过 `:mosaic-tty:zigDownload`。
 
 JVM 22+ 走 FFM（多版本 jar 的 `META-INF/versions/22`）。想在本地验证 FFM 路径：
 
@@ -115,9 +114,10 @@ JAVA_HOME=<jdk22+> mosaic-tty/build/install/jvmTest/bin/mosaic-tty-test
 | 入口 | `runMosaic`、`runMosaicMain`、`runMosaicBlocking`、`NonInteractivePolicy` | api.md `1 |
 | 布局 | `Box`/`Row`/`Column`/`BoxWithConstraints`/`Spacer`/`Filler`/`Layout`；`weight`/`align` | api.md `2 |
 | Modifier | `size` 族、`padding`、`offset`、`aspectRatio`、`fillMax*`、`border`、`background`、`clipToBounds`、`drawBehind` | api.md `2 |
+| 组件/浮层 | `TabRow`、`OverlayHost`、`Popup`、`Dialog`、`OverlayBackdrop` | api.md `2 |
 | 文本 | `Text`、`TextStyle`、`Color`、`UnderlineStyle`、`TextOverflow`、`AnnotatedString`/`SpanStyle` | api.md `3 |
-| 滚动/列表 | `ScrollState`、`rememberScrollState`、`verticalScroll`、`horizontalScroll`、`LazyColumn` | api.md `4 |
-| 输入/焦点 | `onKeyEvent`/`onPreviewKeyEvent`、`clickable`/`hoverable`/`onMouseEvent`、`onPaste`、`focusable`/`onFocusChanged`/`FocusRequester`、`BasicTextField` | api.md `5 |
+| 滚动/列表 | `ScrollState`、`rememberScrollState`、`verticalScroll`、`horizontalScroll`、`MomentumScrollState`、`LazyColumn` | api.md `4 |
+| 输入/焦点 | `onKeyEvent`/`onPreviewKeyEvent`、`clickable`/`hoverable`/`onMouseEvent`、`ClickTracker`、`onPaste`、`focusable`/`onFocusChanged`/`FocusRequester`、`BasicTextField` | api.md `5 |
 | 终端 | `LocalTerminalState`、`TerminalState`、`Terminal.Size/Theme/Capabilities`、`LocalClipboard` | api.md `6 |
 | 动画 | `animate*AsState`、`Animatable`、`Crossfade`、`AnimatedVisibility` + Enter/Exit | api.md `7 |
 | 光标/静态 | `Cursor`/`CursorShape`、`StaticEffect`/`LocalStaticLogger` | api.md `8 |
@@ -131,6 +131,7 @@ JAVA_HOME=<jdk22+> mosaic-tty/build/install/jvmTest/bin/mosaic-tty-test
 - **大列表**：`patterns.md` `6；`LazyColumn` 的 `itemHeight` 是唯一映射，项内容不能超过槽高。
 - **表单/多输入框**：`patterns.md` `7；`BasicTextField` 只在聚焦时消费输入，Tab/点击切焦点。
 - **Tabs/悬停/点击**：`patterns.md` `8；用 `clickable`/`hoverable`，不要自己写命中测试。
+- **弹窗/浮层**：`OverlayHost` 放在顶层，`Popup`/`Dialog` 作为 overlay 槽的直接子节点；modal 层会屏蔽 base 输入。
 - **自定义比例布局**：`patterns.md` `9；`BoxWithConstraints` 读 `maxWidth/maxHeight`。
 - **硬件光标**：`patterns.md` `10；只在根范围内、无静态日志时可靠。
 - **测试输出/回归**：`testing.md`；优先断言最终屏幕状态（`VirtualTerminal`），其次整帧字符串。
@@ -139,7 +140,7 @@ JAVA_HOME=<jdk22+> mosaic-tty/build/install/jvmTest/bin/mosaic-tty-test
 
 1. 相关模块 JVM + native 测试全绿（至少 runtime；改动 tty 再加 tty/tty-terminal）。
 2. 新增/修改 public API 跑 `apiDump` 并提交 `.api` / `.klib.api`。
-3. 只对改动模块跑 `spotlessCheck`；不要被 runtime 的既有 7 处失败带偏。
+3. 对改动模块跑 `spotlessCheck`；改 `mosaic-tty/build.zig` 时再跑 `zig fmt --check mosaic-tty/build.zig`。
 4. 不引入外部参考名；不把已清理的调研文档/名称加回来。
 5. 示例改动要在真实终端手动看一次（IDE/Gradle 里不算）。
 

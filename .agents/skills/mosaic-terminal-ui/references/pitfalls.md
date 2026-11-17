@@ -167,7 +167,7 @@
 ## 22. 工程/质量
 
 - 新增 public API 必须跑 apiDump 并提交 .api/.klib.api；不要手改 dump。
-- 只跑改动模块的 spotlessCheck；runtime 有 7 处既有 compose 规则失败，不是你的改动。
+- 跑改动模块的 spotlessCheck；当前整个仓库的 spotlessCheck 通过。
 - 公共 API 0.x 仍可能 breaking；新增入口同步 CHANGELOG。
 - 仓库红线：不引入外部参考库/项目名；不恢复已移出仓库的调研文档。
-- samples 里的上游示例目录名属于已知未处理项；不要在新代码/文档里继续扩散这些名字。
+- samples 的上游示例目录名已完成中性化；不要在新代码/文档里重新引入这些名字。

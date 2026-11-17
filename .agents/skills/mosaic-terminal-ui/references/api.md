@@ -1,15 +1,21 @@
 # Mosaic API 参考
 
-所有 API 都在 com.jakewharton.mosaic 下：UI 组件在 ui 包，Modifier 在 layout 包，Modifier 本身在 modifier 包。本文件按主题列出签名与语义；踩坑细节见 pitfalls.md。
+公共 API 以 `com.jakewharton.mosaic` 及 `com.jakewharton.mosaic.ui`、`layout`、`modifier`、`text` 等子包为主；动画、终端和测试 API 位于各自模块。本文件按主题列出常用签名与语义，踩坑细节见 pitfalls.md。
 
 ## 1. 入口与组合局部
 
-    fun runMosaicMain(mouse = false, paste = false, content: @Composable () -> Unit)
+    fun runMosaicMain(
+        mouse = false,
+        paste = false,
+        alternateScreen = false,
+        content: @Composable () -> Unit,
+    )
 
     fun runMosaicBlocking(
         onNonInteractive: NonInteractivePolicy = Exit,
         mouse = false,
         paste = false,
+        alternateScreen = false,
         content: @Composable () -> Unit,
     ): Boolean
 
@@ -17,6 +23,7 @@
         onNonInteractive: NonInteractivePolicy = Exit,
         mouse = false,
         paste = false,
+        alternateScreen = false,
         content: @Composable () -> Unit,
     ): Boolean
 
@@ -25,6 +32,7 @@
 - runMosaic：suspend 版本。
 - NonInteractivePolicy：Exit（默认，提示并非零退出）、Throw、Return、Ignore（惰性终端继续跑）、AssumeAndIgnore（不检测直接 Ignore）。
 - 运行语义是 run-until-idle：静态内容首帧稳定后立即返回；交互应用要自己保活。
+- alternateScreen=true 时，真实 TTY 在 raw mode 后进入备用屏，并在取消、正常关闭或信号收尾时离开；非交互终端不写这些序列。
 
 组合局部：
 
@@ -70,6 +78,53 @@ Mosaic / TextCanvas 是运行时接口，普通应用不需要实现。
 Alignment 常量：TopStart、TopCenter、TopEnd、CenterStart、Center、CenterEnd、BottomStart、BottomCenter、BottomEnd；另有 Top/CenterVertically/Bottom、Start/CenterHorizontally/End。
 Arrangement 常量：Start、End、Top、Bottom、Center、SpaceEvenly、SpaceBetween、SpaceAround；带间距版本如 Arrangement.spacedBy(n)。
 
+### Widget、浮层与对话框
+
+    @Composable fun TabRow(
+        tabs: List<String>,
+        selectedIndex: Int,
+        onSelect: (Int) -> Unit,
+        modifier = Modifier,
+        colors: TabRowColors = TabRowColors(),
+        divider: String? = "│",
+        trailing: (@Composable RowScope.() -> Unit)? = null,
+    )
+
+    @Composable fun OverlayHost(
+        overlay: (@Composable () -> Unit)? = null,
+        modifier = Modifier,
+        content: @Composable () -> Unit,
+    )
+
+    @Composable fun Popup(
+        alignment = Alignment.TopStart,
+        offset = IntOffset.Zero,
+        modifier = Modifier,
+        modal = false,
+        backdrop: OverlayBackdrop = OverlayBackdrop.None,
+        onDismissRequest: (() -> Unit)? = null,
+        content: @Composable ColumnScope.() -> Unit,
+    )
+
+    @Composable fun Dialog(
+        onDismissRequest: () -> Unit,
+        modifier = Modifier,
+        dismissOnBackdropClick = true,
+        dismissOnBack = true,
+        backdrop: OverlayBackdrop = OverlayBackdrop.Solid(),
+        content: @Composable ColumnScope.() -> Unit,
+    )
+
+    sealed interface OverlayBackdrop {
+        data object None : OverlayBackdrop
+        data class Solid(val background: Color = Color.Unspecified) : OverlayBackdrop
+    }
+
+- OverlayHost 每个直接 overlay 子节点是一层，后组合的在上；一个组合只允许一个 host，且不可嵌套。
+- 非模态 Popup 不处理的 key/paste 会回落 base；modal Popup/Dialog 是键盘、粘贴、鼠标和 Tab 的屏障。
+- Dialog 默认用 Solid 擦除 base，Esc 和 backdrop 点击可关闭；内容和 backdrop 的按压/释放跨区不会误触关闭。
+- TabRow 只负责显示、hover、点击和调用 onSelect；选中、滚动和键盘导航由调用方管理。
+
 ### 尺寸与间距
 
     Modifier.width(Int) / height(Int) / size(Int) / size(width, height) / size(IntSize)
@@ -106,7 +161,7 @@ DrawScope 坐标是节点本地坐标，可调用：
 
 ### 交互 Modifier
 
-- Modifier.clickable(enabled = true, onClickLabel = null, onClick)：主键界内按下并在界内松开才触发；越界或换节点取消。
+- Modifier.clickable(enabled = true, onClickLabel = null, onDoubleClick = null, onClick)：主键界内按下并在界内松开才触发；越界或移除取消。提供 onDoubleClick 时，首击仍触发 onClick，400ms 内同元素次击改触发 onDoubleClick。
 - Modifier.hoverable(enabled = true, onHoverChanged: (Boolean) -> Unit)：进入/离开；离开在下一次鼠标事件报告；不消费事件。
 - Modifier.onMouseEvent { event -> Boolean }：命中路径最具体者先收到，返回 true 消费。
 - Modifier.focusable(enabled = true)：参与 Tab/Shift+Tab 环，主键点击聚焦。
@@ -116,6 +171,14 @@ DrawScope 坐标是节点本地坐标，可调用：
 - Modifier.onPreviewKeyEvent：祖先在向下阶段先拦截。
 - Modifier.onPaste { text -> Boolean }：祖先先于子树，需要 paste = true。
 - testTag 是 internal 测试工具，不在公共 API。
+
+原始鼠标事件需要同下标双击判定时，可用 `ClickTracker(doubleClickMillis = 400)`：
+
+    fun press(index: Int, nowMillis: Long): Boolean
+    fun reset()
+
+- 调用方传单调时钟；窗口是两次 press 的包含上界。不同 index、时钟倒退和 reset 后都返回 false。
+- `clickable` 自己维护逐元素 tracker；只有手动消费 onMouseEvent 的行/列表才需要这个工具。
 
 ## 3. 文本与样式
 
@@ -190,6 +253,22 @@ SpanStyle(color, background, textStyle, underlineStyle, underlineColor) 支持 m
 
 - 只组合视口附近项；itemHeight 是固定槽高，内容超出会被裁。
 - 视口高度必须由父级限定；当前没有 LazyRow。
+
+    @Stable class MomentumScrollState(
+        friction = 3f,
+        maxSpeed = 60f,
+        minSpeed = 0.5f,
+    ) {
+        val position: Float
+        val velocity: Float
+        val isMoving: Boolean
+        fun jumpTo(index: Int)
+        fun impulse(rows: Int)
+        fun advance(dtSeconds: Float, maxPosition: Float): Boolean
+    }
+
+- MomentumScrollState 不启动协程或帧循环；应用在 frame clock 中调用 advance，并把 position 映射到布局。
+- 默认一个 3 行滚轮 impulse 约滑行 3 行；撞边、低于 minSpeed 或非正 dt 的行为见 KDoc。
 
 ## 5. 输入、焦点、剪贴板
 

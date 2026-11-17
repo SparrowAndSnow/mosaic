@@ -1,7 +1,7 @@
 # Mosaic 重构进度台账（refactor 分支）
 
 > 用途：记录「自下而上重构」的进度与已完成步骤的实现要点，保证会话上下文压缩后仍可恢复工作状态与下一步。
-> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.47（代码 `02728889`） · 创建：2026-10-17 · 更新：2026-10-23
+> 分支：`main`（`refactor` 同步） · 当前 HEAD：L7.47（代码 `02728889`） · 创建：2026-10-17 · 更新：2026-11-17
 > 关联：`docs/todo.md`（全项目功能 TODO，P0~P3）、`docs/benchmarks.md`（调研文档已在合并前移出仓库）
 > 约定：本文件正文不出现任何第三方库/项目名（合并回 main 前的清理红线，见 §2）。
 
@@ -216,7 +216,7 @@
 - **回归**：`FullRedrawNoScrollTest`（2：帧永不带行终止 / Unicode→Input 切页无残留、tabBar 单行）、`BoxWithConstraintsRenderingTest`（1/2 1/3 余量渲染）、`UnicodeScreenReproTest`、`OffsetTest`（越界改裁剪）、`TextMeasuredDrawTest` +2；runtime jvmTest 607 全绿。
 
 ### L7.11 showcase 演示样本 + 字符串截断示例（`7aa7f3ec`）
-- **定位**：仅用公共 API 的自包含演示（`samples/showcase`），把重构后的能力集落到可运行样例：页头 + 可点击 tab 外壳；Unicode / Text / Layout / Input / Animation 五页；`←`/`→`/`Tab`/`1`-`5` 切页，Ctrl-C 退出。
+- **定位**：仅用公共 API 的自包含演示（`samples/showcase`），把重构后的能力集落到可运行样例：页头 + 可点击 tab 外壳；初始为 Unicode / Text / Layout / Input / Animation 五页；`←`/`→`/`Tab`/`1`-`5` 切页，Ctrl-C 退出。后续已扩展到 10 页（含 Overlay / Field / Scroll / Lazy / Border）。
 - **字符串截断示例**（Text 页第 5 节）：`maxLines=2` + `softWrap` 固定宽度，并排展示 `TextOverflow.Clip`（硬切断、无标记）vs `TextOverflow.Ellipsis`（末可见行带 `…`），以及更宽宽度能看到更多内容的对比；中英混排文本，超宽字不拆字素簇。
 - **测试**：`ShowcaseTest` 3 条（Unicode 宽字/emoji 内容、Text 对齐+滚动、截断省略号渲染）；showcase jvmTest 全绿。
 
@@ -357,7 +357,7 @@
 - **决策**：`Callback.onKey/onMouse` 判定为死回调并**移除**（todo §9.4 P1）。依据：C 头 `MosaicTtyCallbackOnKey/OnMouse` 为 `// TODO params` 占位、从未被调用；Windows C 层把 `KEY_EVENT`/`MOUSE_EVENT` 经 `ReadFile` 转成 VT 转义序列走共享 `EventParser`（回调仅用于 `FOCUS_EVENT`/`WINDOW_BUFFER_SIZE_EVENT`）；唯一实现 `EventParserTtyCallback` 也仅是空实现。实现它们只会建第二条重复分发通道。
 - **改动（8 文件）**：`mosaic-tty.h` 删 2 typedef + 2 struct 字段（`MosaicTtyCallback` 5→3 字段）；`Tty.kt` 四份接口声明与 `staticCFunction` 分配（commonMain/jvmMain/nativeMain/jvmJdk22）；`com_jakewharton_mosaic_tty_Jni.c` 删 jmethodID 查找 + `invokeOnKey/Mouse` + 字段赋值；`TtyTest.kt` 删 `@Ignore` 遗留测试；`EventParserTtyCallback.kt` 删空实现。
 - **构建踩坑（重要）**：cklib 的 **C 增量编译不跟踪头文件变化**——改 `mosaic-tty.h` 后若不 `:mosaic-tty:clean` 重编，旧/新 struct 布局偏移错位会导致 `onResize` 回调崩溃（表现为 native `resizeCallback` 测试进程异常退出）。改 C 头后必须 clean 重编。
-- **环境备注**：Gradle daemon **未配置代理**，`zigDownload`（Zig 0.15.1，JNI 交叉编译工具链）直连 `ziglang.org` 在墙内被卡；已手动走代理下载到 `mosaic-tty/build/zig`（`zig` 可执行文件）使 `zigDownload` up-to-date，此后构建正常。`mosaic-tty:clean` 会清掉它，需重新放置或重新下载。
+- **环境备注**：Gradle daemon **未配置代理**，`zigDownload`（JNI 交叉编译工具链）直连 `ziglang.org` 在墙内被卡；已手动走代理下载到 `mosaic-tty/build/zig`（`zig` 可执行文件）使 `zigDownload` up-to-date，此后构建正常。`mosaic-tty:clean` 会清掉它，需重新放置或重新下载。工具链现已锁定 Zig 0.17.1，`build.zig` 已迁移到对应的 Module 和安装 API。
 - **验证**：`mosaic-tty`/`mosaic-tty-terminal`/`mosaic-runtime` 的 jvmTest + linuxX64Test 全绿；`mosaic-terminal`/`mosaic-testing`/`mosaic-animation`/samples jvmTest 全绿；FFM(jdk22)/cinterop/JNI(Zig) 三套绑定从头文件再生成并编译通过。
 
 ### L5.6 特殊键/修饰核对（`56a55c3e`）
@@ -383,7 +383,7 @@
 ### L5.3 kitty 键盘协议开关（`bccb50d9`）
 - `ansi.kt`：`kittyKeyboardFlags = 23`（消歧义转义 1 | 事件类型 2 | 备用键 4 | 关联文本 16，**不含**「所有键转义」bit8 → 普通字符仍原始字节上报）；`kittyKeyboardPush = "CSI>23u"`、`kittyKeyboardPop = "CSI<23u"`。
 - `TtyTerminal.kt`：能力探测阶段收到 `KittyKeyboardQueryEvent`（`CSI?u` 回复）即置 `kittyKeyboard` 并**同步 push** + `toggleKittyKeyboard`；teardown 一律 pop 恢复终端原状态（push/pop 栈语义，不泄漏到 shell）。
-- 运行时无改动：`toKeyEventOrNull` 只放行 press，repeat/release 解析后自然过滤，既有应用行为不变。
+- 运行时无改动：`toKeyEventOrNull` 当时只放行 press，repeat/release 解析后自然过滤，既有应用行为不变。后续 L5.6 改为同时投递 repeat，仍丢弃 release。
 
 ### L3.8 删除旧全量渲染器（`282e865b`）
 - `rendering.kt` 删除 `AnsiRendering` 类（全量 `cursorUp` + 逐行重写协议），`AnsiIncrementalRendering` 为唯一增量渲染器。
@@ -511,7 +511,7 @@
   - 测量：主向占满（`hasBoundedWidth ? maxWidth : minWidth`；竖同理按高度），次向 `coerceIn` 到 `thickness`；未知主向退 min（配合 fillMaxWidth 语义）。
   - 绘制：铺 `─`（横）/ `│`（竖）矩形，左/上留 `startIndent`、右/下留 `endIndent`，都 `coerceAtLeast(0)`。
 - **测试 `BorderTest`（16 条，commonTest）**：内容内凹 + 环线精确帧、单字符、`border(0)` 不画且尺寸不变、`border(2)` 边条实心、`fillMaxWidth` 整行边框、与 `padding` 组合（外 padding 顶/底各多 1 空行）、彩色边框输出 TRUECOLOR 前景 SGR、`Unspecified` 无前景 SGR、边框内 `clickable` 仍可点（界内触发/界外不触发）、横/竖分隔线厚度与缩进、负参数 `require` 抛 `IllegalArgumentException`（border 走非组合路径、divider 组合期 setContent 抛）。
-- **showcase 第 9 页 Border**：`Page.Border` + `1`-`9` 键切换 + `BorderScreen`（边框变体一行并列 / 边框+内边距 / 嵌套边框 / 横分隔线含缩进 / 竖分隔线含缩进）。
+- **showcase Border 页**（实现时第 9 页，加入 Overlay 后当前第 10 页）：`Page.Border` + `BorderScreen`（边框变体一行并列 / 边框+内边距 / 嵌套边框 / 横分隔线含缩进 / 竖分隔线含缩进）；数字键覆盖 1–9，第 10 页用方向键/Tab/点击进入。
 - 验证：runtime jvm 699 / native 697，showcase jvm/native 各 9，apiCheck 通过，kexe 已重链。
 
 
@@ -588,7 +588,7 @@
 
 ### L7.28 README / CHANGELOG（发布文档）
 - **定位**：todo §14 P2「README/CHANGELOG：能力矩阵与已知限制」。README 此前只有 Intro/Usage/Samples/FAQ，无能力与限制说明。
-- **README**：`Jump to` 加 Capabilities；Samples 之后、FAQ 之前新增「Capabilities」段——Text & Unicode（字素簇度量/绘制、DEC 2027 探测启用与本地后备）、Rendering（cell 级增量 diff、同步输出包裹、snapshot 渲染器）、Layout（约束族/weight/fill 分数/BoxWithConstraints/布局缓存/Text 重载）、Interactivity（键盘+kitty 协议、鼠标、paste、OSC 52、焦点）、Animation（值动画+Crossfade/进出容器）；「Known limitations」——非 UTF-8 locale 不支持、须真 TTY（非 IDE/Gradle）、Windows/macOS 靠 CI、**组合根无界测量 → `fillMaxWidth` 需显式容器**（本会话 L7.27 实证）。
+- **README**：`Jump to` 加 Capabilities；Samples 之后、FAQ 之前新增「Capabilities」段——Text & Unicode（字素簇度量/绘制、DEC 2027 探测启用与本地后备）、Rendering（cell 级增量 diff、同步输出包裹、可用 `Mosaic.draw().render(ansiLevel, supportsKittyUnderlines)` 生成稳定全量画面）、Layout（约束族/weight/fill 分数/BoxWithConstraints/布局缓存/Text 重载）、Interactivity（键盘+kitty 协议、鼠标、paste、OSC 52、焦点）、Animation（值动画+Crossfade/进出容器）；「Known limitations」——非 UTF-8 locale 不支持、须真 TTY（非 IDE/Gradle）、Windows/macOS 靠 CI、**组合根无界测量 → `fillMaxWidth` 需显式容器**（本会话 L7.27 实证）。
 - **CHANGELOG**：`[Unreleased]` 的 New 列表补齐重构的用户可见能力（宽字符、增量渲染、Text 重载、比例布局、指针/paste/剪贴板/kitty 键盘、焦点、边框、动画容器），保留上游既有条目。
 - **红线**：全部措辞中性，未新增任何第三方库/项目名；README 里上游既有的归属引用与调研文档已归入合并 main 前统一清理项。
 - **验证**：仅文档（README/CHANGELOG），无代码/测试改动，不需跑测试集。
@@ -786,9 +786,10 @@
 
 ## 6. 当前状态 / 下一步候选
 
-### 6.1 当前状态（2026-10-22）
+### 6.1 当前状态（2026-11-17）
 
-- 分支 `main`（`refactor` 同步），L7.47 代码提交 `02728889`（示例目录/标识中性化）；代码提交后工作树干净，本台账变更另行提交。
+- 分支 `main`（`refactor` 同步），L7.47 代码提交 `02728889`（示例目录/标识中性化）；该次提交后当时工作树干净。
+- 2026-11-17 工作区包含 Zig 0.17.1 兼容迁移和配套文档同步，尚未提交；提交后应更新 HEAD 标识与归档记录。
 - **红线清理（2026-10-21，提交 `77b645fa`）**：5 个含第三方名的提交信息已重写（其后所有提交哈希随之变化，台账/待办中的引用已全部重映射）；3 份调研文档已移出仓库（存档于仓库外）；README/CHANGELOG 的归属引用已中性化。
 - **L1~L7 主干全部完成**：L1.1~L1.2 / L2.1 / L3.1~L3.8 / L4.1~L4.7 / L5.1~L5.6 / L6.1~L6.8 / L7.1~L7.47（含 L7.16.1）均已归档，详见 §4 台账与 §5 要点。
 - 回归基线（2026-10-23）：`mosaic-runtime` **JVM 812 / linuxX64 810**；`mosaic-tty` JVM 116 / linuxX64 122（FFM 分发 JDK 25 亦 116）；`mosaic-tty-terminal` JVM 274 / linuxX64 273；`mosaic-animation` 各 23；`mosaic-terminal` / `mosaic-testing` / `samples/showcase`（11/11）双平台全绿。
@@ -802,6 +803,7 @@
 - L7.45 验证：全量 `:mosaic-runtime:jvmTest` 812/812、`:mosaic-runtime:linuxX64Test --no-configuration-cache` 810/810、`:samples:showcase:jvmTest` 11/11；新增 golden + translation 定向测试通过；`:mosaic-runtime:apiCheck`（无公共 API 变化）；`:mosaic-runtime:compileKotlinLinuxX64` 通过。
 - L7.46 验证（纯格式）：`:spotlessCheck`、`:mosaic-runtime:spotlessKotlinCheck`、`:mosaic-animation:spotlessKotlinCheck`、`:samples:bench:spotlessKotlinCheck` 全绿；`:mosaic-runtime:jvmTest` 812/812、`:mosaic-animation:jvmTest` 23/23、`:samples:showcase:jvmTest` 11/11；`:mosaic-runtime:compileKotlinLinuxX64` 通过；公共 API 未变。
 - L7.47 验证：`:samples:test-console:compileKotlinJvm`、`:samples:monitor:compileKotlinJvm`、`:samples:monitor:compileKotlinLinuxX64`、`:spotlessCheck`、两个 sample 的 `spotlessKotlinCheck`、`:samples:showcase:jvmTest` 全部通过；grep 无旧标识。
+- 2026-11-17 工作区更新（尚未提交）：Zig 工具链升级到 0.17.1，`build.zig` 迁移到 Module 级 C 编译/链接 API；8 个 JNI 目标交叉编译通过。JVM 回归 1260/1260：runtime 814、tty 117、tty-terminal 283、animation 23、terminal 7、testing 5、showcase 11；`spotlessCheck` 通过。
 - L7.47 之后合并清理已完成；浮层只剩 P3 设计项（dim/invert 后处理、非 modal 点击外部关闭），见 todo §15 与设计文档 §9/§11。
 
 ### 6.2 下一步候选（需确认后，一次一项）
@@ -838,7 +840,7 @@
 - 决策（2026-10-17，已归档）：**L6 按「可本机验证优先」推进**——已做 L6.2 DEC 2027（§10 P1）；剩余建议顺序：raw mode 核对（§9.2 P1）、信号处理（§9.2 P2）；Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程后做。
 - 决策（2026-10-17，已提交）：**外部组件待办整体推迟**——滚动容器 / 惰性列表 / 输入控件 / 鼠标交互 / 焦点 / 边框 / 定位回调 / 动画容器 / 第一方 widget 集属最外层组合组件，依赖内部核心（L4 布局、L5 输入、L6 tty 适配）先重构到位；新增 `docs/todo.md` §15 仅登记不实现，优先级统一排在内部重构之后。
 - 决策（2026-10-17，已提交）：**布局缓存落地即完成 L4 布局层主干**——剩余可选优化（apply 失效查扫反向索引、未放置子树裁剪）留待后续需要时再做；L4 对外的下一候选是 intrinsic 复用（与布局缓存合并）或直接进入 **L5 输入**。
-- 决策（2026-10-17，已归档）：**L5 输入走"全量 opt-in + 能力探测后自动启用"**——鼠标/粘贴经 `runMosaic*` 参数显式开启；kitty 键盘协议在探测到支持后自动 push、退出 pop；repeat/release 事件解析后由 runtime 按 press-only 过滤，既有应用零行为变化。
+- 决策（2026-10-17，已归档）：**L5 输入走"全量 opt-in + 能力探测后自动启用"**——鼠标/粘贴经 `runMosaic*` 参数显式开启；kitty 键盘协议在探测到支持后自动 push、退出 pop。当前 runtime 投递 press 与 repeat，只丢弃 release（见 L5.6）。
 - 当时候选（需用户确认后实施，建议一次一项）：
   1. **`§9.2 P2` macOS 特判**：`TIOCGWINSZ`/termios 的 macOS 差异（`HUPCL`/`c_cc`）——需 macOS 环境，暂不可本机验证。
   2. 之后 Windows（§9.3）与三套绑定一致性（§9.1）需 CI/远程；本机可做候选见 todo §9.4/§9.5 剩余项。

@@ -181,6 +181,46 @@ Column 本身也要有界（外层已由第 1 节提供）。HorizontalDivider �
     }
 
 clickable 是按下/松开同界；hoverable 的 leave 在下一次鼠标事件才报告。鼠标需要 runMosaic(mouse = true)。
+Windows 控制台的鼠标记录目前会被消费但不会下发；键盘、焦点和 resize 不受影响。
+
+### 8.1 非模态 Popup 与模态 Dialog
+
+    @Composable
+    fun AppWithOverlay() {
+        var showPopup by remember { mutableStateOf(false) }
+        var showDialog by remember { mutableStateOf(false) }
+        val size = LocalTerminalState.current.size
+
+        OverlayHost(
+            overlay = {
+                if (showPopup) {
+                    Popup(
+                        alignment = Alignment.TopStart,
+                        offset = IntOffset(4, 3),
+                        onDismissRequest = { showPopup = false },
+                    ) {
+                        Text("Hint")
+                    }
+                }
+                if (showDialog) {
+                    Dialog(onDismissRequest = { showDialog = false }) {
+                        Text("Confirm")
+                        Text("Esc or backdrop closes")
+                    }
+                }
+            },
+        ) {
+            Column(Modifier.width(size.columns).height(size.rows)) {
+                Text("Base")
+                Text("[Popup]").clickable { showPopup = true }
+                Text("[Dialog]").clickable { showDialog = true }
+            }
+        }
+    }
+
+- 一个组合只能有一个 OverlayHost；Popup/Dialog 必须是 overlay 槽的直接子节点，不能当作普通嵌套容器使用。
+- 非模态 Popup 不处理的 key/paste 会回落 base；Dialog 和 `Popup(modal = true)` 会阻断 base 输入并接管焦点。
+- Dialog 默认 `OverlayBackdrop.Solid()`；要保留 base 可见时显式传 `OverlayBackdrop.None`。
 
 ## 9. 键盘导航与 repeat 过滤
 

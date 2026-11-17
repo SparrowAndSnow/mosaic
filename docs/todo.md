@@ -7,6 +7,7 @@
 > 参考基准：本仓库既有测试与台账（调研文档已在合并前移出仓库）。
 
 > **对账更新：2026-10-23（十六）** L7.47 示例目录/标识中性化已归档（`02728889`）：`samples/test-console` 与 `samples/monitor` 的目录、文件、类、CompositionLocal、Gradle mainClass、README、CI matrix 全部改为中性标识；全仓库 grep 无旧标识。两个 sample 的 JVM/native 编译、spotless、showcase 测试通过。合并清理完成。
+> **对账更新：2026-11-17** Zig 工具链升级到 0.17.1：`build.zig` 改用 Module 级 C 编译/链接 API，移除已删除的目录树删除步骤，并通过 `.implib_dir = .disabled` 跳过 Windows import library；JVM 全量测试 1260/1260 通过。
 > **对账更新：2026-10-23（十五）** L7.46 合并前格式清理已归档（`e236784d`）：`spotlessApply` 全仓库 62 文件格式 + 10 处 compose lint 文件级抑制/私有参数重排；`:spotlessCheck` 全绿。旧记录「7 处」实际为 10 处 lint + 格式漂移（runtime 8 + animation 1 + bench 1）。runtime 812/812、animation 23/23、showcase 11/11。
 > **对账更新：2026-10-23（十四）** L7.45 `Solid` backdrop 绘制原点修复已归档（`b1256722`）：`TextCanvasDrawScope.clear` 用 `canvas.translationX/Y`（不再取负）作为局部原点的绝对坐标；host 在 header 下方时只清 host 矩形，Header/TabRow 保留。新增 header/host/footer golden 与 translation (2,1) 的 2×1 清除直测；全量 runtime JVM 812 / linuxX64 810；showcase 11/11。
 > **对账更新：2026-10-23（十三）** L7.44 浮层剩余正确性已归档（`fed2ecda`）：①`TextSurface.clearRect` 把部分矩形扩到宽簇边界（起点续列左移簇头、右缘覆盖簇头扩到簇尾），CJK/emoji 不再留半格；②`FocusManager` 焦点栈按 modal layer node 记录 owner+saved，非 LIFO 关闭只删对应层并保留上层焦点，全关时回退最近仍有效目标（含被丢弃层的 saved），不恢复已移除/禁用节点。全量 runtime JVM 810 / linuxX64 808；showcase 11/11。
@@ -120,26 +121,26 @@
 
 ## 7. 颜色（`ansi.kt` / `Color.kt`）
 - [x] **P3 `toAnsi16Code/toAnsi256Code`** ✅（L7.26，`27849ee1`）：约简算法已与参考行为逐点核对一致并清掉归属注释；语义用金表测试锁定（16 色取整/亮色判定、256 灰阶分段 232..255、6x6x6 cube 每通道 `/255*5` 取整及其临界点 76/77、127/128 等）。
-- [ ] **P3 探测增强**：`detectAnsiLevel` 现为 env 启发式（`COLORTERM/TERM/WT_SESSION/ConEmuANSI`）；可加 colorprofile 式 `TERM_PROGRAM` 特判与 **OSC 4 调色板查询**（染主题色），并统一 16/256 判定。
+- [ ] **P3 探测增强**：`detectAnsiLevel` 现为 env 启发式（`NO_COLOR/COLORTERM/TERM` + Windows 平台兜底）；可加 colorprofile 式 `TERM_PROGRAM` 特判与 **OSC 4 调色板查询**（染主题色），并统一 16/256 判定。
 - [ ] **P3 主题/调色板**：`SystemThemeEvent` 已解析；可提供 `LocalTerminalState.theme` 驱动的默认样式容器（另见 §10）。
 
 ## 8. 输入 / 事件（`mosaic-tty-terminal` + `mosaic-terminal`）
 - [x] **P1 鼠标消费** ✅（L5.1，`bccb50d9`）：`Modifier.onMouseEvent`（返回 Boolean 消费）+ 绝对坐标命中测试（z 序在上先收，回退祖先）；终端 1006 + 1000/1003 opt-in（`runMosaic*` `mouse=true`）。注：主流 TUI 式「CellMotion/AllMotion 声明式分档」未做（现固定 all-motion 1003），需要时再接。
 - [x] **P1 粘贴通路** ✅（L5.2，`bccb50d9`；+L7.5 未终止 paste 的 Ctrl-C 逃生口）：`Modifier.onPaste`（祖先先于子树）+ DECSET 2004 opt-in；帧循环将 paste 内容累积为单串，期间不触发按键。注：文本插入原语（光标/IME）归 §15 输入控件。
-- [x] **P2 kitty 键盘协议开关** ✅（L5.3，`bccb50d9`）：探测 `kittyKeyboard` 后自动 push `CSI>23u`、退出 pop 恢复；`toKeyEventOrNull` 只放行 press，repeat/release 过滤。注：无 `KeyboardEnhancementsMsg` 二次确认（探测期 `CSI?u` 回复已确认支持）。
+- [x] **P2 kitty 键盘协议开关** ✅（L5.3，`bccb50d9`）：探测 `kittyKeyboard` 后自动 push `CSI>23u`、退出 pop 恢复；`toKeyEventOrNull` 投递 press 与 repeat，丢弃 release（见 L5.6）。注：无 `KeyboardEnhancementsMsg` 二次确认（探测期 `CSI?u` 回复已确认支持）。
 - [x] **P2 clipboard（OSC 52）** ✅（L5.4，`9af01ce1`）：`ClipboardEvent` 解析（base64/UTF-8；`!`→null）+ `Terminal.requestClipboardRead`/`writeClipboard` + runtime `LocalClipboard`（suspend `getText/setText`，读=请求→await 回复 2s 超时）。
 - [x] **P2 事件背压/策略** ✅（L5.5，`bf564374`）：`events` channel 64 改 `SUSPEND` + 生产者 `send`（零丢弃）；帧循环批内 `Motion/Drag` 合并只留最新坐标；`TtyTerminalBackpressureTest`（500 字符 0 丢失）+ `MouseEventTest` 增 3 条。
 - [x] **P3 特殊键/修饰** ✅（L5.6，`56a55c3e`）：PUA 特殊键映射验证（F1~F35 等）；`repeat` 并入 `press` 投递（恢复长按自动重复一致性）、`release` 丢弃；`text` 关联文本优先于码点（CSI u 无文本段时 null，无冲突）。`CompatTest` 8 条。
 
 ## 9. tty 适配（大头：三套绑定 + C 双平台 + Zig）
 > 现状：`mosaic-tty` = Kotlin `expect/actual` + 底层 C（`src/commonMain/c/mosaic-{tty,streams,utils,test}-{posix,windows}.c`，约 2.4k 行）+ 三套宿主绑定
-> （`jvmMain` **JNI**(`com_jakewharton_mosaic_tty_Jni.c`)、`jvmJdk22` **FFM/jextract**(`Libmosaic`)、`nativeMain` **cinterop**）+ Zig 0.15.1 交叉编译。
+> （`jvmMain` **JNI**(`com_jakewharton_mosaic_tty_Jni.c`)、`jvmJdk22` **FFM/jextract**(`Libmosaic`)、`nativeMain` **cinterop**）+ Zig 0.17.1 交叉编译。
 
 ### 9.1 宿主绑定
 - [x] **P1 三套绑定一致性** ✅（L7.32，`65631043`）：`TtyContractTest`（11 条）统一锁定缓冲区间（越界→`IndexOutOfBoundsException`）、关闭后调用（除 `reset`/`close` 幂等外→`IllegalStateException`）、offset/count 语义、超时/非阻塞/中断返回 0、0x00..0xFF 字节往返（Windows 控制台桩仅 ASCII，跳过）；JNI/FFM 补齐参数校验与关闭守卫、三绑定回调「先摘除后释放」、JNI 回调初始化失败清理、FFM 先释放原生再关回调 arena、native `reset` 错误传播、JNI/FFM 进入 raw mode 补装与 native 一致的 POSIX 信号兜底；修正 `TestTtyTest` stderr 断言笔误。验证：JNI 116 / native 122 / FFM 分发（JDK 25 多版本 jar）116 全绿；tty-terminal 269/268 回归；`:mosaic-tty:spotlessCheck` 通过。EINTR 由共享 C 层处理，未做信号注入。
 - [ ] **P2 JNI 维护**：`Jni.c` 1140 行手写 JNI + 回调对象生命周期（`ttyCallbackInit/Free`）；核对全局引用泄漏/线程（`setCallback` 可在任意线程触发，文档已声明）。
 - [ ] **P2 FFM (jextract) 同步**：JDK22+ 走 `Libmosaic`；`jextract.libraries.register('mosaic')` 头文件变化需重生成，构建里确认了生成物与源码同步（发布产物不漂移）。
-- [ ] **P3 Zig 工具链**：Zig 0.15.1 仅用于交叉编译 C；评估升级锁定、缓存目录（`.zig-cache`）gitignore 状态与 CI 可重复性。
+- [x] **P3 Zig 工具链**：Zig 0.17.1 用于 JNI 目标的 C 交叉编译；迁移 `build.zig` 到 0.17 API，并禁用不需要的 Windows import library 安装。
 
 ### 9.2 POSIX（linux / macos）
 - [x] **P1 raw mode 核对** ✅（L6.3，审计无代码改动）：`mosaic-tty-posix.c` 清位与 glibc `cfmakeraw(3)` 权威定义**逐位一致**（8 iffags、OPOST、lflag ECHO/ECHONL/ICANON/ISIG/IEXTEN、CS8、VMIN=1/VTIME=0）；`IUTF8`/`HUPCL`/`CLOCAL` 保留正确（raw 已去 ICANON，该位无影响）；TCSAFLUSH + 失败恢复完备。对照表见 progress §5 L6.3。

@@ -56,7 +56,10 @@ Changed:
 - Windows color detection no longer depends on being launched from Windows Terminal. Entering raw
   mode enables VT output processing, and every console that supports it renders 24-bit color, so a
   plain console window (cmd, or a double-clicked executable) now gets color too instead of falling
-  back to no color. `NO_COLOR` and an explicit `TERM`/`COLORTERM` still take precedence.
+  back to no color. `NO_COLOR` and an explicit color-capable `TERM`/`COLORTERM` still take
+  precedence; `TERM=dumb` falls through to the platform default on Windows.
+- JVM JNI libraries are now cross-compiled with Zig 0.17.1. The generated resources cover the same
+  Linux, macOS, and Windows targets and no longer contain unused Windows import libraries.
 - Remove support for x86 macOS targets. These have been deprecated for a bit, but support has been removed from the Compose runtime so we have no choice but to match.
 
 Fixed:

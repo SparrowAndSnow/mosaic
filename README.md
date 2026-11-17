@@ -105,6 +105,11 @@ Run `./gradlew installDist` to build the sample binaries.
 
    `./samples/demo/build/install/demo/bin/demo`
 
+ * [Showcase](samples/showcase): Focused demonstrations of Unicode, text, layout, input, fields,
+   animation, scrolling, lazy lists, borders, and overlays.
+
+   `./samples/showcase/build/install/showcase/bin/showcase`
+
  * [Test console](samples/test-console): A test-runner style console with fake tests.
 
    `./samples/test-console/build/install/test-console/bin/test-console`
@@ -133,7 +138,8 @@ Run `./gradlew installDist` to build the sample binaries.
 ### Rendering
 * Frames are diffed cell-by-cell and only the changed regions are emitted, keeping steady-state
   output small; synchronized-output wrapping is emitted when supported to avoid flicker.
-* A snapshot renderer produces a stable, non-diffing picture, suitable for redirected output.
+* `Mosaic.draw()` exposes a `TextCanvas`; `render(ansiLevel, supportsKittyUnderlines)` produces a
+  stable, non-diffing picture suitable for redirected output.
 
 ### Layout
 * Compose-style modifier chains: preferred/required size, size ranges, fill fractions, weighting,
@@ -147,7 +153,8 @@ Run `./gradlew installDist` to build the sample binaries.
 
 ### Interactivity
 * Keyboard input including named keys, repeats, and the kitty keyboard protocol when supported.
-* Pointer input: hover, press/release, and drag via `clickable`/`hoverable`-style modifiers.
+* Pointer input: hover and click via `hoverable`/`clickable`, plus press, release, motion, and drag
+  events via `onMouseEvent`.
 * Bracketed paste and clipboard read/write (OSC 52).
 * Focus tracking with Tab/Shift+Tab traversal, plus focus, resize, and theme change events.
 * Hardware cursor placement (`Cursor`) with block, underline, or bar shapes and optional blinking,
@@ -163,6 +170,11 @@ Run `./gradlew installDist` to build the sample binaries.
   FAQ below).
 * Windows and macOS code paths are developed against Linux; their behavior is exercised by tests
   run in CI.
+* Windows console mouse records are consumed to keep input responsive, but are not currently
+  delivered to applications.
+* `TERM=dumb` does not disable color on Windows; use `NO_COLOR` when ANSI output must be disabled.
+* A forced process termination or console close can bypass teardown and leave terminal modes
+  altered.
 * The composition root is measured with unbounded constraints. Fill-relative modifiers such as
   `fillMaxWidth` only distribute space when an ancestor supplies a bounded width or height, so an
   app that wants to fill the whole screen should wrap its content in an explicit-size container.
