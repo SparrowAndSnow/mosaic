@@ -44,6 +44,9 @@ References: [Kotlin host requirements](https://kotlinlang.org/docs/multiplatform
    remains the local development default. Do not manually create the release before this workflow.
    Before creating the release, an independent consumer compiles against the installed archive
    for every target and links a macOS executable, without project dependency substitution.
+   If the tag push did not start a run, use Actions → release → Run workflow on `main`, setting
+   `version` to the existing release tag. The workflow checks out that tag and binds its artifact
+   manifest to the checked-out commit, even though the workflow definition comes from `main`.
 5. Look up `SparrowAndSnow/mosaic` and the tag on [JitPack](https://jitpack.io/#SparrowAndSnow/mosaic),
    then request its build. Confirm the build log succeeds and all target modules are listed.
 6. Verify a separate JVM application and a Native sample resolve and run with
