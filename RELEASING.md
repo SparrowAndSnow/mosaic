@@ -21,6 +21,8 @@ workflow validates and packages the complete repository as `mosaic-maven.tar.gz`
 with a SHA-256 checksum, to the GitHub release. JitPack's custom install command downloads the
 assets, checks their checksum, commit, coordinates, and completeness, then copies the repository
 into `~/.m2/repository`. No Sonatype credentials or GPG keys are needed.
+The install step also retains the verified artifacts under the project build directory and
+generates a root `pom.xml` so JitPack's custom-command collector can discover the Maven group.
 
 References: [Kotlin host requirements](https://kotlinlang.org/docs/multiplatform/multiplatform-publish-lib-setup.html#host-requirements),
 [JitPack custom commands](https://docs.jitpack.io/building/#custom-commands),

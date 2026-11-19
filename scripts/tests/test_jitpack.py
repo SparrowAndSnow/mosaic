@@ -7,6 +7,7 @@ import tarfile
 import tempfile
 import unittest
 import zipfile
+import xml.etree.ElementTree as ET
 
 spec = importlib.util.spec_from_file_location("jitpack", Path(__file__).parents[1] / "jitpack.py")
 jitpack = importlib.util.module_from_spec(spec)
@@ -72,6 +73,31 @@ class JitpackTest(unittest.TestCase):
         self.pack()
         with self.assertRaisesRegex(ValueError, "checked-out commit"):
             jitpack.install(self.archive, self.version, "2" * 40, self.destination)
+        self.assertFalse(self.destination.exists())
+
+    def test_prepare_exposes_every_publication_for_jitpack_discovery(self):
+        self.pack()
+        project = self.root / "jitpack-build"
+        jitpack.prepare_jitpack(self.archive, self.version, self.commit, project, self.destination)
+        pom = ET.parse(project / "pom.xml").getroot()
+        self.assertEqual(pom.findtext("m:groupId", namespaces=jitpack.NAMESPACE), jitpack.GROUP)
+        self.assertEqual(pom.findtext("m:version", namespaces=jitpack.NAMESPACE), self.version)
+        self.assertEqual(pom.findtext("m:packaging", namespaces=jitpack.NAMESPACE), "pom")
+        originals = {p.relative_to(self.repository): p.read_bytes()
+                     for p in self.repository.rglob("*") if p.is_file()}
+        for repository in (project / "build" / "jitpack" / "installed" / self.version, self.destination):
+            files = {p.relative_to(repository): p.read_bytes()
+                     for p in repository.rglob("*") if p.is_file()}
+            self.assertEqual(originals, files)
+            group = repository / pom.findtext("m:groupId", namespaces=jitpack.NAMESPACE).replace(".", "/")
+            self.assertEqual(len(list(group.glob(f"*/{self.version}/*.pom"))), 36)
+
+    def test_prepare_rejects_unverified_archive_before_exposing_artifacts(self):
+        self.pack()
+        project = self.root / "jitpack-build"
+        with self.assertRaisesRegex(ValueError, "checked-out commit"):
+            jitpack.prepare_jitpack(self.archive, self.version, "2" * 40, project, self.destination)
+        self.assertFalse((project / "pom.xml").exists())
         self.assertFalse(self.destination.exists())
 
     def test_excludes_older_versions_in_staging_repository(self):

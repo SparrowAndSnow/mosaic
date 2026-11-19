@@ -18,4 +18,4 @@ for asset in mosaic-maven.tar.gz mosaic-maven.tar.gz.sha256; do
     exit 1
   fi
 done
-python3 scripts/jitpack.py install "$archive_dir/mosaic-maven.tar.gz" "$version" "$commit" "$HOME/.m2/repository"
+python3 scripts/jitpack.py prepare "$archive_dir/mosaic-maven.tar.gz" "$version" "$commit" "$PWD" "$HOME/.m2/repository"

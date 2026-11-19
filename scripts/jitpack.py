@@ -127,6 +127,24 @@ def install(archive, version, commit, destination):
     print(f"Installed {GROUP}:*:{version} for {commit}")
 
 
+def prepare_jitpack(archive, version, commit, project, destination):
+    # JitPack's custom-command collector harvests the group from a root pom.xml.
+    # Keep project artifacts as well as Maven-local copies, as required by its build contract.
+    repository = project / "build" / "jitpack" / "installed" / version
+    install(archive, version, commit, repository)
+    group_path = Path(GROUP.replace(".", "/"))
+    for module in MODULES:
+        for target in TARGETS:
+            publication = group_path / f"mosaic-{module}{target}" / version
+            shutil.copytree(repository / publication, destination / publication, dirs_exist_ok=True)
+    pom = ET.Element("project", {"xmlns": NAMESPACE["m"]})
+    for name, value in (("modelVersion", "4.0.0"), ("groupId", GROUP),
+                        ("artifactId", "mosaic"), ("version", version), ("packaging", "pom")):
+        ET.SubElement(pom, name).text = value
+    ET.ElementTree(pom).write(project / "pom.xml", encoding="utf-8", xml_declaration=True)
+    print(f"Prepared JitPack discovery POM and {len(MODULES) * len(TARGETS)} publications")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -135,14 +153,16 @@ def main():
     check.add_argument("repository", type=Path)
     check.add_argument("version")
     check.add_argument("--jvm-only", action="store_true", help="Local Linux validation only")
-    for command in ("pack", "install"):
+    for command in ("pack", "install", "prepare"):
         subparser = subparsers.add_parser(command)
         subparser.add_argument("path", type=Path)
         if command == "pack":
             subparser.add_argument("archive", type=Path)
         subparser.add_argument("version")
         subparser.add_argument("commit")
-        if command == "install":
+        if command == "prepare":
+            subparser.add_argument("project", type=Path)
+        if command in ("install", "prepare"):
             subparser.add_argument("destination", type=Path)
     args = parser.parse_args()
     if args.command == "version":
@@ -151,6 +171,8 @@ def main():
         validate_repository(args.repository, args.version, ("-jvm",) if args.jvm_only else TARGETS)
     elif args.command == "pack":
         pack(args.path, args.archive, args.version, args.commit)
+    elif args.command == "prepare":
+        prepare_jitpack(args.path, args.version, args.commit, args.project, args.destination)
     else:
         install(args.path, args.version, args.commit, args.destination)
 
