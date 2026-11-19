@@ -1,0 +1,14 @@
+def filterScript = gradle.startParameter.initScripts.find { it.name == 'ci-build-filter.gradle' }
+apply from: new File(filterScript.parentFile, 'frame-pacing-filter.gradle')
+
+// The samples matrix links and runs representative applications on each host.
+// Keep compilation in the aggregate build without linking every sample/tool for all four OSes.
+gradle.projectsEvaluated {
+	gradle.rootProject.allprojects { project ->
+		if (project.path.startsWith(':samples:') || project.path.startsWith(':tools:')) {
+			project.tasks.matching { it.name.startsWith('link') && it.name.contains('Executable') }.configureEach {
+				enabled = false
+			}
+		}
+	}
+}

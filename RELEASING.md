@@ -48,6 +48,8 @@ References: [Kotlin host requirements](https://kotlinlang.org/docs/multiplatform
    remains the local development default. Do not manually create the release before this workflow.
    Before creating the release, an independent consumer compiles against the installed archive
    for every target and links a macOS executable, without project dependency substitution.
+   The consumer validation harness comes from the workflow controller commit; published library
+   binaries and source archives always come from the selected release tag.
    If the tag push did not start a run, use Actions → release → Run workflow on `main`, setting
    `version` to the existing release tag. The workflow checks out that tag and binds its artifact
    manifest to the checked-out commit, even though the workflow definition comes from `main`.

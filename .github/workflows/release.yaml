@@ -71,8 +71,12 @@ jobs:
           python3 scripts/jitpack.py version "$RELEASE_VERSION"
           echo "RELEASE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      - name: Run macOS JVM tests
+      - name: Build all eight JNI libraries
         timeout-minutes: 15
+        run: ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" :mosaic-tty:jvmJniZigBuild -PVERSION_NAME="$RELEASE_VERSION"
+
+      - name: Run macOS JVM tests
+        timeout-minutes: 12
         run: |
           ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" -I .github/frame-pacing-filter.gradle jvmTest -PVERSION_NAME="$RELEASE_VERSION"
 
@@ -89,10 +93,22 @@ jobs:
           python3 -m unittest discover -s scripts/tests
           python3 scripts/jitpack.py pack build/jitpack/repository build/jitpack/mosaic-maven.tar.gz "$RELEASE_VERSION" "$RELEASE_COMMIT"
 
-      - name: Install archive and compile an independent consumer
+      - name: Checkout the controller's consumer validation harness
+        # The validation harness follows the workflow controller. Library publications and
+        # their source archives always come from the selected release tag above.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: build/release-controller
+          sparse-checkout: |
+            scripts/jitpack-consumer
+            gradle/libs.versions.toml
+
+      - name: Compile the independent consumer against the archive
+        timeout-minutes: 15
         run: |
           python3 scripts/jitpack.py install build/jitpack/mosaic-maven.tar.gz "$RELEASE_VERSION" "$RELEASE_COMMIT" build/jitpack/consumer-repository
-          ./gradlew --no-parallel --max-workers=1 -p scripts/jitpack-consumer \
+          ./gradlew --no-parallel --max-workers=1 -p build/release-controller/scripts/jitpack-consumer \
             -PmosaicRepository="$GITHUB_WORKSPACE/build/jitpack/consumer-repository" \
             -PmosaicVersion="$RELEASE_VERSION" \
             compileKotlinJvm compileKotlinLinuxArm64 compileKotlinLinuxX64 compileKotlinMingwX64 linkReleaseExecutableMacosArm64
