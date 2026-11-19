@@ -33,7 +33,7 @@ References: [Kotlin host requirements](https://kotlinlang.org/docs/multiplatform
 
 ## Release steps
 
-1. Update `CHANGELOG.md` with the fork's release notes. Use a new tag such as `0.19.0`;
+1. Update `CHANGELOG.md` with the fork's release notes. Use a new tag such as `0.19.1`;
    tags must start with a digit (optionally prefixed by `v`) and contain only letters, digits,
    `.`, `_`, or `-`.
    `SNAPSHOT` versions are not supported. Use the exact tag in dependency versions.
@@ -42,9 +42,9 @@ References: [Kotlin host requirements](https://kotlinlang.org/docs/multiplatform
 3. Create and push the tag explicitly:
 
    ```bash
-   git tag -a 0.19.0 -m "Release 0.19.0"
+   git tag -a 0.19.1 -m "Release 0.19.1"
    git push origin main
-   git push origin 0.19.0
+   git push origin 0.19.1
    ```
 
 4. Wait for the `release` GitHub Actions workflow to finish. It overrides `VERSION_NAME` with the

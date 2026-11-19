@@ -79,22 +79,19 @@ dependencyResolutionManagement {
 }
 ```
 
-The `0.19.0` GitHub release is available, but its JitPack publication failed. The distribution
-fix has passed JVM and Native consumer checks and is awaiting a corrected release.
-
-After the corrected release is published, add the module you need using its release tag from
+Add the module you need using an existing release tag from
 [GitHub Releases](https://github.com/SparrowAndSnow/mosaic/releases):
 
 ```kotlin
 dependencies {
-  implementation("com.github.SparrowAndSnow.mosaic:mosaic-runtime:0.19.0")
+  implementation("com.github.SparrowAndSnow.mosaic:mosaic-runtime:0.19.1")
   // Optional:
-  implementation("com.github.SparrowAndSnow.mosaic:mosaic-animation:0.19.0")
-  testImplementation("com.github.SparrowAndSnow.mosaic:mosaic-testing:0.19.0")
+  implementation("com.github.SparrowAndSnow.mosaic:mosaic-animation:0.19.1")
+  testImplementation("com.github.SparrowAndSnow.mosaic:mosaic-testing:0.19.1")
 }
 ```
 
-Version `0.19.0` is the first release of this fork. Use the exact release tag
+Version `0.19.1` fixes JitPack publication for this fork. Use the exact release tag
 as the version for all modules.
 The Kotlin Multiplatform coordinates select JVM, Linux x64/arm64, macOS arm64, or Windows x64
 artifacts automatically. JVM jars include JNI libraries for Linux, macOS, and Windows;

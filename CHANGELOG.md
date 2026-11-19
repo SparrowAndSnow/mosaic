@@ -1,7 +1,10 @@
 # Change log
 
 ## [Unreleased]
-[Unreleased]: https://github.com/SparrowAndSnow/mosaic/compare/0.19.0...HEAD
+[Unreleased]: https://github.com/SparrowAndSnow/mosaic/compare/0.19.1...HEAD
+
+## [0.19.1] - 2026-11-19
+[0.19.1]: https://github.com/SparrowAndSnow/mosaic/releases/tag/0.19.1
 
 Fixed:
 - JitPack discovers all verified publications installed by the custom release script.
