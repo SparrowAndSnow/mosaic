@@ -1,3 +1,5 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 #ifndef MOSAIC_TTY_WINDOWS_H
 #define MOSAIC_TTY_WINDOWS_H
 

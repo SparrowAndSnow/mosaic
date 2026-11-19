@@ -1,11 +1,11 @@
 // Klib ABI Dump
-// Targets: [linuxArm64, linuxX64, mingwX64]
+// Targets: [linuxArm64, linuxX64, macosArm64, mingwX64]
 // Rendering settings:
 // - Signature version: 2
 // - Show manifest properties: true
 // - Show declarations: true
 
-// Library unique name: <com.jakewharton.mosaic:mosaic-runtime>
+// Library unique name: <com.github.SparrowAndSnow.mosaic:mosaic-runtime>
 open annotation class com.jakewharton.mosaic.ui/LayoutScopeMarker : kotlin/Annotation { // com.jakewharton.mosaic.ui/LayoutScopeMarker|null[0]
     constructor <init>() // com.jakewharton.mosaic.ui/LayoutScopeMarker.<init>|<init>(){}[0]
 }

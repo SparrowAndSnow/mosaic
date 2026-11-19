@@ -5,7 +5,7 @@
 // - Show manifest properties: true
 // - Show declarations: true
 
-// Library unique name: <com.jakewharton.mosaic:mosaic-terminal>
+// Library unique name: <com.github.SparrowAndSnow.mosaic:mosaic-terminal>
 final enum class com.jakewharton.mosaic.terminal/AnsiLevel : kotlin/Enum<com.jakewharton.mosaic.terminal/AnsiLevel> { // com.jakewharton.mosaic.terminal/AnsiLevel|null[0]
     enum entry ANSI16 // com.jakewharton.mosaic.terminal/AnsiLevel.ANSI16|null[0]
     enum entry ANSI256 // com.jakewharton.mosaic.terminal/AnsiLevel.ANSI256|null[0]

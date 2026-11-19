@@ -1,11 +1,11 @@
 // Klib ABI Dump
-// Targets: [linuxArm64, linuxX64, mingwX64]
+// Targets: [linuxArm64, linuxX64, macosArm64, mingwX64]
 // Rendering settings:
 // - Signature version: 2
 // - Show manifest properties: true
 // - Show declarations: true
 
-// Library unique name: <com.jakewharton.mosaic:mosaic-testing>
+// Library unique name: <com.github.SparrowAndSnow.mosaic:mosaic-testing>
 abstract fun interface <#A: kotlin/Any?> com.jakewharton.mosaic.testing/SnapshotStrategy { // com.jakewharton.mosaic.testing/SnapshotStrategy|null[0]
     abstract fun create(com.jakewharton.mosaic/Mosaic): #A // com.jakewharton.mosaic.testing/SnapshotStrategy.create|create(com.jakewharton.mosaic.Mosaic){}[0]
 }
@@ -15,6 +15,7 @@ abstract interface <#A: kotlin/Any?> com.jakewharton.mosaic.testing/TestMosaic :
         abstract fun <get-state>(): com.jakewharton.mosaic.testing/TestTerminal.State // com.jakewharton.mosaic.testing/TestMosaic.state.<get-state>|<get-state>(){}[0]
 
     abstract fun sendClipboardReply(kotlin/String?, com.jakewharton.mosaic.terminal/ClipboardEvent.Selection = ...) // com.jakewharton.mosaic.testing/TestMosaic.sendClipboardReply|sendClipboardReply(kotlin.String?;com.jakewharton.mosaic.terminal.ClipboardEvent.Selection){}[0]
+    abstract fun sendFocusEvent(kotlin/Boolean) // com.jakewharton.mosaic.testing/TestMosaic.sendFocusEvent|sendFocusEvent(kotlin.Boolean){}[0]
     abstract fun sendKeyEvent(com.jakewharton.mosaic.terminal/KeyboardEvent) // com.jakewharton.mosaic.testing/TestMosaic.sendKeyEvent|sendKeyEvent(com.jakewharton.mosaic.terminal.KeyboardEvent){}[0]
     abstract fun sendMouseEvent(com.jakewharton.mosaic.terminal/MouseEvent) // com.jakewharton.mosaic.testing/TestMosaic.sendMouseEvent|sendMouseEvent(com.jakewharton.mosaic.terminal.MouseEvent){}[0]
     abstract fun sendPaste(kotlin/String) // com.jakewharton.mosaic.testing/TestMosaic.sendPaste|sendPaste(kotlin.String){}[0]
@@ -46,7 +47,7 @@ final class com.jakewharton.mosaic.testing/TestTerminal : com.jakewharton.mosaic
     final fun writeClipboard(kotlin/String, com.jakewharton.mosaic.terminal/ClipboardEvent.Selection) // com.jakewharton.mosaic.testing/TestTerminal.writeClipboard|writeClipboard(kotlin.String;com.jakewharton.mosaic.terminal.ClipboardEvent.Selection){}[0]
 
     final class Capabilities : com.jakewharton.mosaic.terminal/Terminal.Capabilities { // com.jakewharton.mosaic.testing/TestTerminal.Capabilities|null[0]
-        constructor <init>(com.jakewharton.mosaic.terminal/AnsiLevel = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.<init>|<init>(com.jakewharton.mosaic.terminal.AnsiLevel;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+        constructor <init>(com.jakewharton.mosaic.terminal/AnsiLevel = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ...) // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.<init>|<init>(com.jakewharton.mosaic.terminal.AnsiLevel;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 
         final val ansiLevel // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.ansiLevel|{}ansiLevel[0]
             final fun <get-ansiLevel>(): com.jakewharton.mosaic.terminal/AnsiLevel // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.ansiLevel.<get-ansiLevel>|<get-ansiLevel>(){}[0]
@@ -54,6 +55,8 @@ final class com.jakewharton.mosaic.testing/TestTerminal : com.jakewharton.mosaic
             final fun <get-cursorVisibility>(): kotlin/Boolean // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.cursorVisibility.<get-cursorVisibility>|<get-cursorVisibility>(){}[0]
         final val focusEvents // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.focusEvents|{}focusEvents[0]
             final fun <get-focusEvents>(): kotlin/Boolean // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.focusEvents.<get-focusEvents>|<get-focusEvents>(){}[0]
+        final val graphemeClustering // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.graphemeClustering|{}graphemeClustering[0]
+            final fun <get-graphemeClustering>(): kotlin/Boolean // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.graphemeClustering.<get-graphemeClustering>|<get-graphemeClustering>(){}[0]
         final val inBandResizeEvents // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.inBandResizeEvents|{}inBandResizeEvents[0]
             final fun <get-inBandResizeEvents>(): kotlin/Boolean // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.inBandResizeEvents.<get-inBandResizeEvents>|<get-inBandResizeEvents>(){}[0]
         final val kittyGraphics // com.jakewharton.mosaic.testing/TestTerminal.Capabilities.kittyGraphics|{}kittyGraphics[0]
@@ -88,18 +91,26 @@ final class com.jakewharton.mosaic.testing/TestTerminal : com.jakewharton.mosaic
     }
 }
 
+final object com.jakewharton.mosaic.testing/CapabilityMatrix { // com.jakewharton.mosaic.testing/CapabilityMatrix|null[0]
+    final val defaults // com.jakewharton.mosaic.testing/CapabilityMatrix.defaults|{}defaults[0]
+        final fun <get-defaults>(): kotlin.collections/List<com.jakewharton.mosaic.terminal/Terminal.Capabilities> // com.jakewharton.mosaic.testing/CapabilityMatrix.defaults.<get-defaults>|<get-defaults>(){}[0]
+}
+
 final object com.jakewharton.mosaic.testing/MosaicSnapshots : com.jakewharton.mosaic.testing/SnapshotStrategy<com.jakewharton.mosaic/Mosaic> { // com.jakewharton.mosaic.testing/MosaicSnapshots|null[0]
     final fun create(com.jakewharton.mosaic/Mosaic): com.jakewharton.mosaic/Mosaic // com.jakewharton.mosaic.testing/MosaicSnapshots.create|create(com.jakewharton.mosaic.Mosaic){}[0]
 }
 
+final val com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_CapabilityMatrix$stableprop // com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_CapabilityMatrix$stableprop|#static{}com_jakewharton_mosaic_testing_CapabilityMatrix$stableprop[0]
 final val com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_MosaicSnapshots$stableprop // com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_MosaicSnapshots$stableprop|#static{}com_jakewharton_mosaic_testing_MosaicSnapshots$stableprop[0]
 final val com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal$stableprop // com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal$stableprop|#static{}com_jakewharton_mosaic_testing_TestTerminal$stableprop[0]
 final val com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal_Capabilities$stableprop // com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal_Capabilities$stableprop|#static{}com_jakewharton_mosaic_testing_TestTerminal_Capabilities$stableprop[0]
 final val com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal_State$stableprop // com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal_State$stableprop|#static{}com_jakewharton_mosaic_testing_TestTerminal_State$stableprop[0]
 
+final fun com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_CapabilityMatrix$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_CapabilityMatrix$stableprop_getter|com_jakewharton_mosaic_testing_CapabilityMatrix$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_MosaicSnapshots$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_MosaicSnapshots$stableprop_getter|com_jakewharton_mosaic_testing_MosaicSnapshots$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal$stableprop_getter|com_jakewharton_mosaic_testing_TestTerminal$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal_Capabilities$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal_Capabilities$stableprop_getter|com_jakewharton_mosaic_testing_TestTerminal_Capabilities$stableprop_getter(){}[0]
 final fun com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal_State$stableprop_getter(): kotlin/Int // com.jakewharton.mosaic.testing/com_jakewharton_mosaic_testing_TestTerminal_State$stableprop_getter|com_jakewharton_mosaic_testing_TestTerminal_State$stableprop_getter(){}[0]
 final suspend fun <#A: kotlin/Any?, #B: kotlin/Any?> com.jakewharton.mosaic.testing/runMosaicTest(com.jakewharton.mosaic.testing/SnapshotStrategy<#A>, com.jakewharton.mosaic.terminal/Terminal.Capabilities = ..., kotlin.coroutines/SuspendFunction1<com.jakewharton.mosaic.testing/TestMosaic<#A>, #B>): #B // com.jakewharton.mosaic.testing/runMosaicTest|runMosaicTest(com.jakewharton.mosaic.testing.SnapshotStrategy<0:0>;com.jakewharton.mosaic.terminal.Terminal.Capabilities;kotlin.coroutines.SuspendFunction1<com.jakewharton.mosaic.testing.TestMosaic<0:0>,0:1>){0§<kotlin.Any?>;1§<kotlin.Any?>}[0]
 final suspend fun com.jakewharton.mosaic.testing/runMosaicTest(com.jakewharton.mosaic.terminal/Terminal.Capabilities = ..., kotlin.coroutines/SuspendFunction1<com.jakewharton.mosaic.testing/TestMosaic<kotlin/String>, kotlin/Unit>) // com.jakewharton.mosaic.testing/runMosaicTest|runMosaicTest(com.jakewharton.mosaic.terminal.Terminal.Capabilities;kotlin.coroutines.SuspendFunction1<com.jakewharton.mosaic.testing.TestMosaic<kotlin.String>,kotlin.Unit>){}[0]
+final suspend fun com.jakewharton.mosaic.testing/runMosaicTestForEach(kotlin.collections/List<com.jakewharton.mosaic.terminal/Terminal.Capabilities> = ..., kotlin.coroutines/SuspendFunction2<com.jakewharton.mosaic.testing/TestMosaic<kotlin/String>, com.jakewharton.mosaic.terminal/Terminal.Capabilities, kotlin/Unit>) // com.jakewharton.mosaic.testing/runMosaicTestForEach|runMosaicTestForEach(kotlin.collections.List<com.jakewharton.mosaic.terminal.Terminal.Capabilities>;kotlin.coroutines.SuspendFunction2<com.jakewharton.mosaic.testing.TestMosaic<kotlin.String>,com.jakewharton.mosaic.terminal.Terminal.Capabilities,kotlin.Unit>){}[0]

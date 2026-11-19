@@ -1,3 +1,5 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 /*
  * Copyright 2019 The Android Open Source Project
  *

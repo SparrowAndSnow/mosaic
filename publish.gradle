@@ -1,6 +1,38 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 apply plugin: 'com.vanniktech.maven.publish'
 apply plugin: 'org.jetbrains.kotlinx.binary-compatibility-validator'
 apply plugin: 'org.jetbrains.dokka'
+
+def licensingZip = tasks.register('licensingZip', Zip) {
+	archiveClassifier = 'licensing'
+	from(rootProject.file('LICENSE.txt'))
+	from(rootProject.file('NOTICE.txt'))
+	from(rootProject.file('licenses')) {
+		into('licenses')
+	}
+}
+
+tasks.withType(Jar).configureEach {
+	from(rootProject.file('LICENSE.txt')) { into('META-INF') }
+	from(rootProject.file('NOTICE.txt')) { into('META-INF') }
+	from(rootProject.file('licenses')) { into('META-INF/licenses') }
+}
+
+// Stage a complete Maven repository on macOS, including the C interop Apple artifacts.
+// JitPack installs this repository from the matching GitHub release asset.
+publishing {
+	publications.withType(MavenPublication).configureEach {
+		// Native klibs also distribute the full license texts as a companion artifact.
+		artifact(licensingZip)
+	}
+	repositories {
+		maven {
+			name = 'Jitpack'
+			url = rootProject.layout.buildDirectory.dir('jitpack/repository')
+		}
+	}
+}
 
 apiValidation {
 	klib.enabled = true

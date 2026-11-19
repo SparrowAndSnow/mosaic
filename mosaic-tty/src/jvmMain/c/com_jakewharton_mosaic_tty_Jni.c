@@ -1,3 +1,5 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 #include "com_jakewharton_mosaic_tty_Jni.h"
 
 #include "jni.h"

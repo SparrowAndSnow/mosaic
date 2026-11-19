@@ -1,3 +1,5 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 package com.jakewharton.mosaic.tty
 
 import com.jakewharton.mosaic.tty.Libmosaic.mosaic_tty_current_terminal_size

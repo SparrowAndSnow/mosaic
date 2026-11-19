@@ -1,3 +1,5 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 import com.jakewharton.mosaic.buildsupport.ZigDownloadTask
 import java.nio.file.FileSystems
 import java.nio.file.Files

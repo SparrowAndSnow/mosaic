@@ -1,3 +1,5 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 #if defined(_WIN32)
 
 #include "mosaic-tty-windows.h"

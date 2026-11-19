@@ -1,3 +1,5 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 #ifndef MOSAIC_TEST_TTY_H
 #define MOSAIC_TEST_TTY_H
 

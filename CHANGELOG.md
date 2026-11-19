@@ -1,7 +1,10 @@
 # Change log
 
 ## [Unreleased]
-[Unreleased]: https://github.com/JakeWharton/mosaic/compare/0.18.0...HEAD
+[Unreleased]: https://github.com/SparrowAndSnow/mosaic/compare/v0.19.0...HEAD
+
+## [0.19.0] - 2026-11-19
+[0.19.0]: https://github.com/SparrowAndSnow/mosaic/releases/tag/v0.19.0
 
 New:
 - Grapheme-cluster text: wide CJK, combining sequences, ZWJ families, flags, and variant
@@ -46,6 +49,12 @@ New:
 - JVM support for RISC-V and s390x!
 
 Changed:
+- Restore bundled Unicode attribution and distribute license/notice texts in JVM jars and
+  companion licensing archives for every publication.
+- This fork now publishes through JitPack under `com.github.SparrowAndSnow.mosaic`.
+  Tagged releases stage JVM and all Kotlin/Native publications on macOS and attach a
+  commit-bound Maven repository for JitPack to install. Maven Central publishing and signing
+  are no longer required. Branch snapshots are not supported by this pipeline.
 - The test-console and process-monitor examples now use neutral paths and identifiers
   (`samples/test-console`, `samples/monitor`), including their Gradle projects, binaries, READMEs,
   and CI sample matrix; behavior is unchanged.

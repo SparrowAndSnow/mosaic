@@ -1,0 +1,35 @@
+buildscript {
+	dependencies {
+		classpath libs.kotlin.plugin.core
+		classpath libs.kotlin.plugin.compose
+	}
+	repositories {
+		mavenCentral()
+		google()
+	}
+}
+
+apply plugin: 'org.jetbrains.kotlin.multiplatform'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+
+kotlin {
+	jvm()
+	linuxArm64()
+	linuxX64()
+	macosArm64 {
+		binaries.executable {
+			entryPoint = 'consumer.main'
+		}
+	}
+	mingwX64()
+
+	sourceSets {
+		commonMain {
+			dependencies {
+				implementation "com.github.SparrowAndSnow.mosaic:mosaic-runtime:${project.property('mosaicVersion')}"
+				implementation "com.github.SparrowAndSnow.mosaic:mosaic-animation:${project.property('mosaicVersion')}"
+				implementation "com.github.SparrowAndSnow.mosaic:mosaic-testing:${project.property('mosaicVersion')}"
+			}
+		}
+	}
+}

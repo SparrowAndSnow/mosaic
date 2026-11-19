@@ -1,3 +1,14 @@
+public final class com/jakewharton/mosaic/testing/CapabilityMatrix {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/jakewharton/mosaic/testing/CapabilityMatrix;
+	public final fun getDefaults ()Ljava/util/List;
+}
+
+public final class com/jakewharton/mosaic/testing/CapabilityMatrixKt {
+	public static final fun runMosaicTestForEach (Ljava/util/List;Lkotlin/jvm/functions/Function3;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun runMosaicTestForEach$default (Ljava/util/List;Lkotlin/jvm/functions/Function3;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
 public final class com/jakewharton/mosaic/testing/MosaicSnapshots : com/jakewharton/mosaic/testing/SnapshotStrategy {
 	public static final field $stable I
 	public static final field INSTANCE Lcom/jakewharton/mosaic/testing/MosaicSnapshots;
@@ -15,6 +26,7 @@ public abstract interface class com/jakewharton/mosaic/testing/TestMosaic : com/
 	public abstract fun getState ()Lcom/jakewharton/mosaic/testing/TestTerminal$State;
 	public abstract fun sendClipboardReply (Ljava/lang/String;Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;)V
 	public static synthetic fun sendClipboardReply$default (Lcom/jakewharton/mosaic/testing/TestMosaic;Ljava/lang/String;Lcom/jakewharton/mosaic/terminal/ClipboardEvent$Selection;ILjava/lang/Object;)V
+	public abstract fun sendFocusEvent (Z)V
 	public abstract fun sendKeyEvent (Lcom/jakewharton/mosaic/terminal/KeyboardEvent;)V
 	public abstract fun sendMouseEvent (Lcom/jakewharton/mosaic/terminal/MouseEvent;)V
 	public abstract fun sendPaste (Ljava/lang/String;)V
@@ -50,11 +62,12 @@ public final class com/jakewharton/mosaic/testing/TestTerminal : com/jakewharton
 public final class com/jakewharton/mosaic/testing/TestTerminal$Capabilities : com/jakewharton/mosaic/terminal/Terminal$Capabilities {
 	public static final field $stable I
 	public fun <init> ()V
-	public fun <init> (Lcom/jakewharton/mosaic/terminal/AnsiLevel;ZZZZZZZZZZZZ)V
-	public synthetic fun <init> (Lcom/jakewharton/mosaic/terminal/AnsiLevel;ZZZZZZZZZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lcom/jakewharton/mosaic/terminal/AnsiLevel;ZZZZZZZZZZZZZ)V
+	public synthetic fun <init> (Lcom/jakewharton/mosaic/terminal/AnsiLevel;ZZZZZZZZZZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getAnsiLevel ()Lcom/jakewharton/mosaic/terminal/AnsiLevel;
 	public fun getCursorVisibility ()Z
 	public fun getFocusEvents ()Z
+	public fun getGraphemeClustering ()Z
 	public fun getInBandResizeEvents ()Z
 	public fun getKittyGraphics ()Z
 	public fun getKittyKeyboard ()Z

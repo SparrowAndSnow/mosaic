@@ -1,0 +1,35 @@
+Mosaic — independently maintained fork
+https://github.com/SparrowAndSnow/mosaic
+
+Based on Mosaic by Jake Wharton and contributors.
+Copyright 2020 Jake Wharton.
+Original project: https://github.com/JakeWharton/mosaic
+Distributed under the Apache License, Version 2.0 (LICENSE.txt).
+
+This fork has been modified by SparrowAndSnow and contributors: grapheme-aware
+text and rendering, incremental output, layouts and widgets, input and lifecycle
+handling, cross-platform TTY fixes, and JitPack distribution. See CHANGELOG.md
+and the source history for the changes. No endorsement by the original authors
+is implied.
+
+Bundled Unicode width code and generator
+---------------------------------------
+text/unicodewidth/{UnicodeWidthChar,UnicodeWidthStr,Tables}.kt and scripts/unicode.py
+are derived from unicode-width-kotlin (KotlinMania), unicode-rs/unicode-width,
+and the Rust Project Developers' work.
+Copyright 2012-2025 The Rust Project Developers (width code/tables).
+Copyright 2011-2025 The Rust Project Developers (generator).
+The original code offers Apache-2.0 or MIT; this distribution uses Apache-2.0.
+The bundled implementation and generator have been adapted for this fork.
+
+Unicode data
+------------
+Unicode tables and grapheme test data are derived from the Unicode Character
+Database. See licenses/Unicode-3.0.txt for the Unicode data license.
+
+JNI headers
+-----------
+The JNI headers under mosaic-tty/src/jvmMain/include retain their original
+Oracle and Netscape copyright notices. These headers are covered by GPLv2
+with the Classpath Exception; see
+licenses/OpenJDK-GPL-2.0-with-Classpath-Exception.txt.

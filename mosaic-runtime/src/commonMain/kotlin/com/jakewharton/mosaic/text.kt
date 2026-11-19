@@ -1,3 +1,5 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 @file:Suppress("NOTHING_TO_INLINE")
 
 package com.jakewharton.mosaic

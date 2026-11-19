@@ -1,3 +1,5 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 package com.jakewharton.mosaic.ui
 
 import com.jakewharton.mosaic.layout.Measurable

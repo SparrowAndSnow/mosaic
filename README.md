@@ -1,6 +1,9 @@
 # Mosaic
 
-An experimental tool for building console UI in Kotlin using the Jetpack Compose compiler/runtime.
+A Kotlin Multiplatform terminal UI library built on the Compose compiler/runtime.
+
+This is an independently maintained, refactored fork of [JakeWharton/mosaic](https://github.com/JakeWharton/mosaic).
+Releases of this fork are distributed through [JitPack](https://jitpack.io/#SparrowAndSnow/mosaic).
 
 <img src="samples/test-console/demo.gif">
 
@@ -61,37 +64,49 @@ Mosaic is a library for Compose, and it relies on JetBrains' Kotlin Compose plug
 Any module which wants to call `runMosaic` or define `@Composable` functions for use with Mosaic must have this plugin applied.
 For more information, see [the JetBrains Compose compiler documentation](https://www.jetbrains.com/help/kotlin-multiplatform-dev/compose-compiler.html).
 
-Mosaic itself can then be added like any other dependency:
+Add JitPack alongside Maven Central and Google in your dependency repositories:
 
-```groovy
-dependencies {
-  implementation("com.jakewharton.mosaic:mosaic-runtime:0.18.0")
-}
-```
-
-Documentation is available at [jakewharton.github.io/mosaic/docs/0.x/](https://jakewharton.github.io/mosaic/docs/0.x/).
-
-<details>
-<summary>Snapshots of the development version are available in the Central Portal Snapshots repository.</summary>
-<p>
-
-```groovy
-repository {
-  mavenCentral()
-  maven {
-    url 'https://central.sonatype.com/repository/maven-snapshots/'
+```kotlin
+// settings.gradle.kts
+dependencyResolutionManagement {
+  repositories {
+    google()
+    mavenCentral()
+    maven("https://jitpack.io") {
+      content { includeGroup("com.github.SparrowAndSnow.mosaic") }
+    }
   }
 }
+```
+
+Then add the module you need, using an existing release tag from
+[GitHub Releases](https://github.com/SparrowAndSnow/mosaic/releases):
+
+```kotlin
 dependencies {
-  implementation("com.jakewharton.mosaic:mosaic-runtime:0.19.0-SNAPSHOT")
+  implementation("com.github.SparrowAndSnow.mosaic:mosaic-runtime:v0.19.0")
+  // Optional:
+  implementation("com.github.SparrowAndSnow.mosaic:mosaic-animation:v0.19.0")
+  testImplementation("com.github.SparrowAndSnow.mosaic:mosaic-testing:v0.19.0")
 }
 ```
 
-Snapshot documentation is available at [jakewharton.github.io/mosaic/docs/latest/](https://jakewharton.github.io/mosaic/docs/latest/).
+Version `v0.19.0` is the first release of this fork. Keep the full tag, including its
+`v` prefix, and use the same version for all modules.
+The Kotlin Multiplatform coordinates select JVM, Linux x64/arm64, macOS arm64, or Windows x64
+artifacts automatically. JVM jars include JNI libraries for Linux, macOS, and Windows;
+plain Java/Maven consumers can explicitly select `mosaic-runtime-jvm`.
 
-</p>
-</details>
+Releases are built from source on a macOS GitHub Actions runner to include Apple C interop,
+then JitPack installs the complete Maven repository attached to that release. Wait for the
+release workflow to finish before looking up the tag on JitPack. Branch snapshots and commit-only
+versions are not supported by this release pipeline. See [RELEASING.md](RELEASING.md).
 
+The `com.jakewharton.mosaic` Kotlin packages are retained for source compatibility. Avoid mixing
+this fork with upstream Mosaic artifacts in one application.
+
+API documentation can be generated locally with `./gradlew dokkaGenerate` (output:
+`build/dokka/html/`); runnable examples are listed below.
 
 ## Samples
 

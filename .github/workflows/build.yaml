@@ -1,3 +1,5 @@
+# Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 name: build
 
 on:
@@ -5,7 +7,7 @@ on:
   workflow_dispatch: {}
   push:
     branches:
-      - 'trunk'
+      - 'main'
     tags-ignore:
       - '**'
 
@@ -13,6 +15,13 @@ env:
   GRADLE_OPTS: "-Dkotlin.incremental=false -Dorg.gradle.logging.stacktrace=full"
 
 jobs:
+  jitpack-packaging-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 -m unittest discover -s scripts/tests
+      - run: bash -n scripts/jitpack-install.sh
+
   tty-test-binaries:
     runs-on: macos-15
     steps:
@@ -248,6 +257,7 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-slim
     needs:
+      - jitpack-packaging-tests
       - docs
       - tty-tests
       - tty-shrinker-tests
@@ -261,35 +271,3 @@ jobs:
             echo "One or more required jobs failed"
             exit 1
           fi
-
-  publish:
-    if: ${{ github.ref == 'refs/heads/trunk' && github.repository == 'JakeWharton/mosaic' }}
-    runs-on: macos-15
-    needs:
-      - final-status
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
-        with:
-          distribution: 'zulu'
-          java-version-file: .github/workflows/.java-version
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-
-      - run: ./gradlew publish
-        env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_CENTRAL_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_CENTRAL_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
-
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: html-docs
-          path: html-docs
-
-      - uses: JamesIves/github-pages-deploy-action@fa24774553152dd7873cd16ebd8d959b010c5445 # v4.9.0
-        with:
-          branch: site
-          folder: html-docs
-          target-folder: docs/latest/
-          clean: true

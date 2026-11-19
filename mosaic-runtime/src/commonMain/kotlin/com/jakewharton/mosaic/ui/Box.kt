@@ -1,3 +1,5 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 @file:JvmName("Box")
 
 package com.jakewharton.mosaic.ui

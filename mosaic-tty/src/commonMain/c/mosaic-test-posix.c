@@ -1,3 +1,5 @@
+// Modified by SparrowAndSnow and contributors for this Mosaic fork.
+
 #if defined(__APPLE__) || defined(__linux__)
 
 #define _XOPEN_SOURCE 600

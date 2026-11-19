@@ -1,0 +1,23 @@
+rootProject.name = 'jitpack-consumer'
+
+dependencyResolutionManagement {
+	versionCatalogs {
+		libs {
+			from(files('../../gradle/libs.versions.toml'))
+		}
+	}
+	repositories {
+		google()
+		mavenCentral()
+		exclusiveContent {
+			forRepository {
+				maven {
+					url = providers.gradleProperty('mosaicRepository').get()
+				}
+			}
+			filter {
+				includeGroup('com.github.SparrowAndSnow.mosaic')
+			}
+		}
+	}
+}
