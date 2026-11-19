@@ -12,6 +12,9 @@ The TTY JVM jar also contains all eight cross-compiled JNI libraries and the JDK
 Wall-clock frame-pacing assertions run first on Linux; those absolute deadlines were exceeded
 on the shared macOS release runner. The Mac job runs all other JVM tests and the full
 Native API/publication checks, and cannot publish unless the Linux pacing job succeeds.
+For `v0.19.0`, the controller also corrects its TTY contract test fixture to use the documented maximum
+timeout of 999 ms (1000 ms is invalid on macOS). It restores that test file before publication;
+production sources and published source archives remain those of the selected tag.
 Every publication includes a companion `-licensing.zip` with the license and notice texts;
 JVM and source jars also carry them under `META-INF`.
 

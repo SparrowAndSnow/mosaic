@@ -54,7 +54,7 @@ class TtyContractTest {
 		assertThat(tty.write(payload, 3, 4)).isEqualTo(4)
 
 		val buffer = ByteArray(4)
-		assertThat(testTerminal.readTtyWithTimeout(buffer, 0, 4, 1_000)).isEqualTo(4)
+		assertThat(testTerminal.readTtyWithTimeout(buffer, 0, 4, 999)).isEqualTo(4)
 		assertThat(buffer.decodeToString()).isEqualTo("3456")
 	}
 
@@ -69,7 +69,7 @@ class TtyContractTest {
 		val read = ByteArray(bytes.size)
 		var total = 0
 		while (total < bytes.size) {
-			val count = tty.readWithTimeout(read, total, bytes.size - total, 1_000)
+			val count = tty.readWithTimeout(read, total, bytes.size - total, 999)
 			check(count > 0) { "Expected data, got $count" }
 			total += count
 		}
@@ -79,7 +79,7 @@ class TtyContractTest {
 		val written = ByteArray(bytes.size)
 		total = 0
 		while (total < bytes.size) {
-			val count = testTerminal.readTtyWithTimeout(written, total, bytes.size - total, 1_000)
+			val count = testTerminal.readTtyWithTimeout(written, total, bytes.size - total, 999)
 			check(count > 0) { "Expected data, got $count" }
 			total += count
 		}
@@ -99,7 +99,7 @@ class TtyContractTest {
 		assertThat(testTerminal.writeTty(input, 0, 1)).isEqualTo(1)
 
 		val buffer = ByteArray(4)
-		assertThat(tty.readWithTimeout(buffer, 0, 4, 1_000)).isEqualTo(1)
+		assertThat(tty.readWithTimeout(buffer, 0, 4, 999)).isEqualTo(1)
 		assertThat(buffer[0]).isEqualTo('A'.code.toByte())
 	}
 

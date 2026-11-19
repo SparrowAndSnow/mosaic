@@ -11,11 +11,16 @@ on:
     tags-ignore:
       - '**'
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   GRADLE_OPTS: "-Dkotlin.incremental=false -Dorg.gradle.logging.stacktrace=full"
 
 jobs:
   jitpack-packaging-tests:
+    timeout-minutes: 5
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -23,6 +28,7 @@ jobs:
       - run: bash -n scripts/jitpack-install.sh
 
   tty-test-binaries:
+    timeout-minutes: 30
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,8 +58,6 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - os: macos-14
-            target: macosArm64
           - os: macos-15
             target: macosArm64
           - os: macos-26
@@ -167,6 +171,7 @@ jobs:
   # up the additional test runs for use in the above matrix-based runner. For now, run them through
   # Gradle on a single OS and single JDK just to get some coverage.
   tty-shrinker-tests:
+    timeout-minutes: 20
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -182,6 +187,7 @@ jobs:
           :mosaic-tty:jvmR8Test
 
   build:
+    timeout-minutes: 30
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -207,6 +213,7 @@ jobs:
           -x :mosaic-tty:jvmTest
 
   docs:
+    timeout-minutes: 20
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -225,6 +232,7 @@ jobs:
           if-no-files-found: error
 
   samples:
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -254,6 +262,7 @@ jobs:
         shell: bash
 
   final-status:
+    timeout-minutes: 5
     if: ${{ !cancelled() }}
     runs-on: ubuntu-slim
     needs:

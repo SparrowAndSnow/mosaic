@@ -57,6 +57,13 @@ kotlin {
 	explicitApi()
 
 	sourceSets {
+		// Signal/termios/fork tests are shared by POSIX targets, not Windows Native.
+		configureEach { sourceSet ->
+			if (sourceSet.name in ['linuxArm64Test', 'linuxX64Test', 'macosArm64Test']) {
+				sourceSet.kotlin.srcDir('src/posixTest/kotlin')
+			}
+		}
+
 		configureEach {
 			languageSettings {
 				optIn('kotlinx.cinterop.ExperimentalForeignApi')
