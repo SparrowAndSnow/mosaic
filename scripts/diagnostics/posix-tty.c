@@ -31,7 +31,11 @@ int main(int argc, char **argv) {
 	}
 	printf("before restore: %s\n", argv[1]);
 	fflush(stdout);
-	int action = strcmp(argv[1], "now") == 0 ? TCSANOW : TCSAFLUSH;
+	int immediate = strcmp(argv[1], "now") == 0 || strcmp(argv[1], "reset") == 0;
+	if (strcmp(argv[1], "reset") == 0 && tcflush(child, TCIFLUSH)) {
+		perror("flush input"); return 1;
+	}
+	int action = immediate ? TCSANOW : TCSAFLUSH;
 	int result = tcsetattr(child, action, &saved);
 	printf("after restore: result=%d errno=%d\n", result, result ? errno : 0);
 	fflush(stdout);

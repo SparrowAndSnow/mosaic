@@ -23,32 +23,54 @@ jobs:
           python3 - <<'PY'
           import os
           import subprocess
-          for mode in ('flush', 'now', 'flush-drained'):
+          for mode in ('flush', 'now', 'reset', 'flush-drained'):
               try:
                   result = subprocess.run([os.environ['RUNNER_TEMP'] + '/pty-probe', mode],
                                           capture_output=True, timeout=3)
                   print(mode, 'exit', result.returncode, result.stdout.decode(), result.stderr.decode(), flush=True)
+                  if result.returncode:
+                      raise SystemExit(result.returncode)
               except subprocess.TimeoutExpired as error:
                   print(mode, 'TIMEOUT after 3 seconds', (error.stdout or b'').decode(), flush=True)
+                  if mode != 'flush':
+                      raise
           PY
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: zulu
           java-version-file: .github/workflows/.java-version
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-      - name: Run one lifecycle test and capture a stuck worker
+      - name: Build only the host JNI library for this diagnostic
+        timeout-minutes: 5
+        run: |
+          ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx2g -Dfile.encoding=UTF-8" -Pkotlin.compiler.execution.strategy=in-process :mosaic-tty:compileJvmMainJava --console=plain
+          header=$(rg --files --no-ignore mosaic-tty/build | rg '/com_jakewharton_mosaic_tty_Jni.h$' | head -1)
+          case "$(uname -m)" in
+            arm64) arch=aarch64 ;;
+            x86_64) arch=x86_64 ;;
+            *) exit 2 ;;
+          esac
+          resource_dir="mosaic-tty/build/zigJni/jvm/com/jakewharton/mosaic/tty/jni/$arch"
+          mkdir -p "$resource_dir"
+          clang -std=gnu11 -dynamiclib -Wall -Wextra -Werror \
+            -I"$(dirname "$header")" -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/darwin" \
+            -Imosaic-tty/src/commonMain/c \
+            mosaic-tty/src/commonMain/c/mosaic-*.c \
+            mosaic-tty/src/jvmMain/c/com_jakewharton_mosaic_tty_Jni.c \
+            -o "$resource_dir/libmosaic.dylib"
+      - name: Check reset and lifecycle regressions and capture a stuck worker
         timeout-minutes: 8
         run: |
-          ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx2g -Dfile.encoding=UTF-8" -Pkotlin.compiler.execution.strategy=in-process :mosaic-tty-terminal:jvmTest --tests '*TtyTerminalLifecycleTest.doubleCloseIsIdempotent*' --console=plain &
+          ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx2g -Dfile.encoding=UTF-8" -Pkotlin.compiler.execution.strategy=in-process :mosaic-tty:jvmTest --tests '*TtyContractTest.resetDoesNotWaitForOutputConsumption*' :mosaic-tty-terminal:jvmTest --tests '*TtyTerminalLifecycleTest.doubleCloseIsIdempotent*' -x :mosaic-tty:jvmJniZigBuild -x :mosaic-tty:zigDownload --console=plain &
           build_pid=$!
           (
-            for attempt in $(seq 1 160); do
+            for attempt in $(seq 1 240); do
               worker_pid=$(jps -l | awk '/GradleWorkerMain/ { print $1; exit }')
               if [ -n "$worker_pid" ]; then
                 sleep 15
                 if jcmd "$worker_pid" Thread.print > "$RUNNER_TEMP/test-threads.txt" 2>&1; then
                   cat "$RUNNER_TEMP/test-threads.txt"
-                  # This dedicated runner executes only the one test. Stop the diagnosed
+                  # This dedicated runner executes only two quick tests. Stop the diagnosed
                   # test worker so Gradle reports failure instead of waiting for hours.
                   kill -KILL "$worker_pid" || true
                 fi

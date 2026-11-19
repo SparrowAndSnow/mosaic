@@ -116,6 +116,19 @@ static void mosaic_tty_sigwinch_handler(int value UNUSED) {
 	}
 }
 
+static uint32_t mosaic_tty_restore_termios(int fd, const struct termios *saved) {
+	uint32_t result = 0;
+	// Preserve the input-discard behavior of TCSAFLUSH without waiting for output to drain.
+	// On macOS a PTY with unread output can otherwise block terminal teardown indefinitely.
+	if (unlikely(tcflush(fd, TCIFLUSH) != 0)) {
+		result = errno;
+	}
+	if (unlikely(tcsetattr(fd, TCSANOW, saved) != 0 && result == 0)) {
+		result = errno;
+	}
+	return result;
+}
+
 uint32_t mosaic_tty_enable_raw_mode(MosaicTty *tty) {
 	uint32_t result = 0;
 
@@ -150,7 +163,7 @@ uint32_t mosaic_tty_enable_raw_mode(MosaicTty *tty) {
 	if (unlikely(tcsetattr(tty->fd, TCSAFLUSH, &current) != 0)) {
 		result = errno;
 		// Try to restore the saved config.
-		tcsetattr(tty->fd, TCSAFLUSH, saved);
+		mosaic_tty_restore_termios(tty->fd, saved);
 		goto err;
 	}
 
@@ -204,11 +217,9 @@ static void mosaic_tty_signal_guard_handler(int value) {
 	MosaicTty *tty = atomic_load(&globalTty);
 	if (likely(tty)) {
 		if (tty->saved) {
-			// Best-effort restore of the original terminal settings. tcsetattr is not in the
-			// async-signal-safe set, but on Linux/BSD it is a direct ioctl with no user-space
-			// locking, which is the standard approach interactive terminal programs use so that
-			// a crash never leaves the terminal in raw mode.
-			tcsetattr(tty->fd, TCSAFLUSH, tty->saved);
+			// Restore immediately: waiting for a stalled terminal to drain its output can also
+			// wedge the crash-safety path before it gets a chance to re-raise the signal.
+			mosaic_tty_restore_termios(tty->fd, tty->saved);
 		}
 		// Wake any reader blocked in mosaic_tty_read so the application observes the interruption.
 		uint8_t space = ' ';
@@ -305,8 +316,9 @@ uint32_t mosaic_tty_reset(MosaicTty *tty) {
 	}
 
 	if (tty->saved) {
-		if (unlikely(tcsetattr(tty->fd, TCSAFLUSH, tty->saved) && result == 0)) {
-			result = errno;
+		uint32_t restoreResult = mosaic_tty_restore_termios(tty->fd, tty->saved);
+		if (restoreResult != 0 && result == 0) {
+			result = restoreResult;
 		}
 		free(tty->saved);
 		tty->saved = NULL;

@@ -94,6 +94,22 @@ class TtyContractTest {
 		assertThat(elapsed >= 10.milliseconds).isEqualTo(true)
 	}
 
+	@Test fun resetDoesNotWaitForOutputConsumption() = runBlocking {
+		val output = "pending".encodeToByteArray()
+		assertThat(tty.write(output, 0, output.size)).isEqualTo(output.size)
+		val reset = async(Dispatchers.Default) { tty.reset() }
+		try {
+			// Reset must complete while the terminal host has not consumed the pending output.
+			withTimeout(5.seconds) { reset.await() }
+		} finally {
+			// Drain even on failure so a regression reports a timeout instead of hanging teardown.
+			val received = ByteArray(output.size)
+			assertThat(testTerminal.readTtyWithTimeout(received, 0, received.size, 999)).isEqualTo(output.size)
+			reset.await()
+			assertThat(received.toList()).isEqualTo(output.toList())
+		}
+	}
+
 	@Test fun readWithTimeoutReturnsAvailableData() {
 		val input = "A".encodeToByteArray()
 		assertThat(testTerminal.writeTty(input, 0, 1)).isEqualTo(1)

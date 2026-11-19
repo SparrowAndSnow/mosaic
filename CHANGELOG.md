@@ -72,6 +72,8 @@ Changed:
 - Remove support for x86 macOS targets. These have been deprecated for a bit, but support has been removed from the Compose runtime so we have no choice but to match.
 
 Fixed:
+- POSIX terminal reset restores attributes immediately without waiting for pending output to
+  drain. On macOS, unread PTY output could previously wedge close/reset indefinitely.
 - Clear the set of states which were read during layout and draw passes before each pass. Previously these sets grew infinitely, which was both a memory leak and a performance problem.
 - Close the underlying TTY at the end of the `runMosaic*` family of functions.
 - Frame times on Linux and Windows no longer jump backwards once per second.
