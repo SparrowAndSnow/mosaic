@@ -14,7 +14,7 @@ spec.loader.exec_module(jitpack)
 
 
 class JitpackTest(unittest.TestCase):
-    version = "v0.19.0-test.1"
+    version = "0.19.0-test.1"
     commit = "1" * 40
 
     def setUp(self):
@@ -125,6 +125,11 @@ class JitpackTest(unittest.TestCase):
                 Path(f"{self.archive}.sha256").write_text(hashlib.sha256(self.archive.read_bytes()).hexdigest())
                 with self.assertRaisesRegex(ValueError, "Unsafe archive"):
                     jitpack.install(self.archive, self.version, self.commit, self.destination)
+
+    def test_accepts_numeric_and_v_prefixed_tags(self):
+        for version in ("0.19.0", "v0.19.0", "0.19.0-fork.1"):
+            with self.subTest(version=version):
+                jitpack.validate_version(version)
 
     def test_rejects_snapshots_and_unsafe_versions(self):
         for version in ("main-SNAPSHOT", "v1.0-SNAPSHOT", "../v1", "v1/x", "$(id)"):

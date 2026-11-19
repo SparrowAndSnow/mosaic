@@ -12,9 +12,6 @@ The TTY JVM jar also contains all eight cross-compiled JNI libraries and the JDK
 Wall-clock frame-pacing assertions run first on Linux; those absolute deadlines were exceeded
 on the shared macOS release runner. The Mac job runs all other JVM tests and the full
 Native API/publication checks, and cannot publish unless the Linux pacing job succeeds.
-For `v0.19.0`, the controller also corrects its TTY contract test fixture to use the documented maximum
-timeout of 999 ms (1000 ms is invalid on macOS). It restores that test file before publication;
-production sources and published source archives remain those of the selected tag.
 Every publication includes a companion `-licensing.zip` with the license and notice texts;
 JVM and source jars also carry them under `META-INF`.
 
@@ -31,17 +28,18 @@ References: [Kotlin host requirements](https://kotlinlang.org/docs/multiplatform
 
 ## Release steps
 
-1. Update `CHANGELOG.md` with the fork's release notes. Use a new tag such as `v0.19.0-fork.1`;
-   tags must start with `v` followed by a digit and contain only letters, digits, `.`, `_`, or `-`.
-   `SNAPSHOT` versions are not supported. Keep the leading `v` in dependency versions.
+1. Update `CHANGELOG.md` with the fork's release notes. Use a new tag such as `0.19.0`;
+   tags must start with a digit (optionally prefixed by `v`) and contain only letters, digits,
+   `.`, `_`, or `-`.
+   `SNAPSHOT` versions are not supported. Use the exact tag in dependency versions.
    Add `docs/releases/<version-without-v>.md`; the workflow uses that file as the release body.
 2. Run `./gradlew spotlessCheck apiCheck jvmTest` on macOS. Commit the release changes.
 3. Create and push the tag explicitly:
 
    ```bash
-   git tag -a v0.19.0-fork.1 -m "Release v0.19.0-fork.1"
+   git tag -a 0.19.0 -m "Release 0.19.0"
    git push origin main
-   git push origin v0.19.0-fork.1
+   git push origin 0.19.0
    ```
 
 4. Wait for the `release` GitHub Actions workflow to finish. It overrides `VERSION_NAME` with the

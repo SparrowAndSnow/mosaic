@@ -84,15 +84,15 @@ Then add the module you need, using an existing release tag from
 
 ```kotlin
 dependencies {
-  implementation("com.github.SparrowAndSnow.mosaic:mosaic-runtime:v0.19.0")
+  implementation("com.github.SparrowAndSnow.mosaic:mosaic-runtime:0.19.0")
   // Optional:
-  implementation("com.github.SparrowAndSnow.mosaic:mosaic-animation:v0.19.0")
-  testImplementation("com.github.SparrowAndSnow.mosaic:mosaic-testing:v0.19.0")
+  implementation("com.github.SparrowAndSnow.mosaic:mosaic-animation:0.19.0")
+  testImplementation("com.github.SparrowAndSnow.mosaic:mosaic-testing:0.19.0")
 }
 ```
 
-Version `v0.19.0` is the first release of this fork. Keep the full tag, including its
-`v` prefix, and use the same version for all modules.
+Version `0.19.0` is the first release of this fork. Use the exact release tag
+as the version for all modules.
 The Kotlin Multiplatform coordinates select JVM, Linux x64/arm64, macOS arm64, or Windows x64
 artifacts automatically. JVM jars include JNI libraries for Linux, macOS, and Windows;
 plain Java/Maven consumers can explicitly select `mosaic-runtime-jvm`.

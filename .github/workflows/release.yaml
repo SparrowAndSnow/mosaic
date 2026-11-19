@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Existing release tag, for example v0.19.0'
+        description: 'Existing release tag, for example 0.19.0'
         required: true
         type: string
       runner:
@@ -20,6 +20,7 @@ on:
   push:
     tags:
       - 'v*'
+      - '[0-9]*'
 
 permissions:
   contents: write
@@ -34,6 +35,7 @@ env:
 
 jobs:
   frame-pacing-tests:
+    timeout-minutes: 15
     # These tests distinguish 16 ms and 50 ms delays using wall-clock time. Both deadlines
     # were exceeded on the shared macOS release runner; retain them in this Linux gate.
     runs-on: ubuntu-24.04
@@ -49,6 +51,7 @@ jobs:
       - run: ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" :mosaic-runtime:jvmTest --tests 'com.jakewharton.mosaic.FrameThrottleTest' -PVERSION_NAME="$RELEASE_VERSION"
 
   release:
+    timeout-minutes: 60
     needs: frame-pacing-tests
     # macOS is required for mosaic-tty's Apple C interop artifacts. This host also builds
     # Linux/Windows klibs and all the JNI libraries embedded in the JVM publication.
@@ -71,30 +74,7 @@ jobs:
       - name: Run macOS JVM tests
         timeout-minutes: 15
         run: |
-          # v0.19.0's contract fixture passes 1000 ms despite the documented 0..999 ms
-          # range. Use valid test inputs, then restore the tag's tree before publication.
-          if [ "$RELEASE_VERSION" = v0.19.0 ]; then
-          contract=mosaic-tty/src/commonTest/kotlin/com/jakewharton/mosaic/tty/TtyContractTest.kt
-          trap 'git restore --source=HEAD -- "$contract"' EXIT
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('mosaic-tty/src/commonTest/kotlin/com/jakewharton/mosaic/tty/TtyContractTest.kt')
-          path.write_text(path.read_text().replace('1_000', '999'))
-          PY
-          fi
-          # The same two wall-clock assertions must pass in frame-pacing-tests above.
-          # Keep all other tests (including idle/no-redraw assertions) on macOS.
-          cat > "$RUNNER_TEMP/frame-pacing-filter.gradle" <<'GRADLE'
-          gradle.beforeProject { project ->
-            if (project.path == ':mosaic-runtime') {
-              project.tasks.withType(org.gradle.api.tasks.testing.Test).configureEach {
-                filter.excludeTestsMatching('com.jakewharton.mosaic.FrameThrottleTest.animationAwaitingFramesKeepsHighFrameRate*')
-                filter.excludeTestsMatching('com.jakewharton.mosaic.FrameThrottleTest.animationStartingAfterIdleKeepsHighFrameRate*')
-              }
-            }
-          }
-          GRADLE
-          ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" -I "$RUNNER_TEMP/frame-pacing-filter.gradle" jvmTest -PVERSION_NAME="$RELEASE_VERSION"
+          ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" -I .github/frame-pacing-filter.gradle jvmTest -PVERSION_NAME="$RELEASE_VERSION"
 
       - name: Check formatting and all platform APIs
         timeout-minutes: 20

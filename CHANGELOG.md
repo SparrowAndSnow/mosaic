@@ -1,10 +1,10 @@
 # Change log
 
 ## [Unreleased]
-[Unreleased]: https://github.com/SparrowAndSnow/mosaic/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/SparrowAndSnow/mosaic/compare/0.19.0...HEAD
 
 ## [0.19.0] - 2026-11-19
-[0.19.0]: https://github.com/SparrowAndSnow/mosaic/releases/tag/v0.19.0
+[0.19.0]: https://github.com/SparrowAndSnow/mosaic/releases/tag/0.19.0
 
 New:
 - Grapheme-cluster text: wide CJK, combining sequences, ZWJ families, flags, and variant

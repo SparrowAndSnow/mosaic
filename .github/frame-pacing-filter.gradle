@@ -1,0 +1,10 @@
+// Absolute frame deadlines are checked by the Linux frame-pacing job.
+// Keep idle/no-redraw tests on the macOS runner with the remaining suite.
+gradle.beforeProject { project ->
+	if (project.path == ':mosaic-runtime') {
+		project.tasks.withType(org.gradle.api.tasks.testing.Test).configureEach {
+			filter.excludeTestsMatching('com.jakewharton.mosaic.FrameThrottleTest.animationAwaitingFramesKeepsHighFrameRate*')
+			filter.excludeTestsMatching('com.jakewharton.mosaic.FrameThrottleTest.animationStartingAfterIdleKeepsHighFrameRate*')
+		}
+	}
+}

@@ -44,7 +44,7 @@ jobs:
         timeout-minutes: 5
         run: |
           ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx2g -Dfile.encoding=UTF-8" -Pkotlin.compiler.execution.strategy=in-process :mosaic-tty:compileJvmMainJava --console=plain
-          header=$(rg --files --no-ignore mosaic-tty/build | rg '/com_jakewharton_mosaic_tty_Jni.h$' | head -1)
+          header=$(python3 -c 'from pathlib import Path; print(next(Path("mosaic-tty/build").rglob("com_jakewharton_mosaic_tty_Jni.h")))')
           case "$(uname -m)" in
             arm64) arch=aarch64 ;;
             x86_64) arch=x86_64 ;;

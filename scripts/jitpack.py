@@ -18,8 +18,8 @@ NAMESPACE = {"m": "http://maven.apache.org/POM/4.0.0"}
 
 
 def validate_version(version):
-    if not re.fullmatch(r"v[0-9][0-9A-Za-z._-]*", version) or "SNAPSHOT" in version:
-        raise ValueError("Use a release tag such as v0.19.0-fork.1; snapshots are not supported")
+    if not re.fullmatch(r"v?[0-9][0-9A-Za-z._-]*", version) or "SNAPSHOT" in version:
+        raise ValueError("Use a release tag such as 0.19.0; snapshots are not supported")
 
 
 def validate_repository(repository, version, targets=TARGETS):
