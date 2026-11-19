@@ -9,6 +9,9 @@ The release workflow builds all six library modules from source on macOS with th
 in `.github/workflows/.java-version`. It publishes the KMP root metadata, JVM, `linuxArm64`,
 `linuxX64`, `macosArm64`, and `mingwX64` publications into `build/jitpack/repository`.
 The TTY JVM jar also contains all eight cross-compiled JNI libraries and the JDK 22+ FFM classes.
+Wall-clock frame-pacing assertions run first on Linux; those absolute deadlines were exceeded
+on the shared macOS release runner. The Mac job runs all other JVM tests and the full
+Native API/publication checks, and cannot publish unless the Linux pacing job succeeds.
 Every publication includes a companion `-licensing.zip` with the license and notice texts;
 JVM and source jars also carry them under `META-INF`.
 

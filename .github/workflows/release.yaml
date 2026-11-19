@@ -33,7 +33,23 @@ env:
   RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
 
 jobs:
+  frame-pacing-tests:
+    # These tests distinguish 16 ms and 50 ms delays using wall-clock time. Both deadlines
+    # were exceeded on the shared macOS release runner; retain them in this Linux gate.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.version || github.ref }}
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: 'zulu'
+          java-version-file: .github/workflows/.java-version
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - run: ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" :mosaic-runtime:jvmTest --tests 'com.jakewharton.mosaic.FrameThrottleTest' -PVERSION_NAME="$RELEASE_VERSION"
+
   release:
+    needs: frame-pacing-tests
     # macOS is required for mosaic-tty's Apple C interop artifacts. This host also builds
     # Linux/Windows klibs and all the JNI libraries embedded in the JVM publication.
     runs-on: ${{ inputs.runner || 'macos-15' }}
@@ -53,7 +69,20 @@ jobs:
           echo "RELEASE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Check and stage all publications
-        run: ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" spotlessCheck apiCheck jvmTest publishAllPublicationsToJitpackRepository -PVERSION_NAME="$RELEASE_VERSION"
+        run: |
+          # The same two wall-clock assertions must pass in frame-pacing-tests above.
+          # Keep all other tests (including idle/no-redraw assertions) on macOS.
+          cat > "$RUNNER_TEMP/frame-pacing-filter.gradle" <<'GRADLE'
+          gradle.beforeProject { project ->
+            if (project.path == ':mosaic-runtime') {
+              project.tasks.withType(org.gradle.api.tasks.testing.Test).configureEach {
+                filter.excludeTestsMatching('com.jakewharton.mosaic.FrameThrottleTest.animationAwaitingFramesKeepsHighFrameRate*')
+                filter.excludeTestsMatching('com.jakewharton.mosaic.FrameThrottleTest.animationStartingAfterIdleKeepsHighFrameRate*')
+              }
+            }
+          }
+          GRADLE
+          ./gradlew --no-parallel --max-workers=1 -Dorg.gradle.jvmargs="-Xmx3g -Dfile.encoding=UTF-8" -I "$RUNNER_TEMP/frame-pacing-filter.gradle" spotlessCheck apiCheck jvmTest publishAllPublicationsToJitpackRepository -PVERSION_NAME="$RELEASE_VERSION"
 
       - name: Validate and package the Maven repository
         run: |
