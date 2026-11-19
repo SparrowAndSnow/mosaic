@@ -9,6 +9,14 @@ on:
         description: 'Existing release tag, for example v0.19.0'
         required: true
         type: string
+      runner:
+        description: 'Standard macOS runner (try 26 if the 15 pool is queued)'
+        required: true
+        default: macos-15
+        type: choice
+        options:
+          - macos-15
+          - macos-26
   push:
     tags:
       - 'v*'
@@ -28,7 +36,7 @@ jobs:
   release:
     # macOS is required for mosaic-tty's Apple C interop artifacts. This host also builds
     # Linux/Windows klibs and all the JNI libraries embedded in the JVM publication.
-    runs-on: macos-15
+    runs-on: ${{ inputs.runner || 'macos-15' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
