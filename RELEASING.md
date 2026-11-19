@@ -23,6 +23,9 @@ assets, checks their checksum, commit, coordinates, and completeness, then copie
 into `~/.m2/repository`. No Sonatype credentials or GPG keys are needed.
 The install step also retains the verified artifacts under the project build directory and
 generates a root `pom.xml` so JitPack's custom-command collector can discover the Maven group.
+It exposes the four Native cinterop libraries as separate Maven modules because JitPack rewrites
+classified klib references to the main klib URL. Library binaries remain byte-for-byte those of
+the verified archive; only publication metadata is adapted for JitPack.
 
 References: [Kotlin host requirements](https://kotlinlang.org/docs/multiplatform/multiplatform-publish-lib-setup.html#host-requirements),
 [JitPack custom commands](https://docs.jitpack.io/building/#custom-commands),
@@ -49,7 +52,8 @@ References: [Kotlin host requirements](https://kotlinlang.org/docs/multiplatform
    `mosaic-maven.tar.gz` and `mosaic-maven.tar.gz.sha256`. `VERSION_NAME` in `gradle.properties`
    remains the local development default. Do not manually create the release before this workflow.
    Before creating the release, an independent consumer compiles against the installed archive
-   for every target and links a macOS executable, without project dependency substitution.
+   for every target, runs the JVM consumer, and links and runs a macOS executable without
+   project dependency substitution. Native linkage errors fail the build.
    The consumer validation harness comes from the workflow controller commit; published library
    binaries and source archives always come from the selected release tag.
    If the tag push did not start a run, use Actions → release → Run workflow on `main`, setting

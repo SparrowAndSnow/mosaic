@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink
+
 buildscript {
 	dependencies {
 		classpath libs.kotlin.plugin.core
@@ -29,7 +32,23 @@ kotlin {
 				implementation "com.github.SparrowAndSnow.mosaic:mosaic-runtime:${project.property('mosaicVersion')}"
 				implementation "com.github.SparrowAndSnow.mosaic:mosaic-animation:${project.property('mosaicVersion')}"
 				implementation "com.github.SparrowAndSnow.mosaic:mosaic-testing:${project.property('mosaicVersion')}"
+				implementation "com.github.SparrowAndSnow.mosaic:mosaic-tty:${project.property('mosaicVersion')}"
 			}
 		}
 	}
+}
+
+tasks.withType(KotlinNativeCompile).configureEach {
+	compilerOptions.freeCompilerArgs.add('-Xpartial-linkage-loglevel=ERROR')
+}
+
+tasks.withType(KotlinNativeLink).configureEach {
+	toolOptions.freeCompilerArgs.add('-Xpartial-linkage-loglevel=ERROR')
+}
+
+tasks.register('runJvmConsumer', JavaExec) {
+	def compilation = kotlin.targets.jvm.compilations.main
+	dependsOn(compilation.compileTaskProvider)
+	classpath(compilation.output.allOutputs, compilation.runtimeDependencyFiles)
+	mainClass = 'consumer.MainKt'
 }

@@ -111,7 +111,11 @@ jobs:
           ./gradlew --no-parallel --max-workers=1 -p build/release-controller/scripts/jitpack-consumer \
             -PmosaicRepository="$GITHUB_WORKSPACE/build/jitpack/consumer-repository" \
             -PmosaicVersion="$RELEASE_VERSION" \
-            compileKotlinJvm compileKotlinLinuxArm64 compileKotlinLinuxX64 compileKotlinMingwX64 linkReleaseExecutableMacosArm64
+            runJvmConsumer compileKotlinLinuxArm64 compileKotlinLinuxX64 compileKotlinMingwX64 linkReleaseExecutableMacosArm64
+
+      - name: Run the published macOS Native consumer
+        timeout-minutes: 2
+        run: ./build/release-controller/scripts/jitpack-consumer/build/bin/macosArm64/releaseExecutable/*.kexe
 
       - name: Create release with JitPack artifacts
         env:

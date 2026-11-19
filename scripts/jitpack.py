@@ -1,6 +1,7 @@
 """Package and install the full, commit-bound Maven repository used by JitPack."""
 
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -15,6 +16,8 @@ GROUP = "com.github.SparrowAndSnow.mosaic"
 MODULES = ("animation", "runtime", "terminal", "testing", "tty", "tty-terminal")
 TARGETS = ("", "-jvm", "-linuxarm64", "-linuxx64", "-macosarm64", "-mingwx64")
 NAMESPACE = {"m": "http://maven.apache.org/POM/4.0.0"}
+ET.register_namespace("", NAMESPACE["m"])
+ET.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance")
 
 
 def validate_version(version):
@@ -79,6 +82,15 @@ def validate_dependency(group, artifact, dependency_version, version):
         raise ValueError(f"Incorrect inter-module version: {artifact}:{dependency_version}")
 
 
+def discovery_pom(version):
+    validate_version(version)
+    pom = ET.Element("project", {"xmlns": NAMESPACE["m"]})
+    for name, value in (("modelVersion", "4.0.0"), ("groupId", GROUP),
+                        ("artifactId", "mosaic"), ("version", version), ("packaging", "pom")):
+        ET.SubElement(pom, name).text = value
+    return ET.tostring(pom, encoding="utf-8", xml_declaration=True)
+
+
 def pack(repository, archive, version, commit):
     validate_version(version)
     validate_repository(repository, version)
@@ -133,16 +145,104 @@ def prepare_jitpack(archive, version, commit, project, destination):
     repository = project / "build" / "jitpack" / "installed" / version
     install(archive, version, commit, repository)
     group_path = Path(GROUP.replace(".", "/"))
+    publications = set()
     for module in MODULES:
         for target in TARGETS:
-            publication = group_path / f"mosaic-{module}{target}" / version
-            shutil.copytree(repository / publication, destination / publication, dirs_exist_ok=True)
-    pom = ET.Element("project", {"xmlns": NAMESPACE["m"]})
-    for name, value in (("modelVersion", "4.0.0"), ("groupId", GROUP),
-                        ("artifactId", "mosaic"), ("version", version), ("packaging", "pom")):
-        ET.SubElement(pom, name).text = value
-    ET.ElementTree(pom).write(project / "pom.xml", encoding="utf-8", xml_declaration=True)
-    print(f"Prepared JitPack discovery POM and {len(MODULES) * len(TARGETS)} publications")
+            artifact_id = f"mosaic-{module}{target}"
+            publication = group_path / artifact_id / version
+            metadata_path = repository / publication / f"{artifact_id}-{version}.module"
+            metadata = json.loads(metadata_path.read_text())
+            interops = split_interop_publications(repository, publication, artifact_id, version, metadata)
+            publications.update(interops)
+            changed = bool(interops)
+            for variant in metadata["variants"]:
+                for artifact in variant.get("files", []):
+                    if artifact.get("name") != artifact["url"]:
+                        artifact["name"] = artifact["url"]
+                        changed = True
+            if changed:
+                data = (json.dumps(metadata, indent=2) + "\n").encode()
+                metadata_path.write_bytes(data)
+                for algorithm in ("md5", "sha1", "sha256", "sha512"):
+                    checksum = Path(f"{metadata_path}.{algorithm}")
+                    if checksum.exists():
+                        checksum.write_text(hashlib.new(algorithm, data).hexdigest())
+            publications.add(publication)
+    for publication in sorted(publications):
+        shutil.copytree(repository / publication, destination / publication, dirs_exist_ok=True)
+    pom = discovery_pom(version)
+    (project / "pom.xml").write_bytes(pom)
+    print(f"Prepared JitPack discovery POM and {len(publications)} publications")
+
+
+def split_interop_publications(repository, publication, artifact_id, version, metadata):
+    # JitPack rewrites every .klib entry in a variant to the same main-file URL,
+    # including classified cinterop files. Give each cinterop its own Maven module.
+    directory = repository / publication
+    pom_path = directory / f"{artifact_id}-{version}.pom"
+    parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
+    pom = ET.parse(pom_path, parser=parser)
+    original_pom = copy.deepcopy(pom.getroot())
+    interops = {}
+    for variant in metadata["variants"]:
+        dependencies = copy.deepcopy(variant.get("dependencies", []))
+        remaining = []
+        for artifact in variant.get("files", []):
+            match = re.fullmatch(re.escape(f"{artifact_id}-{version}-cinterop-") + r"([\w.-]+)\.klib", artifact["url"])
+            if not match:
+                remaining.append(artifact)
+                continue
+            name = match.group(1)
+            interop_id = f"{artifact_id}-cinterop-{name}"
+            interop_path = publication.parent.parent / interop_id / version
+            interop_dir = repository / interop_path
+            interop_dir.mkdir(parents=True, exist_ok=True)
+            filename = f"{interop_id}-{version}.klib"
+            data = (directory / artifact["url"]).read_bytes()
+            (interop_dir / filename).write_bytes(data)
+            file = {"name": filename, "url": filename, "size": len(data)}
+            file.update({algorithm: hashlib.new(algorithm, data).hexdigest()
+                         for algorithm in ("md5", "sha1", "sha256", "sha512")})
+            if interop_path not in interops:
+                interops[interop_path] = {
+                    "formatVersion": metadata.get("formatVersion", "1.1"),
+                    "component": {"group": GROUP, "module": interop_id, "version": version},
+                    "variants": [],
+                }
+                root = copy.deepcopy(original_pom)
+                root.find("m:artifactId", NAMESPACE).text = interop_id
+                # Preserve the marker that tells Gradle to consume .module metadata.
+                if not any(child.tag is ET.Comment and "published-with-gradle-metadata" in (child.text or "") for child in root):
+                    root.insert(0, ET.Comment(" do_not_remove: published-with-gradle-metadata "))
+                ET.ElementTree(root).write(interop_dir / f"{interop_id}-{version}.pom", encoding="utf-8", xml_declaration=True)
+                shutil.copyfile(directory / f"{artifact_id}-{version}-licensing.zip",
+                                interop_dir / f"{interop_id}-{version}-licensing.zip")
+            interops[interop_path]["variants"].append({
+                "name": variant["name"], "attributes": variant.get("attributes", {}),
+                "dependencies": dependencies, "files": [file],
+            })
+            dependency = {"group": GROUP, "module": interop_id, "version": {"requires": version}}
+            if dependency not in variant.setdefault("dependencies", []):
+                variant["dependencies"].append(dependency)
+            pom_dependencies = pom.getroot().find("m:dependencies", NAMESPACE)
+            if pom_dependencies is None:
+                pom_dependencies = ET.SubElement(pom.getroot(), f"{{{NAMESPACE['m']}}}dependencies")
+            if not any(d.findtext("m:artifactId", namespaces=NAMESPACE) == interop_id for d in pom_dependencies):
+                entry = ET.SubElement(pom_dependencies, f"{{{NAMESPACE['m']}}}dependency")
+                for key, value in (("groupId", GROUP), ("artifactId", interop_id), ("version", version), ("scope", "compile")):
+                    ET.SubElement(entry, f"{{{NAMESPACE['m']}}}{key}").text = value
+        if "files" in variant:
+            variant["files"] = remaining
+    if interops:
+        pom.write(pom_path, encoding="utf-8", xml_declaration=True)
+        for path in (Path(f"{pom_path}.{a}") for a in ("md5", "sha1", "sha256", "sha512")):
+            if path.exists():
+                path.write_text(hashlib.new(path.suffix[1:], pom_path.read_bytes()).hexdigest())
+    for path, interop_metadata in interops.items():
+        interop_dir = repository / path
+        artifact = path.parent.name
+        (interop_dir / f"{artifact}-{version}.module").write_text(json.dumps(interop_metadata, indent=2) + "\n")
+    return interops
 
 
 def main():

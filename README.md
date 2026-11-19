@@ -79,7 +79,10 @@ dependencyResolutionManagement {
 }
 ```
 
-Then add the module you need, using an existing release tag from
+The `0.19.0` GitHub release is available, but its JitPack publication failed. The distribution
+fix has passed JVM and Native consumer checks and is awaiting a corrected release.
+
+After the corrected release is published, add the module you need using its release tag from
 [GitHub Releases](https://github.com/SparrowAndSnow/mosaic/releases):
 
 ```kotlin

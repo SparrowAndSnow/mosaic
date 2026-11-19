@@ -47,7 +47,7 @@ class JitpackTest(unittest.TestCase):
                         licenses.writestr(entry, "License fixture")
                 (directory / f"{name}.module").write_text(json.dumps({
                     "component": {"group": jitpack.GROUP, "version": self.version},
-                    "variants": [{"files": [{"url": filename}]}],
+                    "variants": [{"name": "apiElements", "files": [{"name": filename, "url": filename}]}],
                 }))
         with zipfile.ZipFile(self.tty_jar(), "a") as jar:
             for index in range(8):
@@ -99,6 +99,38 @@ class JitpackTest(unittest.TestCase):
             jitpack.prepare_jitpack(self.archive, self.version, "2" * 40, project, self.destination)
         self.assertFalse((project / "pom.xml").exists())
         self.assertFalse(self.destination.exists())
+
+    def test_prepare_splits_native_interop_and_refreshes_metadata_checksum(self):
+        directory = self.group_dir / "mosaic-tty-linuxx64" / self.version
+        name = f"mosaic-tty-linuxx64-{self.version}"
+        metadata_path = directory / f"{name}.module"
+        metadata = json.loads(metadata_path.read_text())
+        files = metadata["variants"][0]["files"]
+        files[0]["name"] = f"mosaic-tty-linuxX64Main-{self.version}.klib"
+        interop = f"{name}-cinterop-mosaic.klib"
+        (directory / interop).write_bytes(b"cinterop fixture")
+        files.append({"name": f"mosaic-tty-linuxX64Cinterop-mosaicMain-{self.version}.klib", "url": interop})
+        metadata_path.write_text(json.dumps(metadata))
+        Path(f"{metadata_path}.sha256").write_text(hashlib.sha256(metadata_path.read_bytes()).hexdigest())
+        self.pack()
+        project = self.root / "jitpack-build"
+        jitpack.prepare_jitpack(self.archive, self.version, self.commit, project, self.destination)
+        installed = self.destination / directory.relative_to(self.repository)
+        path = installed / metadata_path.name
+        files = json.loads(path.read_text())["variants"][0]["files"]
+        self.assertEqual([f["name"] for f in files], [f"{name}.klib"])
+        self.assertEqual(Path(f"{path}.sha256").read_text(), hashlib.sha256(path.read_bytes()).hexdigest())
+        self.assertEqual((installed / f"{name}.klib").read_bytes(), b"artifact")
+        interop_id = "mosaic-tty-linuxx64-cinterop-mosaic"
+        dependency = {"group": jitpack.GROUP, "module": interop_id, "version": {"requires": self.version}}
+        self.assertIn(dependency, json.loads(path.read_text())["variants"][0]["dependencies"])
+        interop_dir = installed.parent.parent / interop_id / self.version
+        self.assertEqual((interop_dir / f"{interop_id}-{self.version}.klib").read_bytes(), b"cinterop fixture")
+        interop_metadata = json.loads((interop_dir / f"{interop_id}-{self.version}.module").read_text())
+        self.assertEqual(interop_metadata["component"]["module"], interop_id)
+        self.assertEqual(len(interop_metadata["variants"][0]["files"]), 1)
+        self.assertIn("published-with-gradle-metadata", (interop_dir / f"{interop_id}-{self.version}.pom").read_text())
+        self.assertTrue((interop_dir / f"{interop_id}-{self.version}-licensing.zip").is_file())
 
     def test_excludes_older_versions_in_staging_repository(self):
         stale = self.group_dir / "mosaic-runtime" / "v0.18.0"
